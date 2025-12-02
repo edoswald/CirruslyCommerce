@@ -9,6 +9,8 @@ class Cirrusly_Commerce_Audit {
         // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.runtime_configuration_set_time_limit
         if ( function_exists( 'set_time_limit' ) ) set_time_limit(0);
 
+        echo '<div class="wrap">'; // Moved up for consistency
+
         Cirrusly_Commerce_Core::render_global_header( 'Store Financial Audit' );
 
         // 1. Handle Cache & Refresh
@@ -133,7 +135,6 @@ class Cirrusly_Commerce_Audit {
         $slice = array_slice($filtered_data, ($paged-1)*$per_page, $per_page);
 
         // 5. Render View
-        echo '<div class="wrap">';
         
         // Top Bar with Filters
         echo '<div class="card" style="background:#fff; padding:15px; margin-bottom:20px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
