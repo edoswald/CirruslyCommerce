@@ -100,7 +100,7 @@ Store Audit: A financial breakdown of every product to spot profit leaks.
 
 = 1.0.3 =
 
-Restoration of scheduled scan logic and financial audit functionality lost in conversion from snippet to plugin. Navigation design fix to eliminate visual clutter when tabs are present in the UI.
+Restoration of scheduled scan logic and financial audit functionality lost in conversion from snippet to plugin. Redesigned settings area.
 
 = 1.0.2 =
 
