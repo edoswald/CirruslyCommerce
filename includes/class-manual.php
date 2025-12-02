@@ -2,9 +2,9 @@
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 class Cirrusly_Commerce_Manual {
     public static function render_page() {
+        echo '<div class="wrap">'; // Moved up for consistency
         Cirrusly_Commerce_Core::render_global_header( 'User Manual' );
         ?>
-        <div class="wrap">
             <div class="card" style="max-width: 1000px; padding: 40px; margin-top: 20px;">
                 <h2 style="margin-top:0;">Cirrusly Commerce User Manual</h2>
                 <p><strong>Version:</strong> <?php echo esc_html( CIRRUSLY_COMMERCE_VERSION ); ?></p>
