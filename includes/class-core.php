@@ -516,4 +516,3 @@ class Cirrusly_Commerce_Core {
         }
     }
 }
-}
