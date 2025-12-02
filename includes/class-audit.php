@@ -175,22 +175,31 @@ class Cirrusly_Commerce_Audit {
             'option' => array('value' => true, 'selected' => true),
         );
 
-        echo '<div class="card" style="background:#fff; padding:15px; margin-bottom:20px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
-            <form method="get" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-                <input type="hidden" name="page" value="cirrusly-audit">
-                <input type="text" name="s" value="'.esc_attr($search).'" placeholder="Search products...">
-                <select name="margin">
-                    <option value="5" '.selected($f_margin,5,false).'>Margin < 5%</option>
-                    <option value="15" '.selected($f_margin,15,false).'>Margin < 15%</option>
-                    <option value="25" '.selected($f_margin,25,false).'>Margin < 25%</option>
-                    <option value="100" '.selected($f_margin,100,false).'>Show All (No Filter)</option>
-                </select> 
-                '.wp_kses( wc_product_dropdown_categories(array('option_none_text'=>'All Categories','name'=>'cat','selected'=>$f_cat,'value_field'=>'slug','echo'=>0)), $allowed_form_tags ).'
-                <label><input type="checkbox" name="hide_oos" value="1" '.checked($f_oos,true,false).'> Hide OOS</label>
-                <button class="button button-primary">Filter</button>
-                <a href="?page=cirrusly-audit&refresh_audit=1" class="button" title="Refresh Data from DB">Refresh Data</a>
-            </form>
-            <div style="text-align:right;"><strong>'.esc_html($total).'</strong> Issues Found</div>
+        // Updated Filter Section to match global design
+        echo '<div class="cc-settings-card">
+            <div class="cc-card-header">
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <span class="dashicons dashicons-filter"></span>
+                    <h3 style="margin:0; font-size:14px; text-transform:uppercase; color:#646970;">Filter & Search</h3>
+                </div>
+                <div class="cc-ver-badge"><strong>'.esc_html($total).'</strong> Issues Found</div>
+            </div>
+            <div class="cc-card-body">
+                <form method="get" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                    <input type="hidden" name="page" value="cirrusly-audit">
+                    <input type="text" name="s" value="'.esc_attr($search).'" placeholder="Search products...">
+                    <select name="margin">
+                        <option value="5" '.selected($f_margin,5,false).'>Margin < 5%</option>
+                        <option value="15" '.selected($f_margin,15,false).'>Margin < 15%</option>
+                        <option value="25" '.selected($f_margin,25,false).'>Margin < 25%</option>
+                        <option value="100" '.selected($f_margin,100,false).'>Show All (No Filter)</option>
+                    </select> 
+                    '.wp_kses( wc_product_dropdown_categories(array('option_none_text'=>'All Categories','name'=>'cat','selected'=>$f_cat,'value_field'=>'slug','echo'=>0)), $allowed_form_tags ).'
+                    <label style="margin-left:5px;"><input type="checkbox" name="hide_oos" value="1" '.checked($f_oos,true,false).'> Hide OOS</label>
+                    <button class="button button-primary">Filter</button>
+                    <a href="?page=cirrusly-audit&refresh_audit=1" class="button" title="Refresh Data from DB">Refresh Data</a>
+                </form>
+            </div>
         </div>';
         
         $sort_link = function($col, $label) use ($orderby, $order) {
