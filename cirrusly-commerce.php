@@ -33,7 +33,7 @@ if ( ! function_exists( 'cc_fs' ) ) {
                 'slug'                => 'cirrusly-commerce',
                 'type'                => 'plugin',
                 'public_key'          => 'pk_34dc77b4bc7764037f0e348daac4a',
-                'is_premium'          => true,
+                'is_premium'          => false,
                 'premium_suffix'      => 'Pro',
                 // If your plugin is a serviceware, set this option to false.
                 'has_premium_version' => true,
