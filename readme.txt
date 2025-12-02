@@ -98,6 +98,16 @@ Store Audit: A financial breakdown of every product to spot profit leaks.
 
 == Changelog ==
 
+= 1.2.0 =
+
+* **New Feature:** Introduced "Freemium" architecture. Pro features are now visible in the interface (grayed out) to showcase advanced capabilities.
+* **Enhancement:** Added "System Info" tool to the support menu (header) to easily copy environment details for faster troubleshooting.
+* **Enhancement:** Pricing Engine now supports 5%, 15%, and 25% "Off MSRP" strategies.
+* **Enhancement:** Pricing Engine now supports "Nearest 5/0" rounding (e.g., $12.95 -> $15.00, $8.20 -> $10.00).
+* **UI Update:** Reorganized settings into tabbed cards for better usability.
+* **UI Update:** Added "Hide Pro Features" toggle in General Settings for users who prefer a cleaner, free-only interface.
+* **Preparation:** Added placeholders for future Freemius integration and API connectivity.
+
 = 1.1 =
 * **New Feature:** Payment Processor Fees configuration (Settings > Profit Engine) allows for accurate Net Profit calculations by factoring in gateway percentages and flat fees (e.g., Stripe/PayPal).
 * **New Feature:** "Profit at a Glance" column added to the Products > All Products list, displaying a color-coded margin percentage for every item.
