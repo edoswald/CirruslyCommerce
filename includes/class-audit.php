@@ -13,13 +13,12 @@ class Cirrusly_Commerce_Audit {
         $cache_key = 'cw_audit_data';
         $cached_data = get_transient( $cache_key );
         
-        // phpcs:ignore WordPress.Security.NonceVerification.Recommended
         if ( isset( $_GET['refresh_audit'] ) ) {
              delete_transient( $cache_key );
              $cached_data = false;
         }
 
-        // 2. Get Config for Calculations
+        // 2. Get Config
         $core = new Cirrusly_Commerce_Core(); 
         $config = $core->get_global_config();
         $revenue_tiers = json_decode( $config['revenue_tiers_json'], true );
@@ -28,7 +27,6 @@ class Cirrusly_Commerce_Audit {
         $pay_pct = isset($config['payment_pct']) ? ($config['payment_pct'] / 100) : 0.029;
         $pay_flat = isset($config['payment_flat']) ? $config['payment_flat'] : 0.30;
 
-        // Helper: Get Ship Revenue
         $get_rev = function($p) use ($revenue_tiers) { 
             if($revenue_tiers) {
                 foreach($revenue_tiers as $t) if($p>=$t['min'] && $p<=$t['max']) return $t['charge']; 
@@ -36,7 +34,7 @@ class Cirrusly_Commerce_Audit {
             return 0; 
         };
 
-        // 3. Build Data (if not cached)
+        // 3. Build Data
         if ( false === $cached_data ) {
             $args = array( 'post_type' => array('product','product_variation'), 'posts_per_page' => -1, 'post_status' => 'publish', 'fields' => 'ids' );
             $ids = get_posts($args);
@@ -44,11 +42,9 @@ class Cirrusly_Commerce_Audit {
             
             foreach($ids as $pid) {
                 $p = wc_get_product($pid); if(!$p) continue;
-                
                 $cost = (float)$p->get_meta('_cogs_total_value');
                 $ship_cost = (float)$p->get_meta('_cw_est_shipping');
                 
-                // Fallback Ship Cost
                 if($ship_cost <= 0 && !$p->is_virtual()) {
                     $cid = $p->get_shipping_class_id();
                     $slug = ($cid && ($t=get_term($cid,'product_shipping_class'))) ? $t->slug : 'default';
@@ -76,40 +72,26 @@ class Cirrusly_Commerce_Audit {
                 $ship_pl = $rev - $ship_cost;
                 
                 $data[] = array(
-                    'id' => $pid,
-                    'name' => $p->get_name(),
-                    'type' => $p->get_type(),
-                    'parent_id' => $p->get_parent_id(),
-                    'cost' => $total_cost,
-                    'item_cost' => $cost,
-                    'ship_cost' => $ship_cost,
-                    'ship_charge' => $rev,
-                    'ship_pl' => $ship_pl,
-                    'price' => $price,
-                    'net' => $net,
-                    'margin' => $margin,
-                    'alerts' => $alerts,
-                    'is_in_stock' => $p->is_in_stock(),
-                    'cats' => wp_get_post_terms($pid, 'product_cat', array('fields'=>'slugs'))
+                    'id' => $pid, 'name' => $p->get_name(), 'type' => $p->get_type(), 'parent_id' => $p->get_parent_id(),
+                    'cost' => $total_cost, 'item_cost' => $cost, 'ship_cost' => $ship_cost, 'ship_charge' => $rev,
+                    'ship_pl' => $ship_pl, 'price' => $price, 'net' => $net, 'margin' => $margin,
+                    'alerts' => $alerts, 'is_in_stock' => $p->is_in_stock(), 'cats' => wp_get_post_terms($pid, 'product_cat', array('fields'=>'slugs'))
                 );
             }
             set_transient( $cache_key, $data, 1 * HOUR_IN_SECONDS );
             $cached_data = $data;
         }
 
-        // --- Calculate Audit Aggregates ---
+        // Stats
         $total_skus = count($cached_data);
-        $loss_count = 0;
-        $alert_count = 0;
-        $low_margin_count = 0;
-
+        $loss_count = 0; $alert_count = 0; $low_margin_count = 0;
         foreach($cached_data as $row) {
             if($row['net'] < 0) $loss_count++;
             if(!empty($row['alerts'])) $alert_count++;
             if($row['margin'] < 15) $low_margin_count++;
         }
 
-        // --- Render Audit Header Strip ---
+        // --- Header Strip with PRO Buttons ---
         ?>
         <div class="cc-dash-grid" style="grid-template-columns: 1fr; margin-bottom: 20px;">
             <div class="cc-dash-card cc-full-width" style="border-top-color: #2271b1;">
@@ -119,35 +101,37 @@ class Cirrusly_Commerce_Audit {
                 </div>
                 <div class="cc-stat-block">
                     <span class="cc-big-num" style="color:#d63638;"><?php echo esc_html( $loss_count ); ?></span>
-                    <span class="cc-label">Loss Makers (Net &lt; 0)</span>
+                    <span class="cc-label">Loss Makers</span>
                 </div>
-                <div class="cc-stat-block">
-                    <span class="cc-big-num" style="color:#dba617;"><?php echo esc_html( $alert_count ); ?></span>
-                    <span class="cc-label">Data Alerts</span>
-                </div>
-                <div class="cc-stat-block">
-                    <span class="cc-big-num"><?php echo esc_html( $low_margin_count ); ?></span>
-                    <span class="cc-label">Low Margin (&lt; 15%)</span>
+                
+                <!-- PRO Upsell Area -->
+                <div style="flex:2; display:flex; gap:10px; justify-content:center; align-items:center; border-left:1px solid #eee; padding-left:20px;">
+                    <div class="cc-pro-feature">
+                        <button class="button button-secondary" disabled>
+                            <span class="dashicons dashicons-download"></span> Export CSV
+                        </button>
+                    </div>
+                    <div class="cc-pro-feature">
+                        <button class="button button-secondary" disabled>
+                            <span class="dashicons dashicons-upload"></span> Bulk Import COGS
+                        </button>
+                    </div>
+                    <a href="#upgrade-to-pro" class="cc-upgrade-btn button-small" style="font-size:11px;">
+                        <span class="dashicons dashicons-lock" style="font-size:14px; line-height:1.5;"></span> Unlock Pro Tools
+                    </a>
                 </div>
             </div>
         </div>
         <?php
 
-        // 4. Process Filters & Pagination
-        // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+        // Filter Logic
         $f_margin = isset($_GET['margin']) ? floatval($_GET['margin']) : 25;
-        // phpcs:ignore WordPress.Security.NonceVerification.Recommended
         $f_cat = isset($_GET['cat']) ? sanitize_text_field(wp_unslash($_GET['cat'])) : '';
-        // phpcs:ignore WordPress.Security.NonceVerification.Recommended
         $f_oos = isset($_GET['hide_oos']);
-        // phpcs:ignore WordPress.Security.NonceVerification.Recommended
         $paged = isset($_GET['paged']) ? max(1, intval($_GET['paged'])) : 1;
         $per_page = 50;
-        // phpcs:ignore WordPress.Security.NonceVerification.Recommended
         $search = isset($_GET['s']) ? sanitize_text_field(wp_unslash($_GET['s'])) : '';
-        // phpcs:ignore WordPress.Security.NonceVerification.Recommended
         $orderby = isset($_GET['orderby']) ? sanitize_text_field(wp_unslash($_GET['orderby'])) : 'margin';
-        // phpcs:ignore WordPress.Security.NonceVerification.Recommended
         $order = isset($_GET['order']) ? sanitize_text_field(wp_unslash($_GET['order'])) : 'asc';
 
         $filtered_data = array();
@@ -168,14 +152,11 @@ class Cirrusly_Commerce_Audit {
         $total = count($filtered_data);
         $slice = array_slice($filtered_data, ($paged-1)*$per_page, $per_page);
 
-        // 5. Render View
-        
         $allowed_form_tags = array(
             'select' => array('name' => true, 'id' => true, 'class' => true),
             'option' => array('value' => true, 'selected' => true),
         );
 
-        // Updated Filter Section to match global design
         echo '<div class="cc-settings-card">
             <div class="cc-card-header">
                 <div style="display:flex; align-items:center; gap:10px;">

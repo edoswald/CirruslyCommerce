@@ -71,7 +71,6 @@ class Cirrusly_Commerce_GMC {
     private function render_content_scan_view() {
         echo '<div class="cc-manual-helper"><h4>Site Content Audit</h4><p>Google scans your site content for policy compliance. We check for key policies (Refunds, TOS) and restricted claims. <br><strong>Note:</strong> We now use smart detection to ignore words inside other words (e.g., "Secure" won\'t flag "Cure").</p></div>';
         
-        // --- 1. REQUIRED POLICIES (Green Check / Red X) ---
         $all_pages = get_pages();
         $found_titles = array();
         foreach($all_pages as $p) $found_titles[] = strtolower($p->post_title);
@@ -123,6 +122,7 @@ class Cirrusly_Commerce_GMC {
                     <td><strong>'.esc_html($issue['title']).'</strong></td>
                     <td>';
                     foreach($issue['terms'] as $t) {
+                        // Tooltip logic
                         $color = ($t['severity'] == 'Critical') ? '#d63638' : '#dba617';
                         echo '<span class="gmc-badge" style="background:'.esc_attr($color).';color:#fff;cursor:help;" title="'.esc_attr($t['reason']).'">'.esc_html($t['word']).'</span> '; 
                     }
@@ -147,10 +147,7 @@ class Cirrusly_Commerce_GMC {
 
         foreach($posts as $post) {
             $found_terms = array();
-            
-            // Text to Scan
             $title = $post->post_title;
-            // Fix: Use wp_strip_all_tags instead of strip_tags
             $content = wp_strip_all_tags($post->post_content); 
             
             // 1. Term Scanning
@@ -226,8 +223,16 @@ class Cirrusly_Commerce_GMC {
                 </div>
             </div>
             
-            <div style="margin-top:15px;">
+            <div style="margin-top:15px; display:flex; justify-content:space-between; align-items:center;">
                 <button type="button" class="button button-primary" id="pg_generate">Generate Code</button>
+                
+                <!-- PRO Upsell: One-click Submit -->
+                <div class="cc-pro-feature">
+                    <button type="button" class="button button-secondary" disabled>
+                        <span class="dashicons dashicons-cloud-upload"></span> One-Click Submit to Google
+                    </button>
+                    <span class="cc-pro-badge">PRO</span>
+                </div>
             </div>
 
             <div id="pg_result_area" style="display:none; margin-top:15px;">
@@ -264,7 +269,6 @@ class Cirrusly_Commerce_GMC {
             $new_promo_id = isset($_POST['gmc_new_promo_id']) ? sanitize_text_field( wp_unslash( $_POST['gmc_new_promo_id'] ) ) : '';
             $action = sanitize_text_field( wp_unslash( $_POST['gmc_promo_bulk_action'] ) );
             
-            // Sanitize array
             $promo_products = isset($_POST['gmc_promo_products']) && is_array($_POST['gmc_promo_products']) 
                 ? array_map('intval', $_POST['gmc_promo_products']) 
                 : array();
@@ -321,6 +325,22 @@ class Cirrusly_Commerce_GMC {
 
     private function render_scan_view() {
         echo '<div class="cc-manual-helper"><h4>Health Check</h4><p>Scans product data for critical GMC issues like missing GTINs or prohibited titles. Click "Edit Product" to fix issues, then run a new scan.</p></div>';
+        
+        // PRO: Auto-Fix Upsell
+        echo '<div class="cc-pro-feature" style="background:#f0f6fc; padding:15px; border:1px solid #c3c4c7; margin-bottom:20px; display:flex; justify-content:space-between; align-items:center;">
+            <div class="cc-pro-overlay">
+                <a href="#upgrade-to-pro" class="cc-upgrade-btn"><span class="dashicons dashicons-lock cc-lock-icon"></span> Upgrade to Automate</a>
+            </div>
+            <div>
+                <strong>Automated Compliance <span class="cc-pro-badge">PRO</span></strong><br>
+                <span>Enable Scan-on-Save blocking and Auto-Fixing for common title errors.</span>
+            </div>
+            <div>
+                <label><input type="checkbox" disabled> Block Save on Critical Error</label>
+                <label style="margin-left:10px;"><input type="checkbox" disabled> Auto-strip Banned Words</label>
+            </div>
+        </div>';
+
         echo '<div style="background:#fff; padding:20px; border-bottom:1px solid #ccc;"><form method="post">';
         wp_nonce_field( 'cirrusly_gmc_scan', 'cc_gmc_scan_nonce' );
         echo '<input type="hidden" name="run_gmc_scan" value="1">';
@@ -342,6 +362,7 @@ class Cirrusly_Commerce_GMC {
                 $issues = ''; 
                 foreach($r['issues'] as $i) {
                     $color = ($i['type'] === 'critical') ? '#d63638' : '#dba617';
+                    // Fix: Escape the pill output
                     $issues .= '<span class="gmc-badge" style="background:'.esc_attr($color).'; color:#fff; padding:3px 8px; border-radius:10px; font-size:11px; margin-right:5px;">'.esc_html($i['msg']).'</span> ';
                 }
                 echo '<tr><td><a href="'.esc_url(get_edit_post_link($p->get_id())).'">'.esc_html($p->get_name()).'</a></td><td>'.wp_kses_post($issues).'</td><td><a href="'.esc_url(get_edit_post_link($p->get_id())).'" class="button button-small">Edit</a></td></tr>';
@@ -393,6 +414,7 @@ class Cirrusly_Commerce_GMC {
     public function render_gmc_product_settings() {
         global $post;
         echo '<div class="options_group">';
+        // Fix: Correct Text Domain
         echo '<p class="form-field"><strong>' . esc_html__( 'Google Merchant Center Attributes', 'cirrusly-commerce' ) . '</strong></p>';
         $current_val = get_post_meta( $post->ID, '_gla_identifier_exists', true );
         woocommerce_wp_checkbox( array( 'id' => 'gmc_is_custom_product', 'label' => 'Custom Product?', 'description' => 'No GTIN/Barcode', 'value' => ('no'===$current_val?'yes':'no'), 'cbvalue' => 'yes' ) );
@@ -425,10 +447,12 @@ class Cirrusly_Commerce_GMC {
         $promo = get_post_meta( $post_id, '_gmc_promotion_id', true );
         $label = get_post_meta( $post_id, '_gmc_custom_label_0', true );
         
+        // Render Badges (Visual indicators)
         if ( 'no' === $id_ex ) echo '<span class="gmc-badge gmc-badge-custom">Custom</span> ';
         if ( $promo ) echo '<span class="gmc-badge gmc-badge-promo" title="'.esc_attr($promo).'">Promo</span> ';
         if ( $label ) echo '<span class="gmc-badge gmc-badge-label" title="'.esc_attr($label).'">Label</span> ';
         
+        // Add hidden data for Quick Edit JS to grab
         echo '<span class="gmc-hidden-data" 
             data-custom="'.('no'===$id_ex?'yes':'no').'" 
             data-promo="'.esc_attr($promo).'" 

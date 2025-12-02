@@ -231,3 +231,55 @@
 .cc-card-body { padding:20px; }
 .cc-settings-table th { font-weight:600; color:#1d2327; width: 150px; }
 .cc-settings-table input[type="number"], .cc-settings-table input[type="text"] { width:100%; max-width:100%; }
+
+/* --- Pro / Upsell UI --- */
+.cc-pro-feature {
+    position: relative;
+    opacity: 0.6;
+    pointer-events: none; /* Disable interaction */
+    background: #f9f9f9;
+}
+.cc-pro-feature input, 
+.cc-pro-feature select, 
+.cc-pro-feature button {
+    cursor: not-allowed;
+}
+.cc-pro-badge {
+    background: #2271b1;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-left: 8px;
+    vertical-align: middle;
+}
+.cc-pro-overlay {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(255,255,255,0.6);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 10;
+    backdrop-filter: blur(1px);
+}
+.cc-upgrade-btn {
+    pointer-events: auto; /* Re-enable clicking for the button */
+    background: #2271b1;
+    color: #fff;
+    text-decoration: none;
+    padding: 8px 15px;
+    border-radius: 4px;
+    font-weight: 600;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    transition: background 0.2s;
+}
+.cc-upgrade-btn:hover {
+    background: #135e96;
+    color: #fff;
+}
+.cc-lock-icon {
+    margin-right: 5px;
+}

@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Cirrusly Commerce
  * Description: All-in-one suite: GMC Assistant, Promotion Manager, Pricing Engine, and Store Financial Audit that doesn't cost an arm and a leg.
- * Version: 1.1
+ * Version: 1.2.0
  * Author: Cirrusly Weather
  * Author URI: https://cirruslyweather.com
  * Text Domain: cirrusly-commerce
@@ -15,9 +15,46 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Define Constants
-define( 'CIRRUSLY_COMMERCE_VERSION', '1.1' );
+define( 'CIRRUSLY_COMMERCE_VERSION', '1.2.0' );
 define( 'CIRRUSLY_COMMERCE_PATH', plugin_dir_path( __FILE__ ) );
 define( 'CIRRUSLY_COMMERCE_URL', plugin_dir_url( __FILE__ ) );
+
+// -------------------------------------------------------------------------
+// FREEMIUS INTEGRATION PLACEHOLDER
+// -------------------------------------------------------------------------
+// Note: Once you have your Freemius SDK snippet, paste it here.
+// It typically starts with: if ( function_exists( 'cirrusly_fs' ) ) { ... }
+//
+// Example Structure:
+// if ( ! function_exists( 'cirrusly_fs' ) ) {
+//     function cirrusly_fs() {
+//         global $cirrusly_fs;
+//         if ( ! isset( $cirrusly_fs ) ) {
+//             // Include Freemius SDK.
+//             require_once dirname(__FILE__) . '/freemius/start.php';
+//             $cirrusly_fs = fs_dynamic_init( array(
+//                 'id'                  => '1234',
+//                 'slug'                => 'cirrusly-commerce',
+//                 'type'                => 'plugin',
+//                 'public_key'          => 'pk_...',
+//                 'is_premium'          => false,
+//                 'has_premium_version' => true,
+//                 'has_paid_plans'      => true,
+//                 'menu'                => array(
+//                     'slug'           => 'cirrusly-commerce',
+//                     'first-path'     => 'admin.php?page=cirrusly-commerce',
+//                     'support'        => false,
+//                 ),
+//             ) );
+//         }
+//         return $cirrusly_fs;
+//     }
+//     // Init Freemius.
+//     cirrusly_fs();
+//     // Signal that SDK was initiated.
+//     do_action( 'cirrusly_fs_loaded' );
+// }
+// -------------------------------------------------------------------------
 
 // Autoloader-style requires
 require_once CIRRUSLY_COMMERCE_PATH . 'includes/class-core.php';

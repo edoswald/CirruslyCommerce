@@ -25,6 +25,29 @@ class Cirrusly_Commerce_Core {
         add_action( 'admin_notices', array( $this, 'render_onboarding_notice' ) );
     }
 
+    /**
+     * Check if PRO features are active.
+     * * DEV MODE: 
+     * To test PRO version, add ?cc_dev_mode=pro to your URL.
+     * To test FREE version, add ?cc_dev_mode=free to your URL.
+     * Or hardcode return true; below.
+     */
+    public static function cirrusly_is_pro() {
+        // 1. Check for URL override (For quick testing)
+        if ( isset( $_GET['cc_dev_mode'] ) ) {
+            if ( $_GET['cc_dev_mode'] === 'pro' ) return true;
+            if ( $_GET['cc_dev_mode'] === 'free' ) return false;
+        }
+
+        // 2. Default State (Set to 'true' to permanently test PRO features locally)
+        // return true; // Uncomment to force PRO mode
+        
+        // 3. Future Freemius Integration
+        // return fs_is_plan__premium_only('pro'); 
+
+        return false; // Default to FREE
+    }
+
     public function force_enable_cogs() { return 'yes'; }
     public function clear_metrics_cache() { delete_transient( 'cirrusly_dashboard_metrics' ); }
 
@@ -350,7 +373,8 @@ class Cirrusly_Commerce_Core {
                 <div class="cc-stat-row"><a href="admin.php?page=cirrusly-manual">User Manual</a></div>
             </div>
         </div>
-        </div><?php
+        </div><!-- End Wrap -->
+        <?php
     }
 
     public function render_settings_page() {
@@ -393,6 +417,10 @@ class Cirrusly_Commerce_Core {
 
         $scan = get_option( 'cirrusly_scan_config', array() );
         $daily = isset($scan['enable_daily_scan']) ? $scan['enable_daily_scan'] : '';
+
+        $is_pro = self::cirrusly_is_pro();
+        $pro_class = $is_pro ? '' : 'cc-pro-feature';
+        $disabled_attr = $is_pro ? '' : 'disabled';
 
         echo '<div class="cc-settings-grid">';
         
@@ -446,6 +474,35 @@ class Cirrusly_Commerce_Core {
                 <p class="description">For custom placement, use the <strong>MSRP Display</strong> block in the Gutenberg editor.</p>
             </div>
         </div>';
+
+        // PRO: API Connection
+        echo '<div class="cc-settings-card '.esc_attr($pro_class).'">';
+        if(!$is_pro) echo '<div class="cc-pro-overlay"><a href="#upgrade-to-pro" class="cc-upgrade-btn"><span class="dashicons dashicons-lock cc-lock-icon"></span> Upgrade to Connect API</a></div>';
+        echo '<div class="cc-card-header">
+                <h3>Content API Connection <span class="cc-pro-badge">PRO</span></h3>
+                <span class="dashicons dashicons-cloud"></span>
+            </div>
+            <div class="cc-card-body">
+                <p>Connect directly to Google Merchant Center for real-time price & stock syncing.</p>
+                <table class="form-table cc-settings-table">
+                    <tr><th>Service Account JSON</th><td><input type="file" '.esc_attr($disabled_attr).'></td></tr>
+                    <tr><th>Merchant ID</th><td><input type="text" '.esc_attr($disabled_attr).' placeholder="Locked"></td></tr>
+                </table>
+            </div>
+        </div>';
+
+        // PRO: Advanced Alerting
+        echo '<div class="cc-settings-card '.esc_attr($pro_class).'">';
+        if(!$is_pro) echo '<div class="cc-pro-overlay"><a href="#upgrade-to-pro" class="cc-upgrade-btn"><span class="dashicons dashicons-lock cc-lock-icon"></span> Unlock Alerts</a></div>';
+        echo '<div class="cc-card-header">
+                <h3>Advanced Alerts <span class="cc-pro-badge">PRO</span></h3>
+                <span class="dashicons dashicons-email-alt"></span>
+            </div>
+            <div class="cc-card-body">
+                <label><input type="checkbox" '.esc_attr($disabled_attr).'> Email me weekly Profit Reports</label><br>
+                <label><input type="checkbox" '.esc_attr($disabled_attr).'> Email me instantly on GMC Disapproval</label>
+            </div>
+        </div>';
         
         echo '</div>'; // End Grid
     }
@@ -460,14 +517,28 @@ class Cirrusly_Commerce_Core {
         $custom_badges = isset($cfg['custom_badges_json']) ? json_decode($cfg['custom_badges_json'], true) : array();
         if(!is_array($custom_badges)) $custom_badges = array();
 
+        $is_pro = self::cirrusly_is_pro();
+        $pro_class = $is_pro ? '' : 'cc-pro-feature';
+        $disabled_attr = $is_pro ? '' : 'disabled';
+
         echo '<div class="cc-settings-card"><div class="cc-card-header"><h3>Badge Manager</h3><p>Automatically replace default WooCommerce sale badges.</p></div>';
         echo '<div class="cc-card-body"><table class="form-table cc-settings-table">
             <tr><th scope="row">Enable Module</th><td><label><input type="checkbox" name="cirrusly_badge_config[enable_badges]" value="yes" '.checked('yes', $enabled, false).'> Activate</label></td></tr>
             <tr><th scope="row">Badge Size</th><td><select name="cirrusly_badge_config[badge_size]"><option value="small" '.selected('small', $size, false).'>Small</option><option value="medium" '.selected('medium', $size, false).'>Medium</option><option value="large" '.selected('large', $size, false).'>Large</option></select></td></tr>
             <tr><th scope="row">Discount Base</th><td><select name="cirrusly_badge_config[calc_from]"><option value="msrp" '.selected('msrp', $calc_from, false).'>MSRP</option><option value="regular" '.selected('regular', $calc_from, false).'>Regular Price</option></select></td></tr>
             <tr><th scope="row">"New" Badge</th><td><input type="number" name="cirrusly_badge_config[new_days]" value="'.esc_attr($new_days).'" style="width:70px;"> days <span class="description">Products created within this many days get a "NEW" badge.</span></td></tr>
-        </table>
-        <hr style="margin:20px 0; border:0; border-top:1px solid #eee;">
+        </table>';
+
+        // PRO: Smart Badges
+        echo '<div class="'.esc_attr($pro_class).'" style="margin-top:20px; border:1px dashed #ccc; padding:15px;">';
+        if(!$is_pro) echo '<div class="cc-pro-overlay" style="background:rgba(255,255,255,0.8);"><a href="#upgrade-to-pro" class="cc-upgrade-btn">Unlock Smart Badges</a></div>';
+        echo '<h4>Smart Dynamic Badges <span class="cc-pro-badge">PRO</span></h4>
+            <label><input type="checkbox" '.esc_attr($disabled_attr).'> <strong>Inventory:</strong> Show "Low Stock" badge when qty < 5</label><br>
+            <label><input type="checkbox" '.esc_attr($disabled_attr).'> <strong>Performance:</strong> Show "Best Seller" for top 10 products</label><br>
+            <label><input type="checkbox" '.esc_attr($disabled_attr).'> <strong>Scheduler:</strong> Schedule badges for specific dates</label>
+        </div>';
+
+        echo '<hr style="margin:20px 0; border:0; border-top:1px solid #eee;">
         <h4>Custom Tag Badges</h4><p class="description">Show specific images when a product has a certain tag.</p>
         <table class="widefat striped cc-settings-table"><thead><tr><th>Tag Slug</th><th>Badge Image</th><th>Tooltip</th><th>Width</th><th></th></tr></thead><tbody id="cc-badge-rows">';
         if(!empty($custom_badges)) {
@@ -493,6 +564,10 @@ class Cirrusly_Commerce_Core {
         $all_classes = array( 'default' => 'Default (No Class)' );
         if( ! is_wp_error( $terms ) ) { foreach ( $terms as $term ) { $all_classes[ $term->slug ] = $term->name; } }
 
+        $is_pro = self::cirrusly_is_pro();
+        $pro_class = $is_pro ? '' : 'cc-pro-feature';
+        $disabled_attr = $is_pro ? '' : 'disabled';
+
         echo '<div class="cc-manual-helper"><h4>Profit Engine Configuration</h4><p>These settings drive the real-time margin calculations on your product edit pages. Accurate data here ensures you don\'t lose money on shipping.</p></div>';
 
         // Payment Processor Settings
@@ -508,6 +583,13 @@ class Cirrusly_Commerce_Core {
                     <td><input type="number" step="0.01" name="cirrusly_shipping_config[payment_flat]" value="'.esc_attr($payment_flat).'"> $ (e.g. Stripe is 0.30)</td>
                 </tr>
             </table>
+            
+            <!-- PRO: Multi-Gateway -->
+            <div class="'.esc_attr($pro_class).'" style="margin-top:15px; border-top:1px dashed #ccc; padding-top:15px;">
+                <p><strong>Advanced Profiles <span class="cc-pro-badge">PRO</span></strong></p>
+                <label><input type="radio" disabled checked> Single Profile</label><br>
+                <label><input type="radio" '.esc_attr($disabled_attr).'> Multiple Gateways (Stripe + PayPal Mix)</label>
+            </div>
         </div></div>';
 
         // 1. Revenue Tiers

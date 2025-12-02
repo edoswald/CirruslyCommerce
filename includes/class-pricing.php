@@ -37,7 +37,6 @@ class Cirrusly_Commerce_Pricing {
         if ( ! $product ) return;
 
         // Simple calculation for "at a glance" view
-        // Note: Does not include complex shipping/fee math to keep list view fast
         $price = (float) $product->get_price();
         $cost = (float) $product->get_meta('_cogs_total_value');
 
@@ -233,6 +232,10 @@ class Cirrusly_Commerce_Pricing {
                         <option value="margin_30">Target 30% Margin</option>
                     </optgroup>
                 </select>
+                <!-- PRO Upsell Link -->
+                <a href="#upgrade-to-pro" class="cc-upgrade-btn" style="padding:2px 6px; font-size:10px; margin-left:10px;" title="Unlock Global Pricing Rules & Psychological Pricing">
+                    <span class="dashicons dashicons-lock" style="font-size:12px;vertical-align:middle;"></span> Unlock Automation
+                </a>
             </span>
         </div>
         <div class="cw-profit-display" style="margin-left:160px; margin-top:5px; color:#555;">
