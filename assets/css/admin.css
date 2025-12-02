@@ -190,7 +190,7 @@
     transform: translateY(-1px);
 }
 
-/* Dashboard Grid & Cards (Global for Audit use) */
+/* Dashboard Grid & Cards (Restored from previous inline styles) */
 .cc-dash-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
 .cc-dash-card { background: #fff; border: 1px solid #ccd0d4; border-top-width: 4px; padding: 20px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); position: relative; }
 .cc-full-width { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; border-top-color: #646970; }
