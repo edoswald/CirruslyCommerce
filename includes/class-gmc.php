@@ -115,7 +115,8 @@ class Cirrusly_Commerce_GMC {
 
         $data = get_option( 'cirrusly_content_scan_data' );
         if ( !empty($data) && !empty($data['issues']) ) {
-            echo '<p><strong>Last Scan:</strong> ' . date_i18n( get_option('date_format').' '.get_option('time_format'), $data['timestamp'] ) . '</p>';
+            // Fix: Escape date_i18n output
+            echo '<p><strong>Last Scan:</strong> ' . esc_html( date_i18n( get_option('date_format').' '.get_option('time_format'), $data['timestamp'] ) ) . '</p>';
             echo '<table class="wp-list-table widefat fixed striped"><thead><tr><th>Type</th><th>Title</th><th>Flagged Terms</th><th>Action</th></tr></thead><tbody>';
             foreach($data['issues'] as $issue) {
                 echo '<tr>
@@ -151,7 +152,8 @@ class Cirrusly_Commerce_GMC {
             
             // Text to Scan
             $title = $post->post_title;
-            $content = strip_tags($post->post_content); // Strip tags to avoid flagging HTML attributes
+            // Fix: Use wp_strip_all_tags instead of strip_tags
+            $content = wp_strip_all_tags($post->post_content); 
             
             // 1. Term Scanning
             foreach ($monitored as $category => $terms) {
@@ -266,7 +268,8 @@ class Cirrusly_Commerce_GMC {
         
         // Handle Form Submission
         if ( isset( $_POST['gmc_promo_bulk_action'] ) && ! empty( $_POST['gmc_promo_products'] ) && check_admin_referer( 'cirrusly_promo_bulk', 'cc_promo_nonce' ) ) {
-            $new_promo_id = sanitize_text_field( wp_unslash( $_POST['gmc_new_promo_id'] ) );
+            // Fix: Check isset for optional new_promo_id
+            $new_promo_id = isset($_POST['gmc_new_promo_id']) ? sanitize_text_field( wp_unslash( $_POST['gmc_new_promo_id'] ) ) : '';
             $action = sanitize_text_field( wp_unslash( $_POST['gmc_promo_bulk_action'] ) );
             
             // Sanitize array
