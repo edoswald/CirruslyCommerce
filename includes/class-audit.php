@@ -5,11 +5,7 @@ class Cirrusly_Commerce_Audit {
     public static function render_page() {
         if ( ! current_user_can( 'edit_products' ) ) wp_die( 'No permission' );
         
-        // Increase time limit for large catalogs if possible, though we paginate
-        // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.runtime_configuration_set_time_limit
-        if ( function_exists( 'set_time_limit' ) ) set_time_limit(0);
-
-        echo '<div class="wrap">'; // Moved up for consistency
+        echo '<div class="wrap">'; 
 
         Cirrusly_Commerce_Core::render_global_header( 'Store Financial Audit' );
 
@@ -24,7 +20,7 @@ class Cirrusly_Commerce_Audit {
         }
 
         // 2. Get Config for Calculations
-        $core = new Cirrusly_Commerce_Core(); // Instantiate to access config method
+        $core = new Cirrusly_Commerce_Core(); 
         $config = $core->get_global_config();
         $revenue_tiers = json_decode( $config['revenue_tiers_json'], true );
         $class_costs = json_decode( $config['class_costs_json'], true );
@@ -97,7 +93,7 @@ class Cirrusly_Commerce_Audit {
             $cached_data = $data;
         }
 
-        // --- NEW: Calculate Audit Aggregates ---
+        // --- Calculate Audit Aggregates ---
         $total_skus = count($cached_data);
         $loss_count = 0;
         $alert_count = 0;
@@ -109,7 +105,7 @@ class Cirrusly_Commerce_Audit {
             if($row['margin'] < 15) $low_margin_count++;
         }
 
-        // --- NEW: Render Audit Header Strip ---
+        // --- Render Audit Header Strip ---
         ?>
         <div class="cc-dash-grid" style="grid-template-columns: 1fr; margin-bottom: 20px;">
             <div class="cc-dash-card cc-full-width" style="border-top-color: #2271b1;">
@@ -132,7 +128,6 @@ class Cirrusly_Commerce_Audit {
             </div>
         </div>
         <?php
-        // ---------------------------------------
 
         // 4. Process Filters & Pagination
         // phpcs:ignore WordPress.Security.NonceVerification.Recommended
@@ -156,9 +151,7 @@ class Cirrusly_Commerce_Audit {
             if($f_oos && !$row['is_in_stock']) continue;
             if($f_cat && !in_array($f_cat, $row['cats'])) continue;
             if($search && stripos($row['name'], $search) === false) continue;
-            // Filter Logic: Show if margin is LOW (problematic) OR has alerts
             if ( $row['margin'] >= $f_margin && empty($row['alerts']) ) continue;
-            
             $filtered_data[] = $row;
         }
         
@@ -173,9 +166,14 @@ class Cirrusly_Commerce_Audit {
 
         // 5. Render View
         
-        // Top Bar with Filters
-        echo '<div class="cc-audit-toolbar">
-            <form method="get" class="cc-audit-form">
+        // Define allowed HTML for dropdowns
+        $allowed_form_tags = array(
+            'select' => array('name' => true, 'id' => true, 'class' => true),
+            'option' => array('value' => true, 'selected' => true),
+        );
+
+        echo '<div class="card" style="background:#fff; padding:15px; margin-bottom:20px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+            <form method="get" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
                 <input type="hidden" name="page" value="cirrusly-audit">
                 <input type="text" name="s" value="'.esc_attr($search).'" placeholder="Search products...">
                 <select name="margin">
@@ -184,12 +182,12 @@ class Cirrusly_Commerce_Audit {
                     <option value="25" '.selected($f_margin,25,false).'>Margin < 25%</option>
                     <option value="100" '.selected($f_margin,100,false).'>Show All (No Filter)</option>
                 </select> 
-                '.wc_product_dropdown_categories(array('option_none_text'=>'All Categories','name'=>'cat','selected'=>$f_cat,'value_field'=>'slug','echo'=>0)).'
-                <label style="font-weight:600; font-size:12px; color:#50575e;"><input type="checkbox" name="hide_oos" value="1" '.checked($f_oos,true,false).'> Hide OOS</label>
+                '.wp_kses( wc_product_dropdown_categories(array('option_none_text'=>'All Categories','name'=>'cat','selected'=>$f_cat,'value_field'=>'slug','echo'=>0)), $allowed_form_tags ).'
+                <label><input type="checkbox" name="hide_oos" value="1" '.checked($f_oos,true,false).'> Hide OOS</label>
                 <button class="button button-primary">Filter</button>
-                <a href="?page=cirrusly-audit&refresh_audit=1" class="button" title="Refresh Data from DB"><span class="dashicons dashicons-update" style="margin-top:4px;"></span></a>
+                <a href="?page=cirrusly-audit&refresh_audit=1" class="button" title="Refresh Data from DB">Refresh Data</a>
             </form>
-            <div class="cc-audit-count">Found <strong>'.esc_html($total).'</strong> products</div>
+            <div style="text-align:right;"><strong>'.esc_html($total).'</strong> Issues Found</div>
         </div>';
         
         // Helper for Sort Links
@@ -202,11 +200,11 @@ class Cirrusly_Commerce_Audit {
         echo '<table class="widefat fixed striped"><thead><tr>
             <th style="width:60px;">ID</th>
             <th>Product</th>
-            <th>'.$sort_link('cost', 'Total Cost').'</th>
-            <th>'.$sort_link('price', 'Price').'</th>
-            <th>'.$sort_link('ship_pl', 'Ship P/L').'</th>
-            <th>'.$sort_link('net', 'Net Profit').'</th>
-            <th>'.$sort_link('margin', 'Margin').'</th>
+            <th>'.wp_kses_post($sort_link('cost', 'Total Cost')).'</th>
+            <th>'.wp_kses_post($sort_link('price', 'Price')).'</th>
+            <th>'.wp_kses_post($sort_link('ship_pl', 'Ship P/L')).'</th>
+            <th>'.wp_kses_post($sort_link('net', 'Net Profit')).'</th>
+            <th>'.wp_kses_post($sort_link('margin', 'Margin')).'</th>
             <th>Alerts</th>
             <th>Action</th>
         </tr></thead><tbody>';
