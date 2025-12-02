@@ -30,25 +30,15 @@ class Cirrusly_Commerce_Core {
 
     /**
      * Check if PRO features are active.
-     * * DEV MODE: 
-     * To test PRO version, add ?cc_dev_mode=pro to your URL.
-     * To test FREE version, add ?cc_dev_mode=free to your URL.
-     * Or hardcode return true; below.
+     * Relies strictly on Freemius license validation.
      */
     public static function cirrusly_is_pro() {
-        // 1. Check for URL override (For quick testing)
-        if ( isset( $_GET['cc_dev_mode'] ) ) {
-            if ( $_GET['cc_dev_mode'] === 'pro' ) return true;
-            if ( $_GET['cc_dev_mode'] === 'free' ) return false;
+        // Freemius Check
+        if ( function_exists( 'cc_fs' ) ) {
+             return cc_fs()->can_use_premium_code();
         }
 
-        // 2. Default State (Set to 'true' to permanently test PRO features locally)
-        // return true; // Uncomment to force PRO mode
-        
-        // 3. Future Freemius Integration
-        // return fs_is_plan__premium_only('pro'); 
-
-        return false; // Default to FREE
+        return false; // Default to FREE if Freemius is not loaded or invalid
     }
 
     public function cirrusly_hide_upsells_css() {
