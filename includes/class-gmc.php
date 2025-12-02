@@ -115,7 +115,6 @@ class Cirrusly_Commerce_GMC {
 
         $data = get_option( 'cirrusly_content_scan_data' );
         if ( !empty($data) && !empty($data['issues']) ) {
-            // Fix: Escape date_i18n output
             echo '<p><strong>Last Scan:</strong> ' . esc_html( date_i18n( get_option('date_format').' '.get_option('time_format'), $data['timestamp'] ) ) . '</p>';
             echo '<table class="wp-list-table widefat fixed striped"><thead><tr><th>Type</th><th>Title</th><th>Flagged Terms</th><th>Action</th></tr></thead><tbody>';
             foreach($data['issues'] as $issue) {
@@ -124,7 +123,6 @@ class Cirrusly_Commerce_GMC {
                     <td><strong>'.esc_html($issue['title']).'</strong></td>
                     <td>';
                     foreach($issue['terms'] as $t) {
-                        // Tooltip logic
                         $color = ($t['severity'] == 'Critical') ? '#d63638' : '#dba617';
                         echo '<span class="gmc-badge" style="background:'.esc_attr($color).';color:#fff;cursor:help;" title="'.esc_attr($t['reason']).'">'.esc_html($t['word']).'</span> '; 
                     }
@@ -180,11 +178,9 @@ class Cirrusly_Commerce_GMC {
             }
 
             // 2. Gimmick Scanning (Titles Only)
-            // Check for ALL CAPS (if title is long enough to matter)
             if ( strlen($title) > 5 && ctype_upper(preg_replace('/[^a-zA-Z]/', '', $title)) ) {
                 $found_terms[] = array('word' => 'ALL CAPS', 'reason' => 'Excessive capitalization in title.', 'severity' => 'Medium');
             }
-            // Check for excessive punctuation (!!!)
             if ( preg_match('/[!]{2,}/', $title) ) {
                 $found_terms[] = array('word' => '!!!', 'reason' => 'Excessive punctuation in title.', 'severity' => 'Medium');
             }
@@ -198,7 +194,6 @@ class Cirrusly_Commerce_GMC {
 
     private function render_promotions_view() {
         echo '<div class="cc-manual-helper"><h4>Promotion Feed Generator</h4><p>Create a valid promotion entry for Google Merchant Center. Fill in the details, generate the code, and paste it into your Google Sheet feed.</p></div>';
-        
         ?>
         <div class="cc-promo-generator">
             <h3 style="margin-top:0;">1. Create Promotion Entry</h3>
@@ -252,8 +247,6 @@ class Cirrusly_Commerce_GMC {
                 var dates = $('#pg_dates').val();
                 var code = $('#pg_code').val();
                 
-                // Construct CSV String
-                // Note: redemption_channel fixed to ONLINE, display_dates maps to effective dates for simplicity
                 var str = id + ',' + app + ',' + type + ',' + title + ',' + dates + ',ONLINE,' + dates + ',' + (type==='GENERIC_CODE' ? code : '');
                 
                 $('#pg_output').text(str);
@@ -268,7 +261,6 @@ class Cirrusly_Commerce_GMC {
         
         // Handle Form Submission
         if ( isset( $_POST['gmc_promo_bulk_action'] ) && ! empty( $_POST['gmc_promo_products'] ) && check_admin_referer( 'cirrusly_promo_bulk', 'cc_promo_nonce' ) ) {
-            // Fix: Check isset for optional new_promo_id
             $new_promo_id = isset($_POST['gmc_new_promo_id']) ? sanitize_text_field( wp_unslash( $_POST['gmc_new_promo_id'] ) ) : '';
             $action = sanitize_text_field( wp_unslash( $_POST['gmc_promo_bulk_action'] ) );
             
@@ -350,7 +342,6 @@ class Cirrusly_Commerce_GMC {
                 $issues = ''; 
                 foreach($r['issues'] as $i) {
                     $color = ($i['type'] === 'critical') ? '#d63638' : '#dba617';
-                    // Fix: Escape the pill output
                     $issues .= '<span class="gmc-badge" style="background:'.esc_attr($color).'; color:#fff; padding:3px 8px; border-radius:10px; font-size:11px; margin-right:5px;">'.esc_html($i['msg']).'</span> ';
                 }
                 echo '<tr><td><a href="'.esc_url(get_edit_post_link($p->get_id())).'">'.esc_html($p->get_name()).'</a></td><td>'.wp_kses_post($issues).'</td><td><a href="'.esc_url(get_edit_post_link($p->get_id())).'" class="button button-small">Edit</a></td></tr>';
@@ -387,7 +378,6 @@ class Cirrusly_Commerce_GMC {
     public function render_gmc_product_settings() {
         global $post;
         echo '<div class="options_group">';
-        // Fix: Correct Text Domain
         echo '<p class="form-field"><strong>' . esc_html__( 'Google Merchant Center Attributes', 'cirrusly-commerce' ) . '</strong></p>';
         $current_val = get_post_meta( $post->ID, '_gla_identifier_exists', true );
         woocommerce_wp_checkbox( array( 'id' => 'gmc_is_custom_product', 'label' => 'Custom Product?', 'description' => 'No GTIN/Barcode', 'value' => ('no'===$current_val?'yes':'no'), 'cbvalue' => 'yes' ) );
@@ -400,7 +390,9 @@ class Cirrusly_Commerce_GMC {
         // phpcs:ignore WordPress.Security.NonceVerification.Missing
         $val = isset( $_POST['gmc_is_custom_product'] ) ? 'no' : 'yes';
         update_post_meta( $post_id, '_gla_identifier_exists', $val );
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing
         if ( isset( $_POST['_gmc_promotion_id'] ) ) update_post_meta( $post_id, '_gmc_promotion_id', sanitize_text_field( wp_unslash( $_POST['_gmc_promotion_id'] ) ) );
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing
         if ( isset( $_POST['_gmc_custom_label_0'] ) ) update_post_meta( $post_id, '_gmc_custom_label_0', sanitize_text_field( wp_unslash( $_POST['_gmc_custom_label_0'] ) ) );
         
         // Clear cache on save
@@ -444,9 +436,10 @@ class Cirrusly_Commerce_GMC {
     }
 
     public function save_quick_bulk_edit( $product ) {
-        // phpcs:ignore WordPress.Security.NonceVerification.Missing
         $post_id = $product->get_id();
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing
         if ( isset( $_REQUEST['gmc_is_custom_product'] ) ) update_post_meta( $post_id, '_gla_identifier_exists', 'no' );
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing
         elseif ( isset( $_REQUEST['woocommerce_quick_edit'] ) && ! isset( $_REQUEST['bulk_edit'] ) ) update_post_meta( $post_id, '_gla_identifier_exists', 'yes' );
         delete_transient( 'cirrusly_active_promos_stats' );
     }
