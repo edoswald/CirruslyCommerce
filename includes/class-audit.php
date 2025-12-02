@@ -97,6 +97,43 @@ class Cirrusly_Commerce_Audit {
             $cached_data = $data;
         }
 
+        // --- NEW: Calculate Audit Aggregates ---
+        $total_skus = count($cached_data);
+        $loss_count = 0;
+        $alert_count = 0;
+        $low_margin_count = 0;
+
+        foreach($cached_data as $row) {
+            if($row['net'] < 0) $loss_count++;
+            if(!empty($row['alerts'])) $alert_count++;
+            if($row['margin'] < 15) $low_margin_count++;
+        }
+
+        // --- NEW: Render Audit Header Strip ---
+        ?>
+        <div class="cc-dash-grid" style="grid-template-columns: 1fr; margin-bottom: 20px;">
+            <div class="cc-dash-card cc-full-width" style="border-top-color: #2271b1;">
+                <div class="cc-stat-block">
+                    <span class="cc-big-num"><?php echo esc_html( $total_skus ); ?></span>
+                    <span class="cc-label">Audited SKUs</span>
+                </div>
+                <div class="cc-stat-block">
+                    <span class="cc-big-num" style="color:#d63638;"><?php echo esc_html( $loss_count ); ?></span>
+                    <span class="cc-label">Loss Makers (Net &lt; 0)</span>
+                </div>
+                <div class="cc-stat-block">
+                    <span class="cc-big-num" style="color:#dba617;"><?php echo esc_html( $alert_count ); ?></span>
+                    <span class="cc-label">Data Alerts</span>
+                </div>
+                <div class="cc-stat-block">
+                    <span class="cc-big-num"><?php echo esc_html( $low_margin_count ); ?></span>
+                    <span class="cc-label">Low Margin (&lt; 15%)</span>
+                </div>
+            </div>
+        </div>
+        <?php
+        // ---------------------------------------
+
         // 4. Process Filters & Pagination
         // phpcs:ignore WordPress.Security.NonceVerification.Recommended
         $f_margin = isset($_GET['margin']) ? floatval($_GET['margin']) : 25;
