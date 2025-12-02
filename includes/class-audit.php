@@ -24,6 +24,9 @@ class Cirrusly_Commerce_Audit {
         $config = $core->get_global_config();
         $revenue_tiers = json_decode( $config['revenue_tiers_json'], true );
         $class_costs = json_decode( $config['class_costs_json'], true );
+        
+        $pay_pct = isset($config['payment_pct']) ? ($config['payment_pct'] / 100) : 0.029;
+        $pay_flat = isset($config['payment_flat']) ? $config['payment_flat'] : 0.30;
 
         // Helper: Get Ship Revenue
         $get_rev = function($p) use ($revenue_tiers) { 
@@ -62,11 +65,12 @@ class Cirrusly_Commerce_Audit {
                 if($price > 0 && $total_cost > 0) {
                     $gross = $total_inc - $total_cost;
                     $margin = ($gross/$price)*100;
-                    $net = $gross - ($total_inc*0.029 + 0.30); // Approx fees
+                    $fee = ($total_inc * $pay_pct) + $pay_flat;
+                    $net = $gross - $fee;
                 }
                 
                 $alerts = array();
-                if($cost <= 0) $alerts[] = '<span class="gmc-badge" style="background:#d63638;color:#fff;">Missing Cost</span>';
+                if($cost <= 0) $alerts[] = '<a href="'.esc_url(get_edit_post_link($pid)).'" target="_blank" class="gmc-badge" style="background:#d63638;color:#fff;text-decoration:none;">Add Cost</a>';
                 if(!$p->is_virtual() && (float)$p->get_weight() <= 0) $alerts[] = '<span class="gmc-badge" style="background:#dba617;color:#000;">0 Weight</span>';
                 
                 $ship_pl = $rev - $ship_cost;
@@ -166,7 +170,6 @@ class Cirrusly_Commerce_Audit {
 
         // 5. Render View
         
-        // Define allowed HTML for dropdowns
         $allowed_form_tags = array(
             'select' => array('name' => true, 'id' => true, 'class' => true),
             'option' => array('value' => true, 'selected' => true),
@@ -190,7 +193,6 @@ class Cirrusly_Commerce_Audit {
             <div style="text-align:right;"><strong>'.esc_html($total).'</strong> Issues Found</div>
         </div>';
         
-        // Helper for Sort Links
         $sort_link = function($col, $label) use ($orderby, $order) {
             $new_order = ($orderby === $col && $order === 'asc') ? 'desc' : 'asc';
             $arrow = ($orderby === $col) ? ($order === 'asc' ? ' ▲' : ' ▼') : '';
@@ -239,7 +241,6 @@ class Cirrusly_Commerce_Audit {
         }
         echo '</tbody></table>';
 
-        // Pagination
         $pages = ceil($total/$per_page);
         if($pages>1) {
             echo '<div class="tablenav bottom"><div class="tablenav-pages"><span class="displaying-num">'.esc_html($total).' items</span>';
@@ -252,6 +253,6 @@ class Cirrusly_Commerce_Audit {
             echo '</div></div>';
         }
 
-        echo '</div>'; // End Wrap
+        echo '</div>'; 
     }
 }
