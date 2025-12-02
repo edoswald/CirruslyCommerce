@@ -316,20 +316,7 @@ class Cirrusly_Commerce_Core {
             <h3><?php esc_html_e( 'Welcome to Cirrusly Commerce', 'cirrusly-commerce' ); ?></h3>
             <p><?php esc_html_e( 'Your comprehensive suite for optimizing your WooCommerce store\'s financial health and Google Merchant Center compliance.', 'cirrusly-commerce' ); ?></p>
         </div>
-        <style>
-            .cc-dash-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
-            .cc-dash-card { background: #fff; border: 1px solid #ccd0d4; border-top-width: 4px; padding: 20px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); position: relative; }
-            .cc-full-width { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; border-top-color: #646970; }
-            .cc-stat-block { text-align: center; flex: 1; border-right: 1px solid #eee; }
-            .cc-stat-block:last-child { border-right: none; }
-            .cc-big-num { font-size: 24px; font-weight: 700; color: #2c3338; display: block; }
-            .cc-label { font-size: 11px; text-transform: uppercase; color: #646970; font-weight: 600; margin-top: 5px; display: block; }
-            .cc-card-head { font-size: 14px; text-transform: uppercase; color: #646970; font-weight: 600; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; }
-            .cc-stat-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #f0f0f1; }
-            .cc-stat-val { font-weight: 700; font-size: 16px; }
-            .cc-val-bad { color: #d63638; } .cc-val-warn { color: #dba617; } .cc-val-good { color: #008a20; }
-            .cc-actions { margin-top: 20px; text-align: right; }
-        </style>
+        
         <div class="cc-dash-grid">
             <div class="cc-dash-card cc-full-width">
                 <div class="cc-stat-block"><span class="cc-big-num"><?php echo esc_html( $m['total_products'] ); ?></span><span class="cc-label">Catalog Size</span></div>
