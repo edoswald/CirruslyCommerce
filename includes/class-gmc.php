@@ -49,27 +49,27 @@ class Cirrusly_Commerce_GMC {
     }
 
     private function get_monitored_terms() {
+        // Scope: 'title' (only check titles), 'all' (check title + content)
         return array(
             'promotional' => array(
-                'free shipping' => array('severity' => 'Medium', 'reason' => 'Allowed in descriptions but prohibited in titles.'),
-                'sale'          => array('severity' => 'Medium', 'reason' => 'Prohibited in titles. Use the "Sale Price" field instead.'),
-                'buy one get one' => array('severity' => 'Medium', 'reason' => 'Promotional text. Use GMC Promotions feed for this offer.'),
-                'best price'    => array('severity' => 'High', 'reason' => 'Subjective claim. Google may flag this as "Misrepresentation".'),
-                'cheapest'      => array('severity' => 'High', 'reason' => 'Subjective claim. Highly likely to cause "Misrepresentation" suspension.'),
-                'best seller'   => array('severity' => 'Medium', 'reason' => 'Subjective unless verified. Avoid using in titles.'),
+                'free shipping' => array('severity' => 'Medium', 'scope' => 'title', 'reason' => 'Allowed in descriptions but prohibited in titles.'),
+                'sale'          => array('severity' => 'Medium', 'scope' => 'title', 'reason' => 'Prohibited in titles. Use the "Sale Price" field instead.'),
+                'buy one'       => array('severity' => 'Medium', 'scope' => 'title', 'reason' => 'Promotional text. Use GMC Promotions feed for BOGO offers.'),
+                'best price'    => array('severity' => 'High',   'scope' => 'title', 'reason' => 'Subjective claim. Google may flag this as "Misrepresentation".'),
+                'cheapest'      => array('severity' => 'High',   'scope' => 'title', 'reason' => 'Subjective claim. Highly likely to cause "Misrepresentation" suspension.'),
             ),
             'medical' => array( 
-                'cure'        => array('severity' => 'Critical', 'reason' => 'Medical claim. Strictly prohibited for non-pharmacies.'),
-                'heal'        => array('severity' => 'Critical', 'reason' => 'Medical claim. Implies permanent fix.'),
-                'virus'       => array('severity' => 'Critical', 'reason' => 'Medical claim. Do not claim to prevent or treat viruses.'),
-                'covid'       => array('severity' => 'Critical', 'reason' => 'Sensitive event policy. Strictly regulated.'),
-                'guaranteed'  => array('severity' => 'Medium', 'reason' => 'Check your policy. If you say "Guaranteed" you must have a clear money-back policy linked.')
+                'cure'        => array('severity' => 'Critical', 'scope' => 'all', 'reason' => 'Medical claim. Strictly prohibited for non-pharmacies.'),
+                'heal'        => array('severity' => 'Critical', 'scope' => 'all', 'reason' => 'Medical claim. Implies permanent fix.'),
+                'virus'       => array('severity' => 'Critical', 'scope' => 'all', 'reason' => 'Medical claim. Do not claim to prevent or treat viruses.'),
+                'covid'       => array('severity' => 'Critical', 'scope' => 'all', 'reason' => 'Sensitive event policy. Strictly regulated.'),
+                'guaranteed'  => array('severity' => 'Medium',   'scope' => 'all', 'reason' => 'If you say "Guaranteed", you must have a clear money-back policy linked.')
             )
         );
     }
 
     private function render_content_scan_view() {
-        echo '<div class="cc-manual-helper"><h4>Site Content Audit</h4><p>Google also checks your site content for policy compliance. We check for key policies (Refunds, TOS) and restricted claims.</p></div>';
+        echo '<div class="cc-manual-helper"><h4>Site Content Audit</h4><p>Google scans your site content for policy compliance. We check for key policies (Refunds, TOS) and restricted claims. <br><strong>Note:</strong> We now use smart detection to ignore words inside other words (e.g., "Secure" won\'t flag "Cure").</p></div>';
         
         // --- 1. REQUIRED POLICIES (Green Check / Red X) ---
         $all_pages = get_pages();
@@ -124,7 +124,8 @@ class Cirrusly_Commerce_GMC {
                     <td>';
                     foreach($issue['terms'] as $t) {
                         // Tooltip logic
-                        echo '<span class="gmc-badge" style="background:#d63638;color:#fff;cursor:help;" title="Restricted Term">'.esc_html($t['word']).'</span> '; 
+                        $color = ($t['severity'] == 'Critical') ? '#d63638' : '#dba617';
+                        echo '<span class="gmc-badge" style="background:'.esc_attr($color).';color:#fff;cursor:help;" title="'.esc_attr($t['reason']).'">'.esc_html($t['word']).'</span> '; 
                     }
                     echo '</td>
                     <td><a href="'.esc_url(get_edit_post_link($issue['id'])).'" class="button button-small" target="_blank">Edit</a></td>
@@ -140,19 +141,52 @@ class Cirrusly_Commerce_GMC {
     }
 
     private function execute_content_scan_logic() {
-        $terms = array('free shipping','sale','best price','cheapest','cure','heal','virus','covid','guaranteed');
+        $monitored = $this->get_monitored_terms();
         $args = array('post_type' => array('post', 'page', 'product'), 'post_status' => 'publish', 'posts_per_page' => -1);
         $posts = get_posts($args);
         $issues = array();
 
         foreach($posts as $post) {
-            $content = $post->post_content . ' ' . $post->post_title;
             $found_terms = array();
-            foreach($terms as $word) {
-                if( stripos($content, $word) !== false ) {
-                    $found_terms[] = array('word' => $word);
+            
+            // Text to Scan
+            $title = $post->post_title;
+            $content = strip_tags($post->post_content); // Strip tags to avoid flagging HTML attributes
+            
+            // 1. Term Scanning
+            foreach ($monitored as $category => $terms) {
+                foreach ($terms as $word => $rules) {
+                    $pattern = '/\b' . preg_quote($word, '/') . '\b/i'; // Word Boundary Regex
+                    $found = false;
+
+                    if ( $rules['scope'] === 'title' ) {
+                        // Strict mode: Only flag if in title
+                        if ( preg_match($pattern, $title) ) $found = true;
+                    } else {
+                        // Global mode: Check title OR content
+                        if ( preg_match($pattern, $title . ' ' . $content) ) $found = true;
+                    }
+
+                    if ( $found ) {
+                        $found_terms[] = array(
+                            'word' => $word,
+                            'reason' => $rules['reason'],
+                            'severity' => $rules['severity']
+                        );
+                    }
                 }
             }
+
+            // 2. Gimmick Scanning (Titles Only)
+            // Check for ALL CAPS (if title is long enough to matter)
+            if ( strlen($title) > 5 && ctype_upper(preg_replace('/[^a-zA-Z]/', '', $title)) ) {
+                $found_terms[] = array('word' => 'ALL CAPS', 'reason' => 'Excessive capitalization in title.', 'severity' => 'Medium');
+            }
+            // Check for excessive punctuation (!!!)
+            if ( preg_match('/[!]{2,}/', $title) ) {
+                $found_terms[] = array('word' => '!!!', 'reason' => 'Excessive punctuation in title.', 'severity' => 'Medium');
+            }
+
             if(!empty($found_terms)) {
                 $issues[] = array('id'=>$post->ID, 'title'=>$post->post_title, 'type'=>$post->post_type, 'terms'=>$found_terms);
             }
@@ -167,7 +201,6 @@ class Cirrusly_Commerce_GMC {
         <div class="cc-promo-generator">
             <h3 style="margin-top:0;">1. Create Promotion Entry</h3>
             <div class="cc-promo-grid">
-                <!-- Column 1 -->
                 <div>
                     <label for="pg_id">Promotion ID <span class="dashicons dashicons-info" title="Unique ID (e.g. SUMMER_SALE_2025). Must match the ID used in product data."></span></label>
                     <input type="text" id="pg_id" placeholder="SUMMER_SALE">
@@ -178,7 +211,6 @@ class Cirrusly_Commerce_GMC {
                     <label for="pg_dates">Dates <span class="dashicons dashicons-info" title="Format: YYYY-MM-DD/YYYY-MM-DD (Start/End)"></span></label>
                     <input type="text" id="pg_dates" placeholder="2025-06-01/2025-06-30">
                 </div>
-                <!-- Column 2 -->
                 <div>
                     <label for="pg_app">Product Applicability <span class="dashicons dashicons-info" title="Specific: Applies only to products with matching Promo ID. All: Applies to entire store."></span></label>
                     <select id="pg_app">
@@ -197,7 +229,6 @@ class Cirrusly_Commerce_GMC {
                 </div>
             </div>
             
-            <!-- Button Row -->
             <div style="margin-top:15px;">
                 <button type="button" class="button button-primary" id="pg_generate">Generate Code</button>
             </div>
