@@ -35,7 +35,6 @@ class Cirrusly_Commerce_Core {
             wp_enqueue_media(); 
             wp_enqueue_style( 'cirrusly-admin-css', CIRRUSLY_COMMERCE_URL . 'assets/css/admin.css', array(), CIRRUSLY_COMMERCE_VERSION );
             
-            // Removed inline nav styles to allow admin.css to handle centering
             wp_add_inline_style( 'cirrusly-admin-css', '
                 .cc-manual-helper { background: #f0f6fc; border-left: 4px solid #72aee6; padding: 15px; margin-bottom: 20px; }
                 .cc-manual-helper h4 { margin-top: 0; color: #1d2327; }
@@ -121,7 +120,7 @@ class Cirrusly_Commerce_Core {
 
     public static function render_page_header( $title ) {
         $mailto = 'mailto:help@cirruslyweather.com?subject=Support%20Request';
-        echo '<h1 style="margin-bottom:20px; display:flex; align-items:center;">';
+        echo '<h1 class="cc-page-title" style="margin-bottom:20px; display:flex; align-items:center;">';
         echo '<img src="' . esc_url( CIRRUSLY_COMMERCE_URL . 'assets/images/logo.svg' ) . '" style="height:50px; width:auto; margin-right:15px;" alt="Cirrusly Commerce">';
         echo esc_html( $title );
         echo '<div style="margin-left:auto; display:flex; align-items:center; gap:10px;">';
@@ -151,10 +150,15 @@ class Cirrusly_Commerce_Core {
     }
 
     public function register_settings() {
+        // Consolidated Group: General
+        register_setting( 'cirrusly_general_group', 'cirrusly_scan_config', array( 'sanitize_callback' => array( $this, 'handle_scan_schedule' ) ) );
+        register_setting( 'cirrusly_general_group', 'cirrusly_msrp_config', array( 'sanitize_callback' => array( $this, 'sanitize_options_array' ) ) );
+        register_setting( 'cirrusly_general_group', 'cirrusly_google_reviews_config', array( 'sanitize_callback' => array( $this, 'sanitize_options_array' ) ) );
+
+        // Group: Profit Engine (Shipping)
         register_setting( 'cirrusly_shipping_group', 'cirrusly_shipping_config', array( 'sanitize_callback' => array( $this, 'sanitize_settings' ) ) );
-        register_setting( 'cirrusly_reviews_group', 'cirrusly_google_reviews_config', array( 'sanitize_callback' => array( $this, 'sanitize_options_array' ) ) );
-        register_setting( 'cirrusly_scan_group', 'cirrusly_scan_config', array( 'sanitize_callback' => array( $this, 'handle_scan_schedule' ) ) );
-        register_setting( 'cirrusly_msrp_group', 'cirrusly_msrp_config', array( 'sanitize_callback' => array( $this, 'sanitize_options_array' ) ) );
+
+        // Group: Badges
         register_setting( 'cirrusly_badge_group', 'cirrusly_badge_config', array( 'sanitize_callback' => array( $this, 'sanitize_settings' ) ) );
     }
 
@@ -300,76 +304,154 @@ class Cirrusly_Commerce_Core {
     }
 
     public function render_main_dashboard() {
+        echo '<div class="wrap">'; // Move wrapper outside/above header for consistency
         self::render_page_header( 'Cirrusly Commerce Dashboard' );
         $m = self::get_dashboard_metrics();
         ?>
-        <div class="wrap">
-            <div class="cc-intro-text" style="background:#fff; padding:15px; border:1px solid #ccd0d4; margin-bottom:20px; border-left:4px solid #2271b1;">
-                <h3><?php esc_html_e( 'Welcome to Cirrusly Commerce', 'cirrusly-commerce' ); ?></h3>
-                <p><?php esc_html_e( 'Your comprehensive suite for optimizing your WooCommerce store\'s financial health and Google Merchant Center compliance.', 'cirrusly-commerce' ); ?></p>
+        <div class="cc-intro-text" style="background:#fff; padding:15px; border:1px solid #ccd0d4; margin-bottom:20px; border-left:4px solid #2271b1;">
+            <h3><?php esc_html_e( 'Welcome to Cirrusly Commerce', 'cirrusly-commerce' ); ?></h3>
+            <p><?php esc_html_e( 'Your comprehensive suite for optimizing your WooCommerce store\'s financial health and Google Merchant Center compliance.', 'cirrusly-commerce' ); ?></p>
+        </div>
+        <style>
+            .cc-dash-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+            .cc-dash-card { background: #fff; border: 1px solid #ccd0d4; border-top-width: 4px; padding: 20px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); position: relative; }
+            .cc-full-width { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; border-top-color: #646970; }
+            .cc-stat-block { text-align: center; flex: 1; border-right: 1px solid #eee; }
+            .cc-stat-block:last-child { border-right: none; }
+            .cc-big-num { font-size: 24px; font-weight: 700; color: #2c3338; display: block; }
+            .cc-label { font-size: 11px; text-transform: uppercase; color: #646970; font-weight: 600; margin-top: 5px; display: block; }
+            .cc-card-head { font-size: 14px; text-transform: uppercase; color: #646970; font-weight: 600; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; }
+            .cc-stat-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #f0f0f1; }
+            .cc-stat-val { font-weight: 700; font-size: 16px; }
+            .cc-val-bad { color: #d63638; } .cc-val-warn { color: #dba617; } .cc-val-good { color: #008a20; }
+            .cc-actions { margin-top: 20px; text-align: right; }
+        </style>
+        <div class="cc-dash-grid">
+            <div class="cc-dash-card cc-full-width">
+                <div class="cc-stat-block"><span class="cc-big-num"><?php echo esc_html( $m['total_products'] ); ?></span><span class="cc-label">Catalog Size</span></div>
+                <div class="cc-stat-block"><span class="cc-big-num" style="color: #d63638;"><?php echo esc_html( $m['on_sale_count'] ); ?></span><span class="cc-label">On Sale</span></div>
+                <div class="cc-stat-block"><span class="cc-big-num" style="color: #00a32a;"><?php echo esc_html( $m['avg_margin'] ); ?>%</span><span class="cc-label">Avg Margin (Est.)</span></div>
+                <div class="cc-stat-block"><span class="cc-big-num" style="color: #dba617;"><?php echo esc_html( $m['missing_cost'] ); ?></span><span class="cc-label">Missing Cost</span></div>
             </div>
-            <style>
-                .cc-dash-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
-                .cc-dash-card { background: #fff; border: 1px solid #ccd0d4; border-top-width: 4px; padding: 20px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); position: relative; }
-                .cc-full-width { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; border-top-color: #646970; }
-                .cc-stat-block { text-align: center; flex: 1; border-right: 1px solid #eee; }
-                .cc-stat-block:last-child { border-right: none; }
-                .cc-big-num { font-size: 24px; font-weight: 700; color: #2c3338; display: block; }
-                .cc-label { font-size: 11px; text-transform: uppercase; color: #646970; font-weight: 600; margin-top: 5px; display: block; }
-                .cc-card-head { font-size: 14px; text-transform: uppercase; color: #646970; font-weight: 600; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; }
-                .cc-stat-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #f0f0f1; }
-                .cc-stat-val { font-weight: 700; font-size: 16px; }
-                .cc-val-bad { color: #d63638; } .cc-val-warn { color: #dba617; } .cc-val-good { color: #008a20; }
-                .cc-actions { margin-top: 20px; text-align: right; }
-            </style>
-            <div class="cc-dash-grid">
-                <div class="cc-dash-card cc-full-width">
-                    <div class="cc-stat-block"><span class="cc-big-num"><?php echo esc_html( $m['total_products'] ); ?></span><span class="cc-label">Catalog Size</span></div>
-                    <div class="cc-stat-block"><span class="cc-big-num" style="color: #d63638;"><?php echo esc_html( $m['on_sale_count'] ); ?></span><span class="cc-label">On Sale</span></div>
-                    <div class="cc-stat-block"><span class="cc-big-num" style="color: #00a32a;"><?php echo esc_html( $m['avg_margin'] ); ?>%</span><span class="cc-label">Avg Margin (Est.)</span></div>
-                    <div class="cc-stat-block"><span class="cc-big-num" style="color: #dba617;"><?php echo esc_html( $m['missing_cost'] ); ?></span><span class="cc-label">Missing Cost</span></div>
-                </div>
-                
-                <div class="cc-dash-card" style="border-top-color: #d63638;">
-                    <div class="cc-card-head"><span>Google Merchant Center</span> <span class="dashicons dashicons-google"></span></div>
-                    <div class="cc-stat-row"><span>Critical Issues</span><span class="cc-stat-val <?php echo $m['gmc_critical'] > 0 ? 'cc-val-bad' : 'cc-val-good'; ?>"><?php echo esc_html( $m['gmc_critical'] ); ?></span></div>
-                    <div class="cc-stat-row"><span>Warnings</span><span class="cc-stat-val <?php echo $m['gmc_warnings'] > 0 ? 'cc-val-warn' : 'cc-val-good'; ?>"><?php echo esc_html( $m['gmc_warnings'] ); ?></span></div>
-                    <div class="cc-actions"><a href="admin.php?page=cirrusly-gmc&tab=scan" class="button button-primary">Fix Issues</a></div>
-                </div>
+            
+            <div class="cc-dash-card" style="border-top-color: #d63638;">
+                <div class="cc-card-head"><span>Google Merchant Center</span> <span class="dashicons dashicons-google"></span></div>
+                <div class="cc-stat-row"><span>Critical Issues</span><span class="cc-stat-val <?php echo $m['gmc_critical'] > 0 ? 'cc-val-bad' : 'cc-val-good'; ?>"><?php echo esc_html( $m['gmc_critical'] ); ?></span></div>
+                <div class="cc-stat-row"><span>Warnings</span><span class="cc-stat-val <?php echo $m['gmc_warnings'] > 0 ? 'cc-val-warn' : 'cc-val-good'; ?>"><?php echo esc_html( $m['gmc_warnings'] ); ?></span></div>
+                <div class="cc-actions"><a href="admin.php?page=cirrusly-gmc&tab=scan" class="button button-primary">Fix Issues</a></div>
+            </div>
 
-                <div class="cc-dash-card" style="border-top-color: #2271b1;">
-                    <div class="cc-card-head"><span>Store Integrity</span> <span class="dashicons dashicons-analytics"></span></div>
-                    <div class="cc-stat-row"><span>Products Missing Cost</span><span class="cc-stat-val <?php echo $m['missing_cost'] > 0 ? 'cc-val-bad' : 'cc-val-good'; ?>"><?php echo esc_html( $m['missing_cost'] ); ?></span></div>
-                    <div class="cc-actions"><a href="admin.php?page=cirrusly-audit" class="button button-secondary">Open Audit</a></div>
-                </div>
-                
-                <div class="cc-dash-card" style="border-top-color: #00a32a;">
-                    <div class="cc-card-head"><span>Quick Links</span> <span class="dashicons dashicons-admin-links"></span></div>
-                    <div class="cc-stat-row"><a href="admin.php?page=cirrusly-gmc&tab=promotions">Promotions Manager</a></div>
-                    <div class="cc-stat-row"><a href="admin.php?page=cirrusly-settings">Plugin Settings</a></div>
-                    <div class="cc-stat-row"><a href="admin.php?page=cirrusly-manual">User Manual</a></div>
-                </div>
+            <div class="cc-dash-card" style="border-top-color: #2271b1;">
+                <div class="cc-card-head"><span>Store Integrity</span> <span class="dashicons dashicons-analytics"></span></div>
+                <div class="cc-stat-row"><span>Products Missing Cost</span><span class="cc-stat-val <?php echo $m['missing_cost'] > 0 ? 'cc-val-bad' : 'cc-val-good'; ?>"><?php echo esc_html( $m['missing_cost'] ); ?></span></div>
+                <div class="cc-actions"><a href="admin.php?page=cirrusly-audit" class="button button-secondary">Open Audit</a></div>
+            </div>
+            
+            <div class="cc-dash-card" style="border-top-color: #00a32a;">
+                <div class="cc-card-head"><span>Quick Links</span> <span class="dashicons dashicons-admin-links"></span></div>
+                <div class="cc-stat-row"><a href="admin.php?page=cirrusly-gmc&tab=promotions">Promotions Manager</a></div>
+                <div class="cc-stat-row"><a href="admin.php?page=cirrusly-settings">Plugin Settings</a></div>
+                <div class="cc-stat-row"><a href="admin.php?page=cirrusly-manual">User Manual</a></div>
             </div>
         </div>
-        <?php
+        </div><?php
     }
 
     public function render_settings_page() {
         // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-        $tab = isset( $_GET['tab'] ) ? sanitize_text_field( wp_unslash( $_GET['tab'] ) ) : 'shipping';
+        $tab = isset( $_GET['tab'] ) ? sanitize_text_field( wp_unslash( $_GET['tab'] ) ) : 'general';
         echo '<div class="wrap">';
         self::render_page_header( 'Settings' );
-        echo '<nav class="nav-tab-wrapper"><a href="?page=cirrusly-settings&tab=shipping" class="nav-tab '.($tab=='shipping'?'nav-tab-active':'').'">Shipping</a><a href="?page=cirrusly-settings&tab=reviews" class="nav-tab '.($tab=='reviews'?'nav-tab-active':'').'">Reviews</a><a href="?page=cirrusly-settings&tab=scans" class="nav-tab '.($tab=='scans'?'nav-tab-active':'').'">Scans</a><a href="?page=cirrusly-settings&tab=msrp" class="nav-tab '.($tab=='msrp'?'nav-tab-active':'').'">MSRP</a><a href="?page=cirrusly-settings&tab=badges" class="nav-tab '.($tab=='badges'?'nav-tab-active':'').'">Badges</a></nav>';
+        
+        echo '<nav class="nav-tab-wrapper">
+                <a href="?page=cirrusly-settings&tab=general" class="nav-tab '.($tab=='general'?'nav-tab-active':'').'">General Settings</a>
+                <a href="?page=cirrusly-settings&tab=shipping" class="nav-tab '.($tab=='shipping'?'nav-tab-active':'').'">Profit Engine</a>
+                <a href="?page=cirrusly-settings&tab=badges" class="nav-tab '.($tab=='badges'?'nav-tab-active':'').'">Badge Manager</a>
+              </nav>';
+              
         echo '<br><form method="post" action="options.php">';
         
-        if($tab==='msrp'){ settings_fields('cirrusly_msrp_group'); do_settings_sections('cirrusly_msrp_group'); $this->render_msrp_settings(); }
-        elseif($tab==='reviews'){ settings_fields('cirrusly_reviews_group'); do_settings_sections('cirrusly_reviews_group'); $this->render_reviews_settings(); }
-        elseif($tab==='scans'){ settings_fields('cirrusly_scan_group'); do_settings_sections('cirrusly_scan_group'); $this->render_scans_settings(); }
-        elseif($tab==='badges'){ settings_fields('cirrusly_badge_group'); $this->render_badges_settings(); }
-        else { settings_fields('cirrusly_shipping_group'); $this->render_shipping_settings(); }
+        if($tab==='badges'){ 
+            settings_fields('cirrusly_badge_group'); 
+            $this->render_badges_settings(); 
+        } elseif($tab==='shipping') { 
+            settings_fields('cirrusly_shipping_group'); 
+            $this->render_profit_engine_settings(); 
+        } else { 
+            settings_fields('cirrusly_general_group'); 
+            $this->render_general_settings(); 
+        }
         
         submit_button(); 
         echo '</form></div>';
+    }
+
+    private function render_general_settings() {
+        // Retrieve values
+        $msrp = get_option( 'cirrusly_msrp_config', array() );
+        $msrp_enable = isset($msrp['enable_display']) ? $msrp['enable_display'] : '';
+
+        $gcr = get_option( 'cirrusly_google_reviews_config', array() );
+        $gcr_enable = isset($gcr['enable_reviews']) ? $gcr['enable_reviews'] : '';
+        $gcr_id = isset($gcr['merchant_id']) ? $gcr['merchant_id'] : '';
+
+        $scan = get_option( 'cirrusly_scan_config', array() );
+        $daily = isset($scan['enable_daily_scan']) ? $scan['enable_daily_scan'] : '';
+
+        echo '<div class="cc-settings-grid">';
+        
+        // Card: Integrations (Reviews)
+        echo '<div class="cc-settings-card">
+            <div class="cc-card-header">
+                <h3>Integrations</h3>
+                <span class="dashicons dashicons-google"></span>
+            </div>
+            <div class="cc-card-body">
+                <table class="form-table cc-settings-table">
+                    <tr>
+                        <th scope="row">Google Customer Reviews</th>
+                        <td><label><input type="checkbox" name="cirrusly_google_reviews_config[enable_reviews]" value="yes" '.checked('yes', $gcr_enable, false).'> Enable Survey on Thank You Page</label></td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Merchant ID</th>
+                        <td><input type="text" name="cirrusly_google_reviews_config[merchant_id]" value="'.esc_attr($gcr_id).'" placeholder="123456789"></td>
+                    </tr>
+                </table>
+            </div>
+        </div>';
+
+        // Card: Automation
+        echo '<div class="cc-settings-card">
+            <div class="cc-card-header">
+                <h3>Automation</h3>
+                <span class="dashicons dashicons-update"></span>
+            </div>
+            <div class="cc-card-body">
+                <p>Scheduled tasks run in the background to ensure your store data remains healthy.</p>
+                <hr style="border:0; border-top:1px solid #eee; margin:15px 0;">
+                <label><input type="checkbox" name="cirrusly_scan_config[enable_daily_scan]" value="yes" '.checked('yes', $daily, false).'> <strong>Run Daily Health Scan</strong></label>
+                <p class="description">Automatically checks for missing GTINs and prohibited terms every 24 hours.</p>
+            </div>
+        </div>';
+        
+        // Card: Frontend Display (MSRP)
+        echo '<div class="cc-settings-card">
+            <div class="cc-card-header">
+                <h3>Frontend Display</h3>
+                <span class="dashicons dashicons-store"></span>
+            </div>
+            <div class="cc-card-body">
+                <table class="form-table cc-settings-table">
+                    <tr>
+                        <th scope="row">MSRP Price</th>
+                        <td><label><input type="checkbox" name="cirrusly_msrp_config[enable_display]" value="yes" '.checked('yes', $msrp_enable, false).'> Show Strikethrough MSRP on Product Pages</label></td>
+                    </tr>
+                </table>
+                <p class="description">For custom placement, use the <strong>MSRP Display</strong> block in the Gutenberg editor.</p>
+            </div>
+        </div>';
+        
+        echo '</div>'; // End Grid
     }
 
     private function render_badges_settings() {
@@ -397,30 +479,7 @@ class Cirrusly_Commerce_Core {
         echo '</tbody></table><button type="button" class="button" id="cc-add-badge-row" style="margin-top:10px;">+ Add Badge Rule</button></div></div>';
     }
 
-    private function render_msrp_settings() {
-        $msrp = get_option( 'cirrusly_msrp_config', array() );
-        $msrp_enable = isset($msrp['enable_display']) ? $msrp['enable_display'] : '';
-        echo '<div class="cc-settings-card"><div class="cc-card-header"><h3>MSRP Display</h3><p>Enable the strikethrough MSRP price on the frontend.</p></div>';
-        echo '<div class="cc-card-body"><table class="form-table cc-settings-table"><tr><th scope="row">Enable Display</th><td><label><input type="checkbox" name="cirrusly_msrp_config[enable_display]" value="yes" '.checked('yes', $msrp_enable, false).'> Show MSRP on frontend</label></td></tr></table></div></div>';
-    }
-
-    private function render_reviews_settings() {
-        $gcr = get_option( 'cirrusly_google_reviews_config', array() );
-        $gcr_enable = isset($gcr['enable_reviews']) ? $gcr['enable_reviews'] : '';
-        $gcr_id = isset($gcr['merchant_id']) ? $gcr['merchant_id'] : '';
-        echo '<div class="cc-settings-card"><div class="cc-card-header"><h3>Google Customer Reviews</h3><p>Enables the survey popup. Requires Merchant Center ID.</p></div>';
-        echo '<div class="cc-card-body"><table class="form-table cc-settings-table"><tr><th scope="row">Enable</th><td><input type="checkbox" name="cirrusly_google_reviews_config[enable_reviews]" value="yes" '.checked('yes', $gcr_enable, false).'></td></tr>';
-        echo '<tr><th scope="row">Merchant ID</th><td><input type="text" name="cirrusly_google_reviews_config[merchant_id]" value="'.esc_attr($gcr_id).'"></td></tr></table></div></div>';
-    }
-
-    private function render_scans_settings() {
-        $scan = get_option( 'cirrusly_scan_config', array() );
-        $daily = isset($scan['enable_daily_scan']) ? $scan['enable_daily_scan'] : '';
-        echo '<div class="cc-settings-card"><div class="cc-card-header"><h3>Scheduled Scans</h3><p>Run automated health checks daily.</p></div>';
-        echo '<div class="cc-card-body"><table class="form-table cc-settings-table"><tr><th scope="row">Daily Scan</th><td><input type="checkbox" name="cirrusly_scan_config[enable_daily_scan]" value="yes" '.checked('yes', $daily, false).'> Enable</td></tr></table></div></div>';
-    }
-
-    private function render_shipping_settings() {
+    private function render_profit_engine_settings() {
         $config = $this->get_global_config();
         $revenue_tiers = json_decode( $config['revenue_tiers_json'], true );
         $matrix_rules = json_decode( $config['matrix_rules_json'], true );
@@ -431,9 +490,13 @@ class Cirrusly_Commerce_Core {
         $all_classes = array( 'default' => 'Default (No Class)' );
         if( ! is_wp_error( $terms ) ) { foreach ( $terms as $term ) { $all_classes[ $term->slug ] = $term->name; } }
 
+        echo '<div class="cc-manual-helper"><h4>Profit Engine Configuration</h4><p>These settings drive the real-time margin calculations on your product edit pages. Accurate data here ensures you don\'t lose money on shipping.</p></div>';
+
         // 1. Revenue Tiers
-        echo '<div class="cc-settings-card"><div class="cc-card-header"><h3>Shipping Revenue Tiers</h3><p>Define how much shipping revenue is collected based on product price.</p></div>';
-        echo '<div class="cc-card-body"><table class="widefat striped cc-settings-table" style="max-width:100%;"><thead><tr><th>Min Price</th><th>Max Price</th><th>Charge</th><th></th></tr></thead><tbody id="cc-revenue-rows">';
+        echo '<div class="cc-settings-card"><div class="cc-card-header"><h3>1. Shipping Revenue</h3><p>How much do you charge the customer for shipping?</p></div>';
+        echo '<div class="cc-card-body">
+        <p class="description">Define tiers based on product price. (e.g., Items $0-$10 charge $3.99 shipping).</p>
+        <table class="widefat striped cc-settings-table" style="max-width:100%;"><thead><tr><th>Min Price ($)</th><th>Max Price ($)</th><th>Charge Amount ($)</th><th></th></tr></thead><tbody id="cc-revenue-rows">';
         if( !empty($revenue_tiers) ) {
             foreach($revenue_tiers as $idx => $tier) {
                 echo '<tr>
@@ -447,8 +510,10 @@ class Cirrusly_Commerce_Core {
         echo '</tbody></table><button type="button" class="button" id="cc-add-revenue-row" style="margin-top:10px;">+ Add Tier</button></div></div>';
 
         // 2. Class Costs
-        echo '<div class="cc-settings-card"><div class="cc-card-header"><h3>Shipping Class Costs (Base Cost)</h3><p>Define your actual cost to ship specific classes of items.</p></div>';
-        echo '<div class="cc-card-body"><table class="widefat striped cc-settings-table" style="max-width:600px;"><thead><tr><th>Shipping Class</th><th>Your Cost ($)</th></tr></thead><tbody>';
+        echo '<div class="cc-settings-card"><div class="cc-card-header"><h3>2. Internal Shipping Cost</h3><p>How much does it cost YOU to ship this item?</p></div>';
+        echo '<div class="cc-card-body">
+        <p class="description">Set a base cost for each shipping class. This is deducted from your revenue to calculate margin.</p>
+        <table class="widefat striped cc-settings-table" style="max-width:600px;"><thead><tr><th>Shipping Class</th><th>Your Cost ($)</th></tr></thead><tbody>';
         foreach ( $all_classes as $slug => $name ) {
             $val = isset( $class_costs[$slug] ) ? $class_costs[$slug] : 0.00;
             if ( $slug === 'default' && !isset( $class_costs['default'] ) ) $val = 10.00;
@@ -458,8 +523,10 @@ class Cirrusly_Commerce_Core {
         echo '</tbody></table></div></div>';
 
         // 3. Matrix Multipliers
-        echo '<div class="cc-settings-card"><div class="cc-card-header"><h3>Profitability Matrix Scenarios</h3><p>Define custom shipping scenarios (e.g. Rush) and their cost multiplier.</p></div>';
-        echo '<div class="cc-card-body"><table class="widefat striped cc-settings-table" style="max-width:100%;"><thead><tr><th>Key</th><th>Label</th><th>Cost Multiplier</th><th></th></tr></thead><tbody id="cc-matrix-rows">';
+        echo '<div class="cc-settings-card"><div class="cc-card-header"><h3>3. Scenario Matrix</h3><p>Model expensive shipping scenarios.</p></div>';
+        echo '<div class="cc-card-body">
+        <p class="description">Define scenarios (like Overnight Shipping) and their cost multiplier to see if you stay profitable.</p>
+        <table class="widefat striped cc-settings-table" style="max-width:100%;"><thead><tr><th>Key</th><th>Label</th><th>Cost Multiplier</th><th></th></tr></thead><tbody id="cc-matrix-rows">';
         if($matrix_rules) {
             $idx = 0;
             foreach($matrix_rules as $k => $rule) {
