@@ -19,11 +19,6 @@ jQuery(document).ready(function($) {
     function getContext($el) {
         var $c = $el.closest('form, .woocommerce_variation');
         
-        var findPrice = function(selector_std, selector_sub) {
-            var $std = $c.find(selector_std);
-            return $std.length && $std.is(':visible') ? $std : $c.find(selector_sub);
-        };
-
         if($c.hasClass('woocommerce_variation')) return { 
             reg: $c.find('input[name^="variable_regular_price"]'), 
             sale: $c.find('input[name^="variable_sale_price"]'), 
@@ -75,6 +70,10 @@ jQuery(document).ready(function($) {
         var shipClassId = ctx.shipClass.val();
         var classData = getClassData(shipClassId);
         
+        // Get fees from config
+        var pay_pct = cw_ship_config.payment_pct ? (cw_ship_config.payment_pct/100) : 0.029;
+        var pay_flat = cw_ship_config.payment_flat ? cw_ship_config.payment_flat : 0.30;
+
         if (price > 0 && total_cost > 0) {
             var shipRev = getShippingRevenue(price);
             var gross = price - total_cost + shipRev;
@@ -99,7 +98,8 @@ jQuery(document).ready(function($) {
                 var rulesObj = Array.isArray(rules) ? rules : Object.values(rules);
                 if(rulesObj.length) {
                     $.each(rulesObj, function(k,v){
-                        var netScenario = (price - cost - ((price+shipRev)*0.029+0.30) + shipRev) - (ship * v.cost_mult);
+                        var fee = (price + shipRev) * pay_pct + pay_flat;
+                        var netScenario = (price - cost - fee + shipRev) - (ship * v.cost_mult);
                         var marginScenario = (netScenario / price) * 100;
                         var cls = netScenario > 0 ? 'prof-green' : 'prof-red';
                         html += '<div class="cw-matrix-item '+cls+'"><span style="display:block;font-weight:bold;">'+v.label+'</span>$'+netScenario.toFixed(2)+' <small style="display:block;font-size:9px;">('+marginScenario.toFixed(0)+'%)</small></div>';
