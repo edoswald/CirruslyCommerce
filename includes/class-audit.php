@@ -174,8 +174,8 @@ class Cirrusly_Commerce_Audit {
         // 5. Render View
         
         // Top Bar with Filters
-        echo '<div class="card" style="background:#fff; padding:15px; margin-bottom:20px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
-            <form method="get" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+        echo '<div class="cc-audit-toolbar">
+            <form method="get" class="cc-audit-form">
                 <input type="hidden" name="page" value="cirrusly-audit">
                 <input type="text" name="s" value="'.esc_attr($search).'" placeholder="Search products...">
                 <select name="margin">
@@ -185,11 +185,11 @@ class Cirrusly_Commerce_Audit {
                     <option value="100" '.selected($f_margin,100,false).'>Show All (No Filter)</option>
                 </select> 
                 '.wc_product_dropdown_categories(array('option_none_text'=>'All Categories','name'=>'cat','selected'=>$f_cat,'value_field'=>'slug','echo'=>0)).'
-                <label><input type="checkbox" name="hide_oos" value="1" '.checked($f_oos,true,false).'> Hide OOS</label>
+                <label style="font-weight:600; font-size:12px; color:#50575e;"><input type="checkbox" name="hide_oos" value="1" '.checked($f_oos,true,false).'> Hide OOS</label>
                 <button class="button button-primary">Filter</button>
-                <a href="?page=cirrusly-audit&refresh_audit=1" class="button" title="Refresh Data from DB">Refresh Data</a>
+                <a href="?page=cirrusly-audit&refresh_audit=1" class="button" title="Refresh Data from DB"><span class="dashicons dashicons-update" style="margin-top:4px;"></span></a>
             </form>
-            <div style="text-align:right;"><strong>'.esc_html($total).'</strong> Issues Found</div>
+            <div class="cc-audit-count">Found <strong>'.esc_html($total).'</strong> products</div>
         </div>';
         
         // Helper for Sort Links
