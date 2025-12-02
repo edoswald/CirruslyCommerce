@@ -4,7 +4,7 @@ Contributors: edoswald
 Tags: Google Merchant Center, WooCommerce, pricing, MSRP, profit margin
 Requires at least: 5.8 
 Tested up to: 6.8 
-Stable tag: 1.0.4 
+Stable tag: 1.0.5 
 Requires PHP: 8.0 
 License: GPLv2 or later 
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
@@ -97,6 +97,10 @@ GMC Health Check: Scan results showing critical data issues and warnings.
 Store Audit: A financial breakdown of every product to spot profit leaks.
 
 == Changelog ==
+
+= 1.0.5 =
+
+Continuing work to address issues found in Plugin Check to ensure smooth approval.
 
 = 1.0.4 =
 
