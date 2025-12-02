@@ -1,7 +1,3 @@
-{
-type: uploaded file
-fileName: edoswald/cirruslycommerce/CirruslyCommerce-3de5a5bc47fcef81118b96846ca09fa3907411cb/includes/class-core.php
-fullContent:
 <?php
 
 if ( ! defined( 'ABSPATH' ) ) {
