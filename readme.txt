@@ -98,6 +98,10 @@ Store Audit: A financial breakdown of every product to spot profit leaks.
 
 == Changelog ==
 
+= 1.0.4 =
+
+Style fixes and ensuring consistency across pages.
+
 = 1.0.3 =
 
 Restoration of scheduled scan logic and financial audit functionality lost in conversion from snippet to plugin. Redesigned settings area. Corrected math issues on the dashboard that had more products on sale than the catalog due to errors in counting variable products.
