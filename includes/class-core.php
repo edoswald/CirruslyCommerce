@@ -12,6 +12,9 @@ class Cirrusly_Commerce_Core {
         add_action( 'admin_init', array( $this, 'register_settings' ) );
         add_action( 'wp_dashboard_setup', array( $this, 'register_dashboard_widget' ) );
         
+        // Hide Upsells CSS Hook
+        add_action( 'admin_head', array( $this, 'cirrusly_hide_upsells_css' ) );
+
         // Scheduled Scan Hook
         add_action( 'cirrusly_gmc_daily_scan', array( $this, 'execute_scheduled_scan' ) );
         
@@ -46,6 +49,16 @@ class Cirrusly_Commerce_Core {
         // return fs_is_plan__premium_only('pro'); 
 
         return false; // Default to FREE
+    }
+
+    public function cirrusly_hide_upsells_css() {
+        // Only run on plugin pages
+        if ( ! isset( $_GET['page'] ) || strpos( $_GET['page'], 'cirrusly-' ) === false ) return;
+
+        $general = get_option( 'cirrusly_scan_config', array() ); // We store the toggle here for simplicity
+        if ( ! empty( $general['hide_upsells'] ) && $general['hide_upsells'] === 'yes' ) {
+            echo '<style>.cc-pro-feature { display: none !important; }</style>';
+        }
     }
 
     public function force_enable_cogs() { return 'yes'; }
@@ -118,6 +131,12 @@ class Cirrusly_Commerce_Core {
                     $("#cc-matrix-rows").append(row);
                 });
                 $(document).on("click", ".cc-remove-row", function(){ $(this).closest("tr").remove(); });
+                
+                // System Info Toggle
+                $("#cc-sys-info-toggle").click(function(e){
+                    e.preventDefault();
+                    $("#cc-sys-info-panel").toggle();
+                });
             });' );
         }
     }
@@ -128,9 +147,17 @@ class Cirrusly_Commerce_Core {
         echo '<img src="' . esc_url( CIRRUSLY_COMMERCE_URL . 'assets/images/logo.svg' ) . '" style="height:50px; width:auto; margin-right:15px;" alt="Cirrusly Commerce">';
         echo esc_html( $title );
         echo '<div style="margin-left:auto; display:flex; align-items:center; gap:10px;">';
+        echo '<a href="#" id="cc-sys-info-toggle" class="button button-secondary" title="View System Info for Support">System Info</a>';
         echo '<a href="' . esc_attr( $mailto ) . '" class="button button-secondary">Get Support</a>'; 
         echo '<span class="cc-ver-badge" style="background:#f0f0f1;color:#646970;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;">v' . esc_html( CIRRUSLY_COMMERCE_VERSION ) . '</span>';
         echo '</div></h1>';
+        
+        // Hidden System Info Panel
+        echo '<div id="cc-sys-info-panel" style="display:none; background:#fff; border:1px solid #c3c4c7; padding:15px; margin-bottom:20px;">';
+        echo '<h4>System Information <button type="button" class="button button-small" onclick="var copyText = document.getElementById(\'cc-sys-info-text\');copyText.select();document.execCommand(\'copy\');alert(\'Copied to clipboard!\');">Copy</button></h4>';
+        echo '<textarea id="cc-sys-info-text" style="width:100%; height:150px; font-family:monospace; font-size:11px;" readonly>';
+        self::render_system_info();
+        echo '</textarea></div>';
         
         echo '<div class="cc-global-nav">';
         echo '<a href="' . esc_url( admin_url( 'admin.php?page=cirrusly-commerce' ) ) . '">Dashboard</a>';
@@ -138,6 +165,20 @@ class Cirrusly_Commerce_Core {
         echo '<a href="' . esc_url( admin_url( 'admin.php?page=cirrusly-audit' ) ) . '">Audit</a>';
         echo '<a href="' . esc_url( admin_url( 'admin.php?page=cirrusly-settings' ) ) . '">Settings</a>';
         echo '</div>';
+    }
+
+    public static function render_system_info() {
+        global $wp_version;
+        echo "### System Info ###\n";
+        echo "Site URL: " . site_url() . "\n";
+        echo "WP Version: " . $wp_version . "\n";
+        echo "WooCommerce: " . (class_exists('WooCommerce') ? WC()->version : 'Not Installed') . "\n";
+        echo "Cirrusly Commerce: " . CIRRUSLY_COMMERCE_VERSION . "\n";
+        echo "PHP Version: " . phpversion() . "\n";
+        echo "Server Software: " . $_SERVER['SERVER_SOFTWARE'] . "\n";
+        echo "Active Plugins:\n";
+        $plugins = get_option('active_plugins');
+        foreach($plugins as $p) { echo "- " . $p . "\n"; }
     }
 
     public static function render_global_header( $title ) {
@@ -417,6 +458,7 @@ class Cirrusly_Commerce_Core {
 
         $scan = get_option( 'cirrusly_scan_config', array() );
         $daily = isset($scan['enable_daily_scan']) ? $scan['enable_daily_scan'] : '';
+        $hide_upsells = isset($scan['hide_upsells']) ? $scan['hide_upsells'] : '';
 
         $is_pro = self::cirrusly_is_pro();
         $pro_class = $is_pro ? '' : 'cc-pro-feature';
@@ -455,6 +497,10 @@ class Cirrusly_Commerce_Core {
                 <hr style="border:0; border-top:1px solid #eee; margin:15px 0;">
                 <label><input type="checkbox" name="cirrusly_scan_config[enable_daily_scan]" value="yes" '.checked('yes', $daily, false).'> <strong>Run Daily Health Scan</strong></label>
                 <p class="description">Automatically checks for missing GTINs and prohibited terms every 24 hours.</p>
+                
+                <hr style="border:0; border-top:1px solid #eee; margin:15px 0;">
+                <label><input type="checkbox" name="cirrusly_scan_config[hide_upsells]" value="yes" '.checked('yes', $hide_upsells, false).'> Hide Pro Features</label>
+                <p class="description">Enable this to hide grayed-out Pro features from the interface.</p>
             </div>
         </div>';
         

@@ -205,8 +205,11 @@ class Cirrusly_Commerce_Pricing {
             <span style="display:inline-block;">
                 <select class="cw-tool-sale short" style="width:140px;margin:0;">
                     <option value="">Sale Strategy...</option>
+                    <option value="msrp_05">5% Off MSRP</option>
                     <option value="msrp_10">10% Off MSRP</option>
+                    <option value="msrp_15">15% Off MSRP</option>
                     <option value="msrp_20">20% Off MSRP</option>
+                    <option value="msrp_25">25% Off MSRP</option>
                     <option value="msrp_30">30% Off MSRP</option>
                     <option value="msrp_40">40% Off MSRP</option>
                     <option value="reg_5">5% Off Reg</option>
@@ -217,6 +220,7 @@ class Cirrusly_Commerce_Pricing {
                 <select class="cw-sale-rounding short" style="width:80px;margin:0;">
                     <option value="99">.99</option>
                     <option value="50">.50</option>
+                    <option value="nearest_5">Nearest 5/0</option>
                     <option value="exact">Exact</option>
                 </select>
                 <select class="cw-tool-reg short" style="width:180px;margin:0;">

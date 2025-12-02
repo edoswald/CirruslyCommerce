@@ -55,6 +55,9 @@ jQuery(document).ready(function($) {
             if (decimal < 0.25) return Math.floor(price);
             if (decimal >= 0.25 && decimal < 0.75) return Math.floor(price) + 0.50;
             return Math.ceil(price);
+        } else if (strategy === 'nearest_5') {
+            // Rounds to nearest 5 or 10 (whole number multiple of 5)
+            return Math.round(price / 5) * 5;
         }
         return parseFloat(price.toFixed(2));
     }
