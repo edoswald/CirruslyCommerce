@@ -29,33 +29,37 @@ if ( ! function_exists( 'cc_fs' ) ) {
 
         if ( ! isset( $cc_fs ) ) {
             // Include Freemius SDK.
-            // Note: Ensure the 'freemius' folder is located at the root of your plugin
-            require_once dirname( __FILE__ ) . '/freemius/start.php';
+            // Updated path to point to vendor directory
+            $sdk_path = dirname( __FILE__ ) . '/vendor/freemius/start.php';
+            
+            if ( file_exists( $sdk_path ) ) {
+                require_once $sdk_path;
 
-            $cc_fs = fs_dynamic_init( array(
-                'id'                  => '22048',
-                'slug'                => 'cirrusly-commerce',
-                'type'                => 'plugin',
-                'public_key'          => 'pk_34dc77b4bc7764037f0e348daac4a',
-                'is_premium'          => false, // Set to true only in the Pro version zip
-                'premium_suffix'      => 'Pro',
-                'has_premium_version' => true,
-                'has_addons'          => false,
-                'has_paid_plans'      => true,
-                // Automatically removed in the free version.
-                'wp_org_gatekeeper'   => 'OA7#BoRiBNqdf52FvzEf!!074aRLPs8fspif$7K1#4u4Csys1fQlCecVcUTOs2mcpeVHi#C2j9d09fOTvbC0HloPT7fFee5WdS3G',
-                'trial'               => array(
-                    'days'               => 3,
-                    'is_require_payment' => false,
-                ),
-                'menu'                => array(
-                    'slug'           => 'cirrusly-commerce', // Hook into our main menu slug
-                    'first-path'     => 'admin.php?page=cirrusly-commerce',
-                    'support'        => false, // We handle support via our header button
-                    'account'        => true,
-                    'contact'        => false,
-                ),
-            ) );
+                $cc_fs = fs_dynamic_init( array(
+                    'id'                  => '22048',
+                    'slug'                => 'cirrusly-commerce',
+                    'type'                => 'plugin',
+                    'public_key'          => 'pk_34dc77b4bc7764037f0e348daac4a',
+                    'is_premium'          => false, // Set to true only in the Pro version zip
+                    'premium_suffix'      => 'Pro',
+                    'has_premium_version' => true,
+                    'has_addons'          => false,
+                    'has_paid_plans'      => true,
+                    // Automatically removed in the free version.
+                    'wp_org_gatekeeper'   => 'OA7#BoRiBNqdf52FvzEf!!074aRLPs8fspif$7K1#4u4Csys1fQlCecVcUTOs2mcpeVHi#C2j9d09fOTvbC0HloPT7fFee5WdS3G',
+                    'trial'               => array(
+                        'days'               => 3,
+                        'is_require_payment' => false,
+                    ),
+                    'menu'                => array(
+                        'slug'           => 'cirrusly-commerce', // Hook into our main menu slug
+                        'first-path'     => 'admin.php?page=cirrusly-commerce',
+                        'support'        => false, // We handle support via our header button
+                        'account'        => true,
+                        'contact'        => false,
+                    ),
+                ) );
+            }
         }
 
         return $cc_fs;
@@ -124,23 +128,27 @@ class Cirrusly_Commerce_Main {
         // 2. Force Enable Native COGS on Activation
         update_option( 'woocommerce_enable_cost_of_goods_sold', 'yes' );
         
-        // Freemius activation hook
-        cc_fs()->_activate_plugin_event();
+        // Freemius activation hook (safe check)
+        if ( function_exists('cc_fs') && cc_fs() ) {
+            cc_fs()->_activate_plugin_event();
+        }
     }
 
     public function deactivate() {
         wp_clear_scheduled_hook( 'cirrusly_gmc_daily_scan' );
         
-        // Freemius deactivation hook
-        cc_fs()->_deactivate_plugin_event();
+        // Freemius deactivation hook (safe check)
+        if ( function_exists('cc_fs') && cc_fs() ) {
+            cc_fs()->_deactivate_plugin_event();
+        }
     }
 
     public function add_settings_link( $links ) {
         $settings_link = '<a href="' . esc_url( admin_url( 'admin.php?page=cirrusly-settings' ) ) . '">Settings</a>';
         array_unshift( $links, $settings_link );
         
-        // Add "Go Pro" link if Free
-        if ( function_exists('cc_fs') && cc_fs()->is_not_paying() ) {
+        // Add "Go Pro" link if Free AND Freemius is loaded
+        if ( function_exists('cc_fs') && cc_fs() && cc_fs()->is_not_paying() ) {
             $links['go_pro'] = '<a href="' . cc_fs()->get_upgrade_url() . '" style="color:#d63638;font-weight:bold;">Go Pro</a>';
         }
         
