@@ -4,7 +4,7 @@ Contributors: edoswald
 Tags: Google Merchant Center, WooCommerce, pricing, MSRP, profit margin
 Requires at least: 5.8 
 Tested up to: 6.8 
-Stable tag: 1.0.5 
+Stable tag: 1.1 
 Requires PHP: 8.0 
 License: GPLv2 or later 
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
@@ -97,6 +97,17 @@ GMC Health Check: Scan results showing critical data issues and warnings.
 Store Audit: A financial breakdown of every product to spot profit leaks.
 
 == Changelog ==
+
+= 1.1 =
+* **New Feature:** Payment Processor Fees configuration (Settings > Profit Engine) allows for accurate Net Profit calculations by factoring in gateway percentages and flat fees (e.g., Stripe/PayPal).
+* **New Feature:** "Profit at a Glance" column added to the Products > All Products list, displaying a color-coded margin percentage for every item.
+* **New Feature:** "New Arrival" Badge module. Automatically displays a "New" badge on products created within a configurable number of days.
+* **New Feature:** Store Audit Dashboard Header. A new summary strip at the top of the Audit page showing total Loss Makers, Low Margin items, and Data Alerts.
+* **Enhancement:** Expanded GMC Health Check now detects "Suspicious Image Names" (e.g., filenames containing 'logo', 'watermark') and validates Product Description length.
+* **Enhancement:** Context-Aware Scanning. The scanner now ignores allowed words inside other words (e.g., "secure" is no longer flagged as "cure") and distinguishes between Title (strict) and Description (lenient) restrictions.
+* **Enhancement:** Added direct "Add Cost" action links in the Store Audit for products missing COGS data.
+* **UX:** Added an onboarding admin notice to guide new users through shipping and fee configuration.
+* **Fix:** Resolved styling issues on the main Dashboard grid.
 
 = 1.0.5 =
 
