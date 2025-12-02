@@ -35,6 +35,8 @@ class Cirrusly_Commerce_Core {
             wp_enqueue_media(); 
             wp_enqueue_style( 'cirrusly-admin-css', CIRRUSLY_COMMERCE_URL . 'assets/css/admin.css', array(), CIRRUSLY_COMMERCE_VERSION );
             
+            // Inline styles for the improved settings grid
+            // Note: Global Nav styles removed here so admin.css can center them
             wp_add_inline_style( 'cirrusly-admin-css', '
                 .cc-manual-helper { background: #f0f6fc; border-left: 4px solid #72aee6; padding: 15px; margin-bottom: 20px; }
                 .cc-manual-helper h4 { margin-top: 0; color: #1d2327; }
@@ -273,7 +275,9 @@ class Cirrusly_Commerce_Core {
             $missing_cost = $wpdb->get_var("SELECT count(p.ID) FROM {$wpdb->posts} p LEFT JOIN {$wpdb->postmeta} pm ON (p.ID = pm.post_id AND pm.meta_key = '_cogs_total_value') WHERE p.post_type IN ('product', 'product_variation') AND p.post_status = 'publish' AND (pm.meta_value IS NULL OR pm.meta_value = '' OR pm.meta_value = 0)");
             
             $count_posts = wp_count_posts('product');
-            $total_products = $count_posts->publish;
+            $count_vars  = wp_count_posts('product_variation');
+            $total_products = $count_posts->publish + $count_vars->publish;
+
             $on_sale_ids = wc_get_product_ids_on_sale();
             $on_sale_count = count( $on_sale_ids );
             
