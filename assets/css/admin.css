@@ -1,3 +1,7 @@
+{
+type: uploaded file
+fileName: edoswald/cirruslycommerce/CirruslyCommerce-3de5a5bc47fcef81118b96846ca09fa3907411cb/assets/css/admin.css
+fullContent:
 /* Global Header & Metrics Bar */
 .cc-global-header-wrap {
     background: #fff;
@@ -152,31 +156,35 @@
 .cc-stat-big.bad { color: #d63638; }
 .cc-stat-big small { font-size: 12px; color: #666; display: block; font-weight: normal; margin-top: 5px; }
 
-/* Global Nav Styling */
+/* Global Nav Styling - Updated for centered breathing room */
 .cc-global-nav {
-    margin-left: 20px;
-    display: inline-flex;
-    gap: 0; /* Remove gap to use padding/border for spacing */
-    background-color: #f0f0f1; /* Light grey background */
-    padding: 5px 10px;
-    border-radius: 4px;
-    border: 1px solid #ddd;
+    display: flex;
+    justify-content: center;
+    gap: 15px; 
+    margin: 25px 0 35px 0; /* Add significant vertical space */
+    padding: 0;
+    width: 100%;
 }
 
 .cc-global-nav a {
     text-decoration: none;
     color: #50575e;
     font-weight: 600;
-    font-size: 13px;
-    padding: 0 15px;
-    border-right: 1px solid #ccc; /* Separator line */
-    line-height: 1;
-}
-
-.cc-global-nav a:last-child {
-    border-right: none; /* Remove border from last item */
+    font-size: 14px;
+    padding: 10px 25px; /* Comfortable click targets */
+    border-radius: 4px;
+    background: #fff;
+    border: 1px solid #c3c4c7; /* Individual card style */
+    line-height: normal;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.02);
 }
 
 .cc-global-nav a:hover {
     color: #2271b1;
+    border-color: #2271b1;
+    background: #f0f6fc;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    transform: translateY(-1px);
+}
 }
