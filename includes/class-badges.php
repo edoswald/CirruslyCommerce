@@ -48,6 +48,8 @@ class Cirrusly_Commerce_Badges {
             margin-bottom: 5px; display: inline-block;
             border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.2); width: fit-content; line-height: 1.2;
         }
+        .cw-badge-pill.cw-new { background-color: #2271b1; }
+        
         .cw-shop-badge-layer {
             position: absolute; bottom: 10px; left: 10px; z-index: 99; pointer-events: none;
             display: flex; flex-direction: column; align-items: flex-start;
@@ -126,12 +128,13 @@ class Cirrusly_Commerce_Badges {
         
         $badge_cfg = get_option( 'cirrusly_badge_config', array() );
         $calc_from = isset($badge_cfg['calc_from']) ? $badge_cfg['calc_from'] : 'msrp';
+        $new_days = isset($badge_cfg['new_days']) ? intval($badge_cfg['new_days']) : 30;
         $custom_badges = isset($badge_cfg['custom_badges_json']) ? json_decode($badge_cfg['custom_badges_json'], true) : array();
 
         $output = '';
         $min_threshold = 5; 
 
-        // SALE MATH
+        // 1. SALE MATH
         if ( $product->is_on_sale() ) {
             $percentage = 0;
             $prefix = 'Save ';
@@ -181,7 +184,19 @@ class Cirrusly_Commerce_Badges {
             }
         }
 
-        // CUSTOM TAG BADGES
+        // 2. NEW ARRIVAL BADGE
+        if ( $new_days > 0 ) {
+            $created_date = $product->get_date_created();
+            if ( $created_date ) {
+                $created_ts = $created_date->getTimestamp();
+                $diff = (time() - $created_ts) / (60 * 60 * 24); // Days
+                if ( $diff <= $new_days ) {
+                    $output .= '<span class="cw-badge-pill cw-new">New</span>';
+                }
+            }
+        }
+
+        // 3. CUSTOM TAG BADGES
         if ( ! empty( $custom_badges ) && is_array( $custom_badges ) ) {
             foreach ( $custom_badges as $badge ) {
                 if ( empty($badge['tag']) || empty($badge['url']) ) continue;
