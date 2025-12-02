@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Cirrusly Commerce
  * Description: All-in-one suite: GMC Assistant, Promotion Manager, Pricing Engine, and Store Financial Audit that doesn't cost an arm and a leg.
- * Version: 1.2.1
+ * Version: 1.2.0
  * Author: Cirrusly Weather
  * Author URI: https://cirruslyweather.com
  * Text Domain: cirrusly-commerce
@@ -15,10 +15,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Define Constants
-define( 'CIRRUSLY_COMMERCE_VERSION', '1.2.1' );
+define( 'CIRRUSLY_COMMERCE_VERSION', '1.2.0' );
 define( 'CIRRUSLY_COMMERCE_PATH', plugin_dir_path( __FILE__ ) );
 define( 'CIRRUSLY_COMMERCE_URL', plugin_dir_url( __FILE__ ) );
 
+// -------------------------------------------------------------------------
+// FREEMIUS INTEGRATION
+// -------------------------------------------------------------------------
 if ( ! function_exists( 'cc_fs' ) ) {
     // Create a helper function for easy SDK access.
     function cc_fs() {
@@ -26,29 +29,31 @@ if ( ! function_exists( 'cc_fs' ) ) {
 
         if ( ! isset( $cc_fs ) ) {
             // Include Freemius SDK.
-            require_once dirname( __FILE__ ) . '/vendor/freemius/start.php';
+            // Note: Ensure the 'freemius' folder is located at the root of your plugin
+            require_once dirname( __FILE__ ) . '/freemius/start.php';
 
             $cc_fs = fs_dynamic_init( array(
                 'id'                  => '22048',
                 'slug'                => 'cirrusly-commerce',
                 'type'                => 'plugin',
                 'public_key'          => 'pk_34dc77b4bc7764037f0e348daac4a',
-                'is_premium'          => false,
+                'is_premium'          => false, // Set to true only in the Pro version zip
                 'premium_suffix'      => 'Pro',
-                // If your plugin is a serviceware, set this option to false.
                 'has_premium_version' => true,
                 'has_addons'          => false,
                 'has_paid_plans'      => true,
-                // Automatically removed in the free version. If you're not using the
-                // auto-generated free version, delete this line before uploading to wp.org.
+                // Automatically removed in the free version.
                 'wp_org_gatekeeper'   => 'OA7#BoRiBNqdf52FvzEf!!074aRLPs8fspif$7K1#4u4Csys1fQlCecVcUTOs2mcpeVHi#C2j9d09fOTvbC0HloPT7fFee5WdS3G',
                 'trial'               => array(
                     'days'               => 3,
                     'is_require_payment' => false,
                 ),
                 'menu'                => array(
-                    'slug'           => 'cirrusly-settings',
-                    'support'        => false,
+                    'slug'           => 'cirrusly-commerce', // Hook into our main menu slug
+                    'first-path'     => 'admin.php?page=cirrusly-commerce',
+                    'support'        => false, // We handle support via our header button
+                    'account'        => true,
+                    'contact'        => false,
                 ),
             ) );
         }
@@ -61,6 +66,10 @@ if ( ! function_exists( 'cc_fs' ) ) {
     // Signal that SDK was initiated.
     do_action( 'cc_fs_loaded' );
 }
+
+// -------------------------------------------------------------------------
+// CORE LOGIC
+// -------------------------------------------------------------------------
 
 // Autoloader-style requires
 require_once CIRRUSLY_COMMERCE_PATH . 'includes/class-core.php';
@@ -114,15 +123,27 @@ class Cirrusly_Commerce_Main {
         
         // 2. Force Enable Native COGS on Activation
         update_option( 'woocommerce_enable_cost_of_goods_sold', 'yes' );
+        
+        // Freemius activation hook
+        cc_fs()->_activate_plugin_event();
     }
 
     public function deactivate() {
         wp_clear_scheduled_hook( 'cirrusly_gmc_daily_scan' );
+        
+        // Freemius deactivation hook
+        cc_fs()->_deactivate_plugin_event();
     }
 
     public function add_settings_link( $links ) {
         $settings_link = '<a href="' . esc_url( admin_url( 'admin.php?page=cirrusly-settings' ) ) . '">Settings</a>';
         array_unshift( $links, $settings_link );
+        
+        // Add "Go Pro" link if Free
+        if ( function_exists('cc_fs') && cc_fs()->is_not_paying() ) {
+            $links['go_pro'] = '<a href="' . cc_fs()->get_upgrade_url() . '" style="color:#d63638;font-weight:bold;">Go Pro</a>';
+        }
+        
         return $links;
     }
 }
