@@ -369,6 +369,21 @@ class Cirrusly_Commerce_GMC {
                 }
                 if(!$has_gtin) $issues[] = array('type'=>'critical', 'msg'=>'Missing GTIN');
             }
+
+            // Expanded Checks: Description Length
+            $desc_len = strlen(strip_tags($product->get_description()));
+            if($desc_len < 30) $issues[] = array('type'=>'warning', 'msg'=>'Desc Too Short');
+            if($desc_len > 5000) $issues[] = array('type'=>'warning', 'msg'=>'Desc Too Long');
+
+            // Expanded Checks: Image Filename
+            $img_id = $product->get_image_id();
+            if($img_id) {
+                $url = wp_get_attachment_url($img_id);
+                $filename = basename($url);
+                if(preg_match('/(watermark|logo|promo)/i', $filename)) {
+                    $issues[] = array('type'=>'warning', 'msg'=>'Suspicious Image Name');
+                }
+            }
             
             if(!empty($issues)) $report[] = array('product_id'=>$product->get_id(), 'issues'=>$issues);
         }
@@ -410,12 +425,10 @@ class Cirrusly_Commerce_GMC {
         $promo = get_post_meta( $post_id, '_gmc_promotion_id', true );
         $label = get_post_meta( $post_id, '_gmc_custom_label_0', true );
         
-        // Render Badges (Visual indicators)
         if ( 'no' === $id_ex ) echo '<span class="gmc-badge gmc-badge-custom">Custom</span> ';
         if ( $promo ) echo '<span class="gmc-badge gmc-badge-promo" title="'.esc_attr($promo).'">Promo</span> ';
         if ( $label ) echo '<span class="gmc-badge gmc-badge-label" title="'.esc_attr($label).'">Label</span> ';
         
-        // Add hidden data for Quick Edit JS to grab
         echo '<span class="gmc-hidden-data" 
             data-custom="'.('no'===$id_ex?'yes':'no').'" 
             data-promo="'.esc_attr($promo).'" 
