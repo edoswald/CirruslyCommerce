@@ -20,6 +20,9 @@ class Cirrusly_Commerce_Core {
         
         // Force Enable Native COGS (Runtime)
         add_filter( 'pre_option_woocommerce_enable_cost_of_goods_sold', array( $this, 'force_enable_cogs' ) );
+
+        // Onboarding Notice
+        add_action( 'admin_notices', array( $this, 'render_onboarding_notice' ) );
     }
 
     public function force_enable_cogs() { return 'yes'; }
@@ -35,32 +38,6 @@ class Cirrusly_Commerce_Core {
             wp_enqueue_media(); 
             wp_enqueue_style( 'cirrusly-admin-css', CIRRUSLY_COMMERCE_URL . 'assets/css/admin.css', array(), CIRRUSLY_COMMERCE_VERSION );
             
-            // Inline styles for the improved settings grid
-            // Note: Global Nav styles removed here so admin.css can center them
-            wp_add_inline_style( 'cirrusly-admin-css', '
-                .cc-manual-helper { background: #f0f6fc; border-left: 4px solid #72aee6; padding: 15px; margin-bottom: 20px; }
-                .cc-manual-helper h4 { margin-top: 0; color: #1d2327; }
-                .cc-manual-helper p { font-size: 13px; line-height: 1.5; margin-bottom: 0; }
-                .cc-promo-generator { background:#fff; border:1px solid #c3c4c7; padding:20px; margin-bottom:20px; }
-                .cc-promo-grid { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
-                .cc-promo-generator label { display:block; font-weight:600; margin-bottom:5px; font-size:12px; color:#50575e; }
-                .cc-promo-generator input, .cc-promo-generator select { width:100%; margin-bottom:15px; border:1px solid #8c8f94; }
-                .cc-generated-code { background:#f0f0f1; padding:15px; border:1px dashed #8c8f94; margin-top:15px; font-family:monospace; user-select:all; word-break:break-all; white-space: pre-wrap; }
-                .cc-copy-hint { font-size:11px; color:#666; display:block; margin-bottom:5px; text-transform:uppercase; font-weight:bold; }
-                .cc-policy-grid { display:grid; grid-template-columns:repeat(4, 1fr); gap:10px; margin-bottom:20px; }
-                .cc-policy-item { background:#fff; padding:10px; border:1px solid #c3c4c7; display:flex; align-items:center; }
-                .cc-policy-item .dashicons { margin-right:8px; font-size:20px; }
-                .cc-policy-ok .dashicons { color:#008a20; }
-                .cc-policy-fail .dashicons { color:#d63638; }
-                .cc-settings-card { background:#fff; border:1px solid #c3c4c7; padding:0; margin-bottom:20px; box-shadow:0 1px 1px rgba(0,0,0,0.04); }
-                .cc-card-header { padding:15px 20px; border-bottom:1px solid #f0f0f1; background:#fcfcfc; }
-                .cc-card-header h3 { margin:0; font-size:1.1em; }
-                .cc-card-header p { margin:5px 0 0; color:#646970; font-size:13px; }
-                .cc-card-body { padding:20px; }
-                .cc-settings-table th { font-weight:600; color:#1d2327; }
-                .cc-settings-table input[type="number"], .cc-settings-table input[type="text"] { width:100%; max-width:150px; }
-            ' );
-
             if ( $is_product_page ) {
                 wp_enqueue_script( 'cirrusly-pricing-js', CIRRUSLY_COMMERCE_URL . 'assets/js/pricing.js', array( 'jquery' ), CIRRUSLY_COMMERCE_VERSION, true );
                 
@@ -68,7 +45,9 @@ class Cirrusly_Commerce_Core {
                 $js_config = array(
                     'revenue_tiers' => json_decode( $config['revenue_tiers_json'] ),
                     'matrix_rules'  => json_decode( $config['matrix_rules_json'] ),
-                    'classes'       => array()
+                    'classes'       => array(),
+                    'payment_pct'   => isset($config['payment_pct']) ? (float)$config['payment_pct'] : 2.9,
+                    'payment_flat'  => isset($config['payment_flat']) ? (float)$config['payment_flat'] : 0.30
                 );
                 
                 $class_costs = json_decode( $config['class_costs_json'], true );
@@ -233,6 +212,11 @@ class Cirrusly_Commerce_Core {
             $input['custom_badges_json'] = json_encode( $clean_badges );
             unset( $input['custom_badges'] );
         }
+        
+        // Sanitize new payment fields
+        if ( isset( $input['payment_pct'] ) ) $input['payment_pct'] = floatval( $input['payment_pct'] );
+        if ( isset( $input['payment_flat'] ) ) $input['payment_flat'] = floatval( $input['payment_flat'] );
+
         return $input;
     }
 
@@ -250,9 +234,30 @@ class Cirrusly_Commerce_Core {
                 'twoday'    => array( 'key'=>'twoday',    'label' => '2Day',     'cost_mult' => 2.5 ),
                 'overnight' => array( 'key'=>'overnight', 'label' => 'Over',     'cost_mult' => 5.0 ),
             )),
-            'class_costs_json' => json_encode(array('default' => 10.00))
+            'class_costs_json' => json_encode(array('default' => 10.00)),
+            'payment_pct' => 2.9,
+            'payment_flat' => 0.30
         );
         return wp_parse_args( $saved, $defaults );
+    }
+
+    public function render_onboarding_notice() {
+        if ( ! current_user_can( 'manage_options' ) ) return;
+        
+        // Check if config exists
+        $config = get_option( 'cirrusly_shipping_config' );
+        if ( ! $config || empty( $config['revenue_tiers_json'] ) ) {
+            ?>
+            <div class="notice notice-info is-dismissible">
+                <p>
+                    <strong>Welcome to Cirrusly Commerce!</strong><br>
+                    To get accurate profit calculations, please set up your 
+                    <a href="<?php echo esc_url( admin_url('admin.php?page=cirrusly-settings&tab=shipping') ); ?>">Shipping Revenue Tiers</a> 
+                    and Payment Fees.
+                </p>
+            </div>
+            <?php
+        }
     }
 
     // --- Metrics Caching ---
@@ -450,14 +455,17 @@ class Cirrusly_Commerce_Core {
         $enabled = isset($cfg['enable_badges']) ? $cfg['enable_badges'] : '';
         $size = isset($cfg['badge_size']) ? $cfg['badge_size'] : 'medium';
         $calc_from = isset($cfg['calc_from']) ? $cfg['calc_from'] : 'msrp';
+        $new_days = isset($cfg['new_days']) ? $cfg['new_days'] : 30;
+        
         $custom_badges = isset($cfg['custom_badges_json']) ? json_decode($cfg['custom_badges_json'], true) : array();
         if(!is_array($custom_badges)) $custom_badges = array();
 
-        echo '<div class="cc-settings-card"><div class="cc-card-header"><h3>Badge Manager</h3><p>Automatically replace default WooCommerce sale badges with smart, percentage-based badges.</p></div>';
+        echo '<div class="cc-settings-card"><div class="cc-card-header"><h3>Badge Manager</h3><p>Automatically replace default WooCommerce sale badges.</p></div>';
         echo '<div class="cc-card-body"><table class="form-table cc-settings-table">
             <tr><th scope="row">Enable Module</th><td><label><input type="checkbox" name="cirrusly_badge_config[enable_badges]" value="yes" '.checked('yes', $enabled, false).'> Activate</label></td></tr>
             <tr><th scope="row">Badge Size</th><td><select name="cirrusly_badge_config[badge_size]"><option value="small" '.selected('small', $size, false).'>Small</option><option value="medium" '.selected('medium', $size, false).'>Medium</option><option value="large" '.selected('large', $size, false).'>Large</option></select></td></tr>
             <tr><th scope="row">Discount Base</th><td><select name="cirrusly_badge_config[calc_from]"><option value="msrp" '.selected('msrp', $calc_from, false).'>MSRP</option><option value="regular" '.selected('regular', $calc_from, false).'>Regular Price</option></select></td></tr>
+            <tr><th scope="row">"New" Badge</th><td><input type="number" name="cirrusly_badge_config[new_days]" value="'.esc_attr($new_days).'" style="width:70px;"> days <span class="description">Products created within this many days get a "NEW" badge.</span></td></tr>
         </table>
         <hr style="margin:20px 0; border:0; border-top:1px solid #eee;">
         <h4>Custom Tag Badges</h4><p class="description">Show specific images when a product has a certain tag.</p>
@@ -475,6 +483,10 @@ class Cirrusly_Commerce_Core {
         $revenue_tiers = json_decode( $config['revenue_tiers_json'], true );
         $matrix_rules = json_decode( $config['matrix_rules_json'], true );
         $class_costs = json_decode( $config['class_costs_json'], true );
+        
+        $payment_pct = isset($config['payment_pct']) ? $config['payment_pct'] : 2.9;
+        $payment_flat = isset($config['payment_flat']) ? $config['payment_flat'] : 0.30;
+
         if ( ! is_array( $revenue_tiers ) ) $revenue_tiers = array();
 
         $terms = get_terms( array( 'taxonomy' => 'product_shipping_class', 'hide_empty' => false ) );
@@ -482,6 +494,21 @@ class Cirrusly_Commerce_Core {
         if( ! is_wp_error( $terms ) ) { foreach ( $terms as $term ) { $all_classes[ $term->slug ] = $term->name; } }
 
         echo '<div class="cc-manual-helper"><h4>Profit Engine Configuration</h4><p>These settings drive the real-time margin calculations on your product edit pages. Accurate data here ensures you don\'t lose money on shipping.</p></div>';
+
+        // Payment Processor Settings
+        echo '<div class="cc-settings-card"><div class="cc-card-header"><h3>Payment Processor Fees</h3><p>Accurate fee calculation.</p></div>
+        <div class="cc-card-body">
+            <table class="form-table cc-settings-table">
+                <tr>
+                    <th scope="row">Percent (%)</th>
+                    <td><input type="number" step="0.1" name="cirrusly_shipping_config[payment_pct]" value="'.esc_attr($payment_pct).'"> % (e.g. Stripe is 2.9)</td>
+                </tr>
+                <tr>
+                    <th scope="row">Flat Fee ($)</th>
+                    <td><input type="number" step="0.01" name="cirrusly_shipping_config[payment_flat]" value="'.esc_attr($payment_flat).'"> $ (e.g. Stripe is 0.30)</td>
+                </tr>
+            </table>
+        </div></div>';
 
         // 1. Revenue Tiers
         echo '<div class="cc-settings-card"><div class="cc-card-header"><h3>1. Shipping Revenue</h3><p>How much do you charge the customer for shipping?</p></div>';
