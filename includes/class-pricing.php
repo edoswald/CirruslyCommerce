@@ -12,7 +12,42 @@ class Cirrusly_Commerce_Pricing {
         add_action( 'woocommerce_process_product_meta', array( $this, 'pe_save_simple' ) );
         add_action( 'woocommerce_save_product_variation', array( $this, 'pe_save_variable' ), 10, 2 );
         
+        // Admin Columns
+        add_filter( 'manage_edit-product_columns', array( $this, 'add_margin_column' ) );
+        add_action( 'manage_product_posts_custom_column', array( $this, 'render_margin_column' ), 10, 2 );
+
         $this->init_frontend_msrp();
+    }
+
+    public function add_margin_column( $columns ) {
+        $new_columns = array();
+        foreach ( $columns as $key => $title ) {
+            $new_columns[$key] = $title;
+            if ( $key === 'price' ) {
+                $new_columns['cw_margin'] = 'Margin';
+            }
+        }
+        return $new_columns;
+    }
+
+    public function render_margin_column( $column, $post_id ) {
+        if ( 'cw_margin' !== $column ) return;
+        
+        $product = wc_get_product( $post_id );
+        if ( ! $product ) return;
+
+        // Simple calculation for "at a glance" view
+        // Note: Does not include complex shipping/fee math to keep list view fast
+        $price = (float) $product->get_price();
+        $cost = (float) $product->get_meta('_cogs_total_value');
+
+        if ( $price > 0 && $cost > 0 ) {
+            $margin = (($price - $cost) / $price) * 100;
+            $color = $margin < 15 ? '#d63638' : '#008a20';
+            echo '<span style="font-weight:bold; color:' . esc_attr($color) . '">' . number_format( $margin, 0 ) . '%</span>';
+        } elseif ( $cost <= 0 ) {
+            echo '<span style="color:#999;">-</span>';
+        }
     }
 
     public function init_frontend_msrp() {
