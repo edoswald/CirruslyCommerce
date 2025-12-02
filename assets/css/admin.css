@@ -158,7 +158,7 @@
 .cc-stat-big.bad { color: #d63638; }
 .cc-stat-big small { font-size: 12px; color: #666; display: block; font-weight: normal; margin-top: 5px; }
 
-/* Global Nav Styling - Updated for centered breathing room */
+/* Global Nav Styling */
 .cc-global-nav {
     display: flex;
     justify-content: center;
@@ -190,7 +190,7 @@
     transform: translateY(-1px);
 }
 
-/* Dashboard Grid & Cards */
+/* --- Dashboard Grid & Cards (Restored from previous inline styles) --- */
 .cc-dash-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
 .cc-dash-card { background: #fff; border: 1px solid #ccd0d4; border-top-width: 4px; padding: 20px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); position: relative; }
 .cc-full-width { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; border-top-color: #646970; }
@@ -203,29 +203,31 @@
 .cc-stat-val { font-weight: 700; font-size: 16px; }
 .cc-actions { margin-top: 20px; text-align: right; }
 
-/* Filter & Search Bar - New */
-.cc-audit-toolbar {
-    background: #fff;
-    border: 1px solid #c3c4c7;
-    padding: 15px 20px;
-    margin-bottom: 20px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 15px;
-    border-left: 4px solid #2271b1; /* Matches Intro/Dashboard Primary Blue */
-    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-}
-.cc-audit-form {
-    display: flex;
-    gap: 10px;
-    align-items: center;
-    flex-wrap: wrap;
-}
-.cc-audit-count {
-    font-size: 13px;
-    color: #50575e;
-    font-weight: 600;
-    margin-left: auto;
-}
+/* --- Settings & GMC Hub Components (Consolidated from Inline PHP) --- */
+.cc-manual-helper { background: #f0f6fc; border-left: 4px solid #72aee6; padding: 15px; margin-bottom: 20px; }
+.cc-manual-helper h4 { margin-top: 0; color: #1d2327; }
+.cc-manual-helper p { font-size: 13px; line-height: 1.5; margin-bottom: 0; }
+
+.cc-promo-generator { background:#fff; border:1px solid #c3c4c7; padding:20px; margin-bottom:20px; }
+.cc-promo-grid { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+.cc-promo-generator label { display:block; font-weight:600; margin-bottom:5px; font-size:12px; color:#50575e; }
+.cc-promo-generator input, .cc-promo-generator select { width:100%; margin-bottom:15px; border:1px solid #8c8f94; }
+
+.cc-generated-code { background:#f0f0f1; padding:15px; border:1px dashed #8c8f94; margin-top:15px; font-family:monospace; user-select:all; word-break:break-all; white-space: pre-wrap; }
+.cc-copy-hint { font-size:11px; color:#666; display:block; margin-bottom:5px; text-transform:uppercase; font-weight:bold; }
+
+.cc-policy-grid { display:grid; grid-template-columns:repeat(4, 1fr); gap:10px; margin-bottom:20px; }
+.cc-policy-item { background:#fff; padding:10px; border:1px solid #c3c4c7; display:flex; align-items:center; }
+.cc-policy-item .dashicons { margin-right:8px; font-size:20px; }
+.cc-policy-ok .dashicons { color:#008a20; }
+.cc-policy-fail .dashicons { color:#d63638; }
+
+.cc-settings-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
+.cc-settings-card { background:#fff; border:1px solid #c3c4c7; padding:0; margin-bottom:20px; box-shadow:0 1px 1px rgba(0,0,0,0.04); height: 100%; }
+.cc-card-header { padding:15px 20px; border-bottom:1px solid #f0f0f1; background:#fcfcfc; display:flex; align-items:center; justify-content: space-between; }
+.cc-card-header h3 { margin:0; font-size:1.1em; }
+.cc-card-header .dashicons { color: #646970; font-size: 20px; }
+.cc-card-header p { margin:5px 0 0; color:#646970; font-size:13px; }
+.cc-card-body { padding:20px; }
+.cc-settings-table th { font-weight:600; color:#1d2327; width: 150px; }
+.cc-settings-table input[type="number"], .cc-settings-table input[type="text"] { width:100%; max-width:100%; }
