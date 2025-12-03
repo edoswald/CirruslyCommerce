@@ -128,10 +128,6 @@ class Cirrusly_Commerce_Main {
         // 2. Force Enable Native COGS on Activation
         update_option( 'woocommerce_enable_cost_of_goods_sold', 'yes' );
         
-        // Freemius activation hook (safe check)
-        if ( function_exists('cc_fs') && cc_fs() ) {
-            cc_fs()->_activate_plugin_event();
-        }
     }
 
     public function deactivate() {
