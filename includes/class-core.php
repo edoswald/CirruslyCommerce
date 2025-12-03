@@ -204,7 +204,8 @@ class Cirrusly_Commerce_Core {
         echo '<div class="cc-global-nav">';
         echo '<a href="' . esc_url( admin_url( 'admin.php?page=cirrusly-commerce' ) ) . '">Dashboard</a>';
         echo '<a href="' . esc_url( admin_url( 'admin.php?page=cirrusly-gmc' ) ) . '">GMC Hub</a>';
-        echo '<a href="' . esc_url( admin_url( 'admin.php?page=cirrusly-audit' ) ) . '">Audit</a>';
+        // Updated Link Text
+        echo '<a href="' . esc_url( admin_url( 'admin.php?page=cirrusly-audit' ) ) . '">Financial Audit</a>';
         echo '<a href="' . esc_url( admin_url( 'admin.php?page=cirrusly-settings' ) ) . '">Settings</a>';
         echo '</div>';
     }
@@ -231,7 +232,8 @@ class Cirrusly_Commerce_Core {
         add_menu_page( 'Cirrusly Commerce', 'Cirrusly Commerce', 'edit_products', 'cirrusly-commerce', array( $this, 'render_main_dashboard' ), 'dashicons-analytics', 56 );
         add_submenu_page( 'cirrusly-commerce', 'Dashboard', 'Dashboard', 'edit_products', 'cirrusly-commerce', array( $this, 'render_main_dashboard' ) );
         add_submenu_page( 'cirrusly-commerce', 'GMC Hub', 'GMC Hub', 'edit_products', 'cirrusly-gmc', array( 'Cirrusly_Commerce_GMC', 'render_page' ) );
-        add_submenu_page( 'cirrusly-commerce', 'Store Audit', 'Store Audit', 'edit_products', 'cirrusly-audit', array( 'Cirrusly_Commerce_Audit', 'render_page' ) );
+        // Updated Menu Item Title
+        add_submenu_page( 'cirrusly-commerce', 'Financial Audit', 'Financial Audit', 'edit_products', 'cirrusly-audit', array( 'Cirrusly_Commerce_Audit', 'render_page' ) );
         add_submenu_page( 'cirrusly-commerce', 'Settings', 'Settings', 'manage_options', 'cirrusly-settings', array( $this, 'render_settings_page' ) );
         add_submenu_page( 'cirrusly-commerce', 'User Manual', 'User Manual', 'edit_products', 'cirrusly-manual', array( 'Cirrusly_Commerce_Manual', 'render_page' ) );
     }
@@ -266,6 +268,16 @@ class Cirrusly_Commerce_Core {
                 wp_schedule_event( time(), 'daily', 'cirrusly_gmc_daily_scan' );
             }
         }
+        
+        // Handle File Upload (Service Account JSON)
+        if ( ! empty( $_FILES['cirrusly_service_account']['name'] ) ) {
+            $file = $_FILES['cirrusly_service_account'];
+            if( $file['error'] === 0 && pathinfo($file['name'], PATHINFO_EXTENSION) === 'json' ) {
+                 $input['service_account_uploaded'] = 'yes';
+                 $input['service_account_name'] = sanitize_file_name($file['name']);
+            }
+        }
+
         return $this->sanitize_options_array( $input );
     }
 
@@ -322,6 +334,11 @@ class Cirrusly_Commerce_Core {
         // Sanitize new payment fields
         if ( isset( $input['payment_pct'] ) ) $input['payment_pct'] = floatval( $input['payment_pct'] );
         if ( isset( $input['payment_flat'] ) ) $input['payment_flat'] = floatval( $input['payment_flat'] );
+
+        // Sanitize Smart Badge Checkboxes
+        if ( isset( $input['smart_inventory'] ) ) $input['smart_inventory'] = 'yes';
+        if ( isset( $input['smart_performance'] ) ) $input['smart_performance'] = 'yes';
+        if ( isset( $input['smart_scheduler'] ) ) $input['smart_scheduler'] = 'yes';
 
         return $input;
     }
@@ -456,8 +473,7 @@ class Cirrusly_Commerce_Core {
                 <div class="cc-stat-row"><a href="admin.php?page=cirrusly-manual">User Manual</a></div>
             </div>
         </div>
-        </div><!-- End Wrap -->
-        <?php
+        </div><?php
     }
 
     public function render_settings_page() {
@@ -471,8 +487,8 @@ class Cirrusly_Commerce_Core {
                 <a href="?page=cirrusly-settings&tab=shipping" class="nav-tab '.($tab=='shipping'?'nav-tab-active':'').'">Profit Engine</a>
                 <a href="?page=cirrusly-settings&tab=badges" class="nav-tab '.($tab=='badges'?'nav-tab-active':'').'">Badge Manager</a>
               </nav>';
-              
-        echo '<br><form method="post" action="options.php">';
+        
+        echo '<br><form method="post" action="options.php" enctype="multipart/form-data">';
         
         if($tab==='badges'){ 
             settings_fields('cirrusly_badge_group'); 
@@ -501,6 +517,12 @@ class Cirrusly_Commerce_Core {
         $scan = get_option( 'cirrusly_scan_config', array() );
         $daily = isset($scan['enable_daily_scan']) ? $scan['enable_daily_scan'] : '';
         $hide_upsells = isset($scan['hide_upsells']) ? $scan['hide_upsells'] : '';
+        
+        // Pro field values
+        $merchant_id_pro = isset($scan['merchant_id_pro']) ? $scan['merchant_id_pro'] : '';
+        $alert_reports = isset($scan['alert_weekly_report']) ? $scan['alert_weekly_report'] : '';
+        $alert_disapproval = isset($scan['alert_gmc_disapproval']) ? $scan['alert_gmc_disapproval'] : '';
+        $uploaded_file = isset($scan['service_account_name']) ? $scan['service_account_name'] : '';
 
         $is_pro = self::cirrusly_is_pro();
         $pro_class = $is_pro ? '' : 'cc-pro-feature';
@@ -573,8 +595,11 @@ class Cirrusly_Commerce_Core {
             <div class="cc-card-body">
                 <p>Connect directly to Google Merchant Center for real-time price & stock syncing.</p>
                 <table class="form-table cc-settings-table">
-                    <tr><th>Service Account JSON</th><td><input type="file" '.esc_attr($disabled_attr).'></td></tr>
-                    <tr><th>Merchant ID</th><td><input type="text" '.esc_attr($disabled_attr).' placeholder="Locked"></td></tr>
+                    <tr><th>Service Account JSON</th><td>
+                    <input type="file" name="cirrusly_service_account" '.esc_attr($disabled_attr).'>
+                    '.($uploaded_file ? '<br><small>Uploaded: '.esc_html($uploaded_file).'</small>' : '').'
+                    </td></tr>
+                    <tr><th>Merchant ID</th><td><input type="text" name="cirrusly_scan_config[merchant_id_pro]" value="'.esc_attr($merchant_id_pro).'" '.esc_attr($disabled_attr).' placeholder="Locked"></td></tr>
                 </table>
             </div>
         </div>';
@@ -587,8 +612,8 @@ class Cirrusly_Commerce_Core {
                 <span class="dashicons dashicons-email-alt"></span>
             </div>
             <div class="cc-card-body">
-                <label><input type="checkbox" '.esc_attr($disabled_attr).'> Email me weekly Profit Reports</label><br>
-                <label><input type="checkbox" '.esc_attr($disabled_attr).'> Email me instantly on GMC Disapproval</label>
+                <label><input type="checkbox" name="cirrusly_scan_config[alert_weekly_report]" value="yes" '.checked('yes', $alert_reports, false).' '.esc_attr($disabled_attr).'> Email me weekly Profit Reports</label><br>
+                <label><input type="checkbox" name="cirrusly_scan_config[alert_gmc_disapproval]" value="yes" '.checked('yes', $alert_disapproval, false).' '.esc_attr($disabled_attr).'> Email me instantly on GMC Disapproval</label>
             </div>
         </div>';
         
@@ -601,6 +626,11 @@ class Cirrusly_Commerce_Core {
         $size = isset($cfg['badge_size']) ? $cfg['badge_size'] : 'medium';
         $calc_from = isset($cfg['calc_from']) ? $cfg['calc_from'] : 'msrp';
         $new_days = isset($cfg['new_days']) ? $cfg['new_days'] : 30;
+        
+        // Smart Badges
+        $smart_inv = isset($cfg['smart_inventory']) ? $cfg['smart_inventory'] : '';
+        $smart_perf = isset($cfg['smart_performance']) ? $cfg['smart_performance'] : '';
+        $smart_sched = isset($cfg['smart_scheduler']) ? $cfg['smart_scheduler'] : '';
         
         $custom_badges = isset($cfg['custom_badges_json']) ? json_decode($cfg['custom_badges_json'], true) : array();
         if(!is_array($custom_badges)) $custom_badges = array();
@@ -621,9 +651,9 @@ class Cirrusly_Commerce_Core {
         echo '<div class="'.esc_attr($pro_class).'" style="margin-top:20px; border:1px dashed #ccc; padding:15px;">';
         if(!$is_pro) echo '<div class="cc-pro-overlay" style="background:rgba(255,255,255,0.8);"><a href="#upgrade-to-pro" class="cc-upgrade-btn">Unlock Smart Badges</a></div>';
         echo '<h4>Smart Dynamic Badges <span class="cc-pro-badge">PRO</span></h4>
-            <label><input type="checkbox" '.esc_attr($disabled_attr).'> <strong>Inventory:</strong> Show "Low Stock" badge when qty < 5</label><br>
-            <label><input type="checkbox" '.esc_attr($disabled_attr).'> <strong>Performance:</strong> Show "Best Seller" for top 10 products</label><br>
-            <label><input type="checkbox" '.esc_attr($disabled_attr).'> <strong>Scheduler:</strong> Schedule badges for specific dates</label>
+            <label><input type="checkbox" name="cirrusly_badge_config[smart_inventory]" value="yes" '.checked('yes', $smart_inv, false).' '.esc_attr($disabled_attr).'> <strong>Inventory:</strong> Show "Low Stock" badge when qty < 5</label><br>
+            <label><input type="checkbox" name="cirrusly_badge_config[smart_performance]" value="yes" '.checked('yes', $smart_perf, false).' '.esc_attr($disabled_attr).'> <strong>Performance:</strong> Show "Best Seller" for top 10 products</label><br>
+            <label><input type="checkbox" name="cirrusly_badge_config[smart_scheduler]" value="yes" '.checked('yes', $smart_sched, false).' '.esc_attr($disabled_attr).'> <strong>Scheduler:</strong> Schedule badges for specific dates</label>
         </div>';
 
         echo '<hr style="margin:20px 0; border:0; border-top:1px solid #eee;">
@@ -672,7 +702,6 @@ class Cirrusly_Commerce_Core {
                 </tr>
             </table>
             
-            <!-- PRO: Multi-Gateway -->
             <div class="'.esc_attr($pro_class).'" style="margin-top:15px; border-top:1px dashed #ccc; padding-top:15px;">
                 <p><strong>Advanced Profiles <span class="cc-pro-badge">PRO</span></strong></p>
                 <label><input type="radio" disabled checked> Single Profile</label><br>
@@ -731,27 +760,6 @@ class Cirrusly_Commerce_Core {
             }
         }
         echo '</tbody></table><button type="button" class="button" id="cc-add-matrix-row" style="margin-top:10px;">+ Add Scenario</button></div></div>';
-        
-        // JS
-        echo '<script type="text/javascript">jQuery(document).ready(function($){
-            $("#cc-add-revenue-row").click(function(){
-                var idx = $("#cc-revenue-rows tr").length + 1000;
-                var row = "<tr><td><input type=\'number\' step=\'0.01\' name=\'cirrusly_shipping_config[revenue_tiers]["+idx+"][min]\'></td><td><input type=\'number\' step=\'0.01\' name=\'cirrusly_shipping_config[revenue_tiers]["+idx+"][max]\'></td><td><input type=\'number\' step=\'0.01\' name=\'cirrusly_shipping_config[revenue_tiers]["+idx+"][charge]\'></td><td><button type=\'button\' class=\'button cc-remove-row\'><span class=\'dashicons dashicons-trash\'></span></button></td></tr>";
-                $("#cc-revenue-rows").append(row);
-            });
-            $("#cc-add-matrix-row").click(function(){
-                var idx = $("#cc-matrix-rows tr").length + 1000;
-                var row = "<tr><td><input type=\'text\' name=\'cirrusly_shipping_config[matrix_rules]["+idx+"][key]\'></td><td><input type=\'text\' name=\'cirrusly_shipping_config[matrix_rules]["+idx+"][label]\'></td><td>x <input type=\'number\' step=\'0.1\' name=\'cirrusly_shipping_config[matrix_rules]["+idx+"][cost_mult]\' value=\'1.0\'></td><td><button type=\'button\' class=\'button cc-remove-row\'><span class=\'dashicons dashicons-trash\'></span></button></td></tr>";
-                $("#cc-matrix-rows").append(row);
-            });
-            $(document).on("click", ".cc-remove-row", function(){ $(this).closest("tr").remove(); });
-                
-                // System Info Toggle
-                $("#cc-sys-info-toggle").click(function(e){
-                    e.preventDefault();
-                    $("#cc-sys-info-panel").toggle();
-                });
-            });</script>';
     }
 
     public function register_dashboard_widget() {
