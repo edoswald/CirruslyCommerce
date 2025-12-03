@@ -733,7 +733,7 @@ class Cirrusly_Commerce_Core {
         echo '</tbody></table><button type="button" class="button" id="cc-add-matrix-row" style="margin-top:10px;">+ Add Scenario</button></div></div>';
         
         // JS
-        echo '<script>jQuery(document).ready(function($){
+        echo '<script type="text/javascript">jQuery(document).ready(function($){
             $("#cc-add-revenue-row").click(function(){
                 var idx = $("#cc-revenue-rows tr").length + 1000;
                 var row = "<tr><td><input type=\'number\' step=\'0.01\' name=\'cirrusly_shipping_config[revenue_tiers]["+idx+"][min]\'></td><td><input type=\'number\' step=\'0.01\' name=\'cirrusly_shipping_config[revenue_tiers]["+idx+"][max]\'></td><td><input type=\'number\' step=\'0.01\' name=\'cirrusly_shipping_config[revenue_tiers]["+idx+"][charge]\'></td><td><button type=\'button\' class=\'button cc-remove-row\'><span class=\'dashicons dashicons-trash\'></span></button></td></tr>";
@@ -751,8 +751,7 @@ class Cirrusly_Commerce_Core {
                     e.preventDefault();
                     $("#cc-sys-info-panel").toggle();
                 });
-            });' );
-        }
+            });</script>';
     }
 
     public function register_dashboard_widget() {
