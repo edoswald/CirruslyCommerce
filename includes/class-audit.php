@@ -130,7 +130,8 @@ class Cirrusly_Commerce_Audit {
                 $ship_cost = (float)$p->get_meta('_cw_est_shipping');
                 
                 // Fallback Ship Cost
-                if($ship_cost <= 0 && !$p->is_virtual()) {
+                // Exclude Virtual AND Downloadable products from shipping calculations
+                if($ship_cost <= 0 && !$p->is_virtual() && !$p->is_downloadable()) {
                     $cid = $p->get_shipping_class_id();
                     $slug = ($cid && ($t=get_term($cid,'product_shipping_class'))) ? $t->slug : 'default';
                     if ( $class_costs && isset($class_costs[$slug]) ) { $ship_cost = $class_costs[$slug]; } 
@@ -152,7 +153,8 @@ class Cirrusly_Commerce_Audit {
                 
                 $alerts = array();
                 if($cost <= 0) $alerts[] = '<a href="'.esc_url(get_edit_post_link($pid)).'" target="_blank" class="gmc-badge" style="background:#d63638;color:#fff;text-decoration:none;">Add Cost</a>';
-                if(!$p->is_virtual() && (float)$p->get_weight() <= 0) $alerts[] = '<span class="gmc-badge" style="background:#dba617;color:#000;">0 Weight</span>';
+                // Updated Alert: Ignore weight warning for downloadable items too
+                if(!$p->is_virtual() && !$p->is_downloadable() && (float)$p->get_weight() <= 0) $alerts[] = '<span class="gmc-badge" style="background:#dba617;color:#000;">0 Weight</span>';
                 
                 $ship_pl = $rev - $ship_cost;
                 
