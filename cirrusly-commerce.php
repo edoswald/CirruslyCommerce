@@ -29,37 +29,31 @@ if ( ! function_exists( 'cc_fs' ) ) {
 
         if ( ! isset( $cc_fs ) ) {
             // Include Freemius SDK.
-            // Updated path to point to vendor directory
-            $sdk_path = dirname( __FILE__ ) . '/vendor/freemius/start.php';
-            
-            if ( file_exists( $sdk_path ) ) {
-                require_once $sdk_path;
+            require_once dirname( __FILE__ ) . '/vendor/freemius/start.php';
 
-                $cc_fs = fs_dynamic_init( array(
-                    'id'                  => '22048',
-                    'slug'                => 'cirrusly-commerce',
-                    'type'                => 'plugin',
-                    'public_key'          => 'pk_34dc77b4bc7764037f0e348daac4a',
-                    'is_premium'          => true, // Set to true only in the Pro version zip
-                    'premium_suffix'      => 'Pro',
-                    'has_premium_version' => true,
-                    'has_addons'          => false,
-                    'has_paid_plans'      => true,
-                    // Automatically removed in the free version.
-                    'wp_org_gatekeeper'   => 'OA7#BoRiBNqdf52FvzEf!!074aRLPs8fspif$7K1#4u4Csys1fQlCecVcUTOs2mcpeVHi#C2j9d09fOTvbC0HloPT7fFee5WdS3G',
-                    'trial'               => array(
-                        'days'               => 3,
-                        'is_require_payment' => false,
-                    ),
-                    'menu'                => array(
-                        'slug'           => 'cirrusly-commerce', // Hook into our main menu slug
-                        'first-path'     => 'admin.php?page=cirrusly-commerce',
-                        'support'        => false, // We handle support via our header button
-                        'account'        => true,
-                        'contact'        => false,
-                    ),
-                ) );
-            }
+            $cc_fs = fs_dynamic_init( array(
+                'id'                  => '22048',
+                'slug'                => 'cirrusly-commerce',
+                'type'                => 'plugin',
+                'public_key'          => 'pk_34dc77b4bc7764037f0e348daac4a',
+                'is_premium'          => true,
+                'premium_suffix'      => 'Pro',
+                // If your plugin is a serviceware, set this option to false.
+                'has_premium_version' => true,
+                'has_addons'          => false,
+                'has_paid_plans'      => true,
+                // Automatically removed in the free version. If you're not using the
+                // auto-generated free version, delete this line before uploading to wp.org.
+                'wp_org_gatekeeper'   => 'OA7#BoRiBNqdf52FvzEf!!074aRLPs8fspif$7K1#4u4Csys1fQlCecVcUTOs2mcpeVHi#C2j9d09fOTvbC0HloPT7fFee5WdS3G',
+                'trial'               => array(
+                    'days'               => 3,
+                    'is_require_payment' => false,
+                ),
+                'menu'                => array(
+                    'slug'           => 'cirrusly-settings',
+                    'support'        => false,
+                ),
+            ) );
         }
 
         return $cc_fs;
