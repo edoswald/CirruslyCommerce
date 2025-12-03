@@ -147,7 +147,10 @@ class Cirrusly_Commerce_GMC {
 
         foreach($posts as $post) {
             $found_terms = array();
+            
+            // Text to Scan
             $title = $post->post_title;
+            // Fix: Use wp_strip_all_tags instead of strip_tags
             $content = wp_strip_all_tags($post->post_content); 
             
             // 1. Term Scanning
@@ -190,6 +193,10 @@ class Cirrusly_Commerce_GMC {
     }
 
     private function render_promotions_view() {
+        $is_pro = Cirrusly_Commerce_Core::cirrusly_is_pro();
+        $pro_class = $is_pro ? '' : 'cc-pro-feature';
+        $disabled_attr = $is_pro ? '' : 'disabled';
+        
         echo '<div class="cc-manual-helper"><h4>Promotion Feed Generator</h4><p>Create a valid promotion entry for Google Merchant Center. Fill in the details, generate the code, and paste it into your Google Sheet feed.</p></div>';
         ?>
         <div class="cc-promo-generator">
@@ -227,8 +234,15 @@ class Cirrusly_Commerce_GMC {
                 <button type="button" class="button button-primary" id="pg_generate">Generate Code</button>
                 
                 <!-- PRO Upsell: One-click Submit -->
-                <div class="cc-pro-feature">
-                    <button type="button" class="button button-secondary" disabled>
+                <div class="<?php echo esc_attr($pro_class); ?>">
+                    <?php if(!$is_pro): ?>
+                    <div class="cc-pro-overlay">
+                        <a href="<?php echo esc_url( function_exists('cc_fs') ? cc_fs()->get_upgrade_url() : '#' ); ?>" class="cc-upgrade-btn">
+                           <span class="dashicons dashicons-lock cc-lock-icon"></span> Upgrade
+                        </a>
+                    </div>
+                    <?php endif; ?>
+                    <button type="button" class="button button-secondary" <?php echo esc_attr($disabled_attr); ?>>
                         <span class="dashicons dashicons-cloud-upload"></span> One-Click Submit to Google
                     </button>
                     <span class="cc-pro-badge">PRO</span>
@@ -324,20 +338,26 @@ class Cirrusly_Commerce_GMC {
     }
 
     private function render_scan_view() {
+        $is_pro = Cirrusly_Commerce_Core::cirrusly_is_pro();
+        $pro_class = $is_pro ? '' : 'cc-pro-feature';
+        $disabled_attr = $is_pro ? '' : 'disabled';
+
         echo '<div class="cc-manual-helper"><h4>Health Check</h4><p>Scans product data for critical GMC issues like missing GTINs or prohibited titles. Click "Edit Product" to fix issues, then run a new scan.</p></div>';
         
         // PRO: Auto-Fix Upsell
-        echo '<div class="cc-pro-feature" style="background:#f0f6fc; padding:15px; border:1px solid #c3c4c7; margin-bottom:20px; display:flex; justify-content:space-between; align-items:center;">
-            <div class="cc-pro-overlay">
-                <a href="#upgrade-to-pro" class="cc-upgrade-btn"><span class="dashicons dashicons-lock cc-lock-icon"></span> Upgrade to Automate</a>
-            </div>
-            <div>
+        echo '<div class="'.esc_attr($pro_class).'" style="background:#f0f6fc; padding:15px; border:1px solid #c3c4c7; margin-bottom:20px; display:flex; justify-content:space-between; align-items:center; position:relative;">';
+            if(!$is_pro) {
+                echo '<div class="cc-pro-overlay">
+                    <a href="' . esc_url( function_exists('cc_fs') ? cc_fs()->get_upgrade_url() : '#' ) . '" class="cc-upgrade-btn"><span class="dashicons dashicons-lock cc-lock-icon"></span> Upgrade to Automate</a>
+                </div>';
+            }
+            echo '<div>
                 <strong>Automated Compliance <span class="cc-pro-badge">PRO</span></strong><br>
                 <span>Enable Scan-on-Save blocking and Auto-Fixing for common title errors.</span>
             </div>
             <div>
-                <label><input type="checkbox" disabled> Block Save on Critical Error</label>
-                <label style="margin-left:10px;"><input type="checkbox" disabled> Auto-strip Banned Words</label>
+                <label><input type="checkbox" '.esc_attr($disabled_attr).'> Block Save on Critical Error</label>
+                <label style="margin-left:10px;"><input type="checkbox" '.esc_attr($disabled_attr).'> Auto-strip Banned Words</label>
             </div>
         </div>';
 

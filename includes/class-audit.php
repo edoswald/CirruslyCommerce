@@ -91,6 +91,11 @@ class Cirrusly_Commerce_Audit {
             if($row['margin'] < 15) $low_margin_count++;
         }
 
+        // Check PRO status
+        $is_pro = Cirrusly_Commerce_Core::cirrusly_is_pro();
+        $pro_class = $is_pro ? '' : 'cc-pro-feature';
+        $disabled_attr = $is_pro ? '' : 'disabled';
+
         // --- Header Strip with PRO Buttons ---
         ?>
         <div class="cc-dash-grid" style="grid-template-columns: 1fr; margin-bottom: 20px;">
@@ -106,19 +111,21 @@ class Cirrusly_Commerce_Audit {
                 
                 <!-- PRO Upsell Area -->
                 <div style="flex:2; display:flex; gap:10px; justify-content:center; align-items:center; border-left:1px solid #eee; padding-left:20px;">
-                    <div class="cc-pro-feature">
-                        <button class="button button-secondary" disabled>
+                    <div class="<?php echo esc_attr($pro_class); ?>">
+                        <button class="button button-secondary" <?php echo esc_attr($disabled_attr); ?>>
                             <span class="dashicons dashicons-download"></span> Export CSV
                         </button>
                     </div>
-                    <div class="cc-pro-feature">
-                        <button class="button button-secondary" disabled>
+                    <div class="<?php echo esc_attr($pro_class); ?>">
+                        <button class="button button-secondary" <?php echo esc_attr($disabled_attr); ?>>
                             <span class="dashicons dashicons-upload"></span> Bulk Import COGS
                         </button>
                     </div>
-                    <a href="#upgrade-to-pro" class="cc-upgrade-btn button-small" style="font-size:11px;">
+                    <?php if(!$is_pro): ?>
+                    <a href="<?php echo esc_url( function_exists('cc_fs') ? cc_fs()->get_upgrade_url() : '#' ); ?>" class="cc-upgrade-btn button-small" style="font-size:11px;">
                         <span class="dashicons dashicons-lock" style="font-size:14px; line-height:1.5;"></span> Unlock Pro Tools
                     </a>
+                    <?php endif; ?>
                 </div>
             </div>
         </div>
