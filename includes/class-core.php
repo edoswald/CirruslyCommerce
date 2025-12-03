@@ -478,8 +478,7 @@ class Cirrusly_Commerce_Core {
                 <div class="cc-stat-row"><a href="admin.php?page=cirrusly-manual">User Manual</a></div>
             </div>
         </div>
-        </div><!-- End Wrap -->
-        <?php
+        </div><?php
     }
 
     public function render_settings_page() {
@@ -694,7 +693,6 @@ class Cirrusly_Commerce_Core {
                 </tr>
             </table>
             
-            <!-- PRO: Multi-Gateway -->
             <div class="'.esc_attr($pro_class).'" style="margin-top:15px; border-top:1px dashed #ccc; padding-top:15px;">
                 <p><strong>Advanced Profiles <span class="cc-pro-badge">PRO</span></strong></p>
                 <label><input type="radio" disabled checked> Single Profile</label><br>
@@ -773,8 +771,7 @@ class Cirrusly_Commerce_Core {
                     e.preventDefault();
                     $("#cc-sys-info-panel").toggle();
                 });
-            });' );
-        }
+            });';
     }
 
     public function register_dashboard_widget() {
