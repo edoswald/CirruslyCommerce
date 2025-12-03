@@ -98,14 +98,17 @@ Store Audit: A financial breakdown of every product to spot profit leaks.
 
 == Changelog ==
 
-= 1.2.0 =
+= 1.2 =
 
-* **New Feature:** Introduced "Freemium" architecture. Pro features are now visible in the interface (grayed out) to showcase advanced capabilities.
-* **Enhancement:** Added "System Info" tool to the support menu (header) to easily copy environment details for faster troubleshooting.
-* **Enhancement:** Pricing Engine now supports 5%, 15%, and 25% "Off MSRP" strategies.
-* **Enhancement:** Pricing Engine now supports "Nearest 5/0" rounding (e.g., $12.95 -> $15.00, $8.20 -> $10.00).
+* **New Feature:** Introduced "Freemium" architecture with advanced Pro capabilities.
+* **New Pro Feature:** **Smart Badges** for Inventory (Low Stock), Performance (Best Sellers), and Scheduling.
+* **New Pro Feature:** **Store Audit Power Tools** including CSV Export, Bulk COGS Import, and Inline Editing.
+* **New Pro Feature:** **GMC Compliance Guard** to auto-strip banned words and block saves on critical errors.
+* **New Pro Feature:** **Promotion Manager API** for one-click submission to Google.
+* **Enhancement:** Added "System Info" tool to the support menu for faster troubleshooting.
+* **Enhancement:** Pricing Engine now supports new strategies (5%, 15%, 25% Off) and "Nearest 5/0" rounding.
 * **UI Update:** Reorganized settings into tabbed cards for better usability.
-* **UI Update:** Added "Hide Pro Features" toggle in General Settings for users who prefer a cleaner, free-only interface.
+* **UI Update:** Added "Hide Pro Features" toggle for a cleaner interface for free users not looking to upgrade.
 * **Preparation:** Added placeholders for future Freemius integration and API connectivity.
 
 = 1.1 =
@@ -142,3 +145,4 @@ Code optimization, including security enhancements, to prepare for submission to
 = 1.0 =
 
 Initial release.
+
