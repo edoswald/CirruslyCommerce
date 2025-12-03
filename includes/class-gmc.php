@@ -16,11 +16,14 @@ class Cirrusly_Commerce_GMC {
         add_action( 'woocommerce_product_bulk_edit_save', array( $this, 'save_quick_bulk_edit' ) );
         add_action( 'admin_footer', array( $this, 'render_quick_edit_script' ) );
 
-        // NEW: Handle "Mark as Custom" action
+        // Handle "Mark as Custom" action
         add_action( 'admin_post_cc_mark_custom', array( $this, 'handle_mark_custom' ) );
         
-        // NEW: Block Save on Critical Error (Pro Feature)
+        // Block Save on Critical Error (Pro Feature)
         add_action( 'save_post_product', array( $this, 'check_compliance_on_save' ), 10, 3 );
+
+        // One-Click Submit AJAX
+        add_action( 'wp_ajax_cc_submit_promo', array( $this, 'handle_one_click_submit' ) );
     }
 
     public static function render_page() {
@@ -55,7 +58,6 @@ class Cirrusly_Commerce_GMC {
     }
 
     private function get_monitored_terms() {
-        // Scope: 'title' (only check titles), 'all' (check title + content)
         return array(
             'promotional' => array(
                 'free shipping' => array('severity' => 'Medium', 'scope' => 'title', 'reason' => 'Allowed in descriptions but prohibited in titles.'),
@@ -128,7 +130,6 @@ class Cirrusly_Commerce_GMC {
                     <td><strong>'.esc_html($issue['title']).'</strong></td>
                     <td>';
                     foreach($issue['terms'] as $t) {
-                        // Tooltip logic
                         $color = ($t['severity'] == 'Critical') ? '#d63638' : '#dba617';
                         echo '<span class="gmc-badge" style="background:'.esc_attr($color).';color:#fff;cursor:help;" title="'.esc_attr($t['reason']).'">'.esc_html($t['word']).'</span> '; 
                     }
@@ -156,31 +157,23 @@ class Cirrusly_Commerce_GMC {
             $title = $post->post_title;
             $content = wp_strip_all_tags($post->post_content); 
             
-            // 1. Term Scanning
             foreach ($monitored as $category => $terms) {
                 foreach ($terms as $word => $rules) {
                     $pattern = '/\b' . preg_quote($word, '/') . '\b/i'; // Word Boundary Regex
                     $found = false;
 
                     if ( $rules['scope'] === 'title' ) {
-                        // Strict mode: Only flag if in title
                         if ( preg_match($pattern, $title) ) $found = true;
                     } else {
-                        // Global mode: Check title OR content
                         if ( preg_match($pattern, $title . ' ' . $content) ) $found = true;
                     }
 
                     if ( $found ) {
-                        $found_terms[] = array(
-                            'word' => $word,
-                            'reason' => $rules['reason'],
-                            'severity' => $rules['severity']
-                        );
+                        $found_terms[] = array('word' => $word, 'reason' => $rules['reason'], 'severity' => $rules['severity']);
                     }
                 }
             }
 
-            // 2. Gimmick Scanning (Titles Only)
             if ( strlen($title) > 5 && ctype_upper(preg_replace('/[^a-zA-Z]/', '', $title)) ) {
                 $found_terms[] = array('word' => 'ALL CAPS', 'reason' => 'Excessive capitalization in title.', 'severity' => 'Medium');
             }
@@ -206,29 +199,19 @@ class Cirrusly_Commerce_GMC {
             <h3 style="margin-top:0;">1. Create Promotion Entry</h3>
             <div class="cc-promo-grid">
                 <div>
-                    <label for="pg_id">Promotion ID <span class="dashicons dashicons-info" title="Unique ID (e.g. SUMMER_SALE_2025). Must match the ID used in product data."></span></label>
+                    <label for="pg_id">Promotion ID <span class="dashicons dashicons-info" title="Unique ID"></span></label>
                     <input type="text" id="pg_id" placeholder="SUMMER_SALE">
-                    
-                    <label for="pg_title">Long Title <span class="dashicons dashicons-info" title="Customer-facing title (e.g. '20% Off All Summer Gear')"></span></label>
+                    <label for="pg_title">Long Title <span class="dashicons dashicons-info" title="Customer-facing title"></span></label>
                     <input type="text" id="pg_title" placeholder="20% Off Summer Items">
-                    
-                    <label for="pg_dates">Dates <span class="dashicons dashicons-info" title="Format: YYYY-MM-DD/YYYY-MM-DD (Start/End)"></span></label>
+                    <label for="pg_dates">Dates <span class="dashicons dashicons-info" title="Format: YYYY-MM-DD/YYYY-MM-DD"></span></label>
                     <input type="text" id="pg_dates" placeholder="2025-06-01/2025-06-30">
                 </div>
                 <div>
-                    <label for="pg_app">Product Applicability <span class="dashicons dashicons-info" title="Specific: Applies only to products with matching Promo ID. All: Applies to entire store."></span></label>
-                    <select id="pg_app">
-                        <option value="SPECIFIC_PRODUCTS">Specific Products (Mapped in Plugin)</option>
-                        <option value="ALL_PRODUCTS">All Products</option>
-                    </select>
-                    
-                    <label for="pg_type">Offer Type <span class="dashicons dashicons-info" title="No Code: Automatic discount. Generic Code: Requires user to enter code."></span></label>
-                    <select id="pg_type">
-                        <option value="NO_CODE">No Code Needed</option>
-                        <option value="GENERIC_CODE">Generic Code</option>
-                    </select>
-                    
-                    <label for="pg_code">Generic Code <span class="dashicons dashicons-info" title="Required if Offer Type is Generic Code."></span></label>
+                    <label for="pg_app">Product Applicability</label>
+                    <select id="pg_app"><option value="SPECIFIC_PRODUCTS">Specific Products</option><option value="ALL_PRODUCTS">All Products</option></select>
+                    <label for="pg_type">Offer Type</label>
+                    <select id="pg_type"><option value="NO_CODE">No Code Needed</option><option value="GENERIC_CODE">Generic Code</option></select>
+                    <label for="pg_code">Generic Code</label>
                     <input type="text" id="pg_code" placeholder="SAVE20">
                 </div>
             </div>
@@ -245,7 +228,7 @@ class Cirrusly_Commerce_GMC {
                         </a>
                     </div>
                     <?php endif; ?>
-                    <button type="button" class="button button-secondary" <?php echo esc_attr($disabled_attr); ?>>
+                    <button type="button" id="cc-promo-submit-btn" class="button button-secondary" <?php echo esc_attr($disabled_attr); ?>>
                         <span class="dashicons dashicons-cloud-upload"></span> One-Click Submit to Google
                     </button>
                     <span class="cc-pro-badge">PRO</span>
@@ -255,40 +238,49 @@ class Cirrusly_Commerce_GMC {
             <div id="pg_result_area" style="display:none; margin-top:15px;">
                 <span class="cc-copy-hint">Copy and paste this line into your Google Sheet:</span>
                 <div id="pg_output" class="cc-generated-code"></div>
-                <p style="font-size:11px; color:#666; margin-top:5px;"><strong>Columns:</strong> promotion_id, product_applicability, offer_type, long_title, promotion_effective_dates, redemption_channel, promotion_display_dates, generic_redemption_code</p>
             </div>
         </div>
 
         <script>
         jQuery(document).ready(function($){
             $('#pg_generate').click(function(){
-                var id = $('#pg_id').val();
-                var app = $('#pg_app').val();
-                var type = $('#pg_type').val();
-                var title = $('#pg_title').val();
-                var dates = $('#pg_dates').val();
-                var code = $('#pg_code').val();
-                
+                var id = $('#pg_id').val(), app = $('#pg_app').val(), type = $('#pg_type').val();
+                var title = $('#pg_title').val(), dates = $('#pg_dates').val(), code = $('#pg_code').val();
                 var str = id + ',' + app + ',' + type + ',' + title + ',' + dates + ',ONLINE,' + dates + ',' + (type==='GENERIC_CODE' ? code : '');
-                
                 $('#pg_output').text(str);
                 $('#pg_result_area').fadeIn();
+            });
+
+            // ONE CLICK SUBMIT (AJAX)
+            $('#cc-promo-submit-btn').click(function(e){
+                e.preventDefault();
+                var btn = $(this);
+                btn.prop('disabled', true).text('Sending...');
+                
+                $.post(ajaxurl, {
+                    action: 'cc_submit_promo',
+                    _nonce: '<?php echo wp_create_nonce("cc_promo_submit"); ?>',
+                    data: {
+                        id: $('#pg_id').val(),
+                        title: $('#pg_title').val(),
+                        dates: $('#pg_dates').val()
+                    }
+                }, function(res){
+                    if(res.success) { alert(res.data); } 
+                    else { alert('Error: ' + res.data); }
+                    btn.prop('disabled', false).html('<span class="dashicons dashicons-cloud-upload"></span> One-Click Submit to Google');
+                });
             });
         });
         </script>
         <?php
 
-        // --- ACTIVE PROMOTIONS TABLE ---
+        // ... (Active Promotions Table) ...
         global $wpdb;
-        
-        // Handle Form Submission
         if ( isset( $_POST['gmc_promo_bulk_action'] ) && ! empty( $_POST['gmc_promo_products'] ) && check_admin_referer( 'cirrusly_promo_bulk', 'cc_promo_nonce' ) ) {
             $new_promo_id = isset($_POST['gmc_new_promo_id']) ? sanitize_text_field( wp_unslash( $_POST['gmc_new_promo_id'] ) ) : '';
             $action = sanitize_text_field( wp_unslash( $_POST['gmc_promo_bulk_action'] ) );
-            
-            $promo_products = isset($_POST['gmc_promo_products']) && is_array($_POST['gmc_promo_products']) 
-                ? array_map('intval', $_POST['gmc_promo_products']) 
-                : array();
+            $promo_products = isset($_POST['gmc_promo_products']) && is_array($_POST['gmc_promo_products']) ? array_map('intval', $_POST['gmc_promo_products']) : array();
 
             $count = 0;
             foreach ( $promo_products as $pid ) {
@@ -296,19 +288,16 @@ class Cirrusly_Commerce_GMC {
                 elseif ( 'remove' === $action ) delete_post_meta( $pid, '_gmc_promotion_id' );
                 $count++;
             }
-            delete_transient( 'cirrusly_active_promos_stats' ); // Clear cache
+            delete_transient( 'cirrusly_active_promos_stats' );
             echo '<div class="notice notice-success inline"><p>Success! Updated ' . esc_html($count) . ' products.</p></div>';
         }
 
-        // Cached Stats Query
         $promo_stats = get_transient( 'cirrusly_active_promos_stats' );
         if ( false === $promo_stats ) {
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
             $promo_stats = $wpdb->get_results( "SELECT meta_value as promo_id, count(post_id) as count FROM {$wpdb->postmeta} WHERE meta_key = '_gmc_promotion_id' AND meta_value != '' GROUP BY meta_value ORDER BY count DESC" );
             set_transient( 'cirrusly_active_promos_stats', $promo_stats, 1 * HOUR_IN_SECONDS );
         }
         
-        // phpcs:ignore WordPress.Security.NonceVerification.Recommended
         $filter_promo = isset( $_GET['view_promo'] ) ? sanitize_text_field( wp_unslash( $_GET['view_promo'] ) ) : '';
 
         echo '<h3>Active Promotions</h3>';
@@ -316,11 +305,7 @@ class Cirrusly_Commerce_GMC {
         else {
             echo '<table class="wp-list-table widefat fixed striped" style="max-width:600px;"><thead><tr><th>ID</th><th>Products Assigned</th><th>Action</th></tr></thead><tbody>';
             foreach($promo_stats as $stat) {
-                echo '<tr>
-                    <td><strong>'.esc_html($stat->promo_id).'</strong></td>
-                    <td>'.esc_html($stat->count).'</td>
-                    <td><a href="?page=cirrusly-gmc&tab=promotions&view_promo='.urlencode($stat->promo_id).'" class="button button-small">View Products</a></td>
-                </tr>';
+                echo '<tr><td><strong>'.esc_html($stat->promo_id).'</strong></td><td>'.esc_html($stat->count).'</td><td><a href="?page=cirrusly-gmc&tab=promotions&view_promo='.urlencode($stat->promo_id).'" class="button button-small">View Products</a></td></tr>';
             }
             echo '</tbody></table>';
         }
@@ -345,21 +330,18 @@ class Cirrusly_Commerce_GMC {
         $pro_class = $is_pro ? '' : 'cc-pro-feature';
         $disabled_attr = $is_pro ? '' : 'disabled';
         
-        // Check saved settings for "Block Save"
         $scan_cfg = get_option('cirrusly_scan_config', array());
         $block_save = isset($scan_cfg['block_on_critical']) ? 'checked' : '';
         $auto_strip = isset($scan_cfg['auto_strip_banned']) ? 'checked' : '';
 
         echo '<div class="cc-manual-helper"><h4>Health Check</h4><p>Scans product data for critical GMC issues.</p></div>';
         
-        // PRO: Auto-Fix Upsell (Functional UI)
+        // PRO: Auto-Fix Upsell
         echo '<div class="'.esc_attr($pro_class).'" style="background:#f0f6fc; padding:15px; border:1px solid #c3c4c7; margin-bottom:20px; position:relative;">';
             if(!$is_pro) echo '<div class="cc-pro-overlay"><a href="'.esc_url( function_exists('cc_fs') ? cc_fs()->get_upgrade_url() : '#' ).'" class="cc-upgrade-btn">Upgrade to Automate</a></div>';
             
             echo '<form method="post" action="options.php">';
-            // Ensure settings fields are output for the scan group
             settings_fields('cirrusly_general_group'); 
-            
             echo '<strong>Automated Compliance <span class="cc-pro-badge">PRO</span></strong><br>
             <label><input type="checkbox" name="cirrusly_scan_config[block_on_critical]" value="yes" '.$block_save.' '.esc_attr($disabled_attr).'> Block Save on Critical Error</label>
             <label style="margin-left:10px;"><input type="checkbox" name="cirrusly_scan_config[auto_strip_banned]" value="yes" '.$auto_strip.' '.esc_attr($disabled_attr).'> Auto-strip Banned Words</label>
@@ -375,14 +357,12 @@ class Cirrusly_Commerce_GMC {
         submit_button('Run Diagnostics Scan', 'primary', 'run_scan', false);
         echo '</form></div>';
 
-        // Handle Scan
         if ( isset( $_POST['run_gmc_scan'] ) && check_admin_referer( 'cirrusly_gmc_scan', 'cc_gmc_scan_nonce' ) ) {
             $results = $this->run_gmc_scan_logic();
             update_option( 'woo_gmc_scan_data', array( 'timestamp' => current_time( 'timestamp' ), 'results' => $results ), false );
             echo '<div class="notice notice-success inline"><p>Scan Complete.</p></div>';
         }
         
-        // Results Table
         $scan_data = get_option( 'woo_gmc_scan_data' );
         if ( ! empty( $scan_data ) && !empty($scan_data['results']) ) {
             echo '<table class="wp-list-table widefat fixed striped"><thead><tr><th>Product</th><th>Issues</th><th>Action</th></tr></thead><tbody>';
@@ -407,7 +387,6 @@ class Cirrusly_Commerce_GMC {
         }
     }
 
-    // NEW Handler for "Mark as Custom"
     public function handle_mark_custom() {
         if ( ! current_user_can( 'edit_products' ) ) wp_die('No permission');
         $pid = intval( $_GET['pid'] );
@@ -418,7 +397,6 @@ class Cirrusly_Commerce_GMC {
         exit;
     }
 
-    // NEW Logic: Block Save on Critical Error
     public function check_compliance_on_save( $post_id, $post, $update ) {
         // Only run if option enabled
         $scan_cfg = get_option('cirrusly_scan_config', array());
@@ -427,23 +405,36 @@ class Cirrusly_Commerce_GMC {
         if ( $post->post_type !== 'product' ) return;
 
         // Quick check for banned words
-        $monitored = $this->get_monitored_terms(); // Reuse existing method
+        $monitored = $this->get_monitored_terms();
         foreach($monitored['medical'] as $word => $data) {
              if ( stripos($post->post_title, $word) !== false ) {
                  // We can't easily stop the save process in WP without throwing a die() or removing hooks, 
-                 // which is bad UX. Instead, we save it as 'draft'.
+                 // which is bad UX. Instead, we force post_status back to draft to prevent publishing.
                  $post->post_status = 'draft';
                  wp_update_post( $post );
-                 // You'd ideally set a transient here to show an admin notice on reload
              }
         }
     }
-    
+
+    // One-Click Submit Handler
+    public function handle_one_click_submit() {
+        if ( ! current_user_can('manage_options') || ! check_ajax_referer('cc_promo_submit', '_nonce', false) ) {
+            wp_send_json_error('Permission denied');
+        }
+        
+        if ( ! Cirrusly_Commerce_Core::cirrusly_is_pro() ) {
+            wp_send_json_error('Pro feature required');
+        }
+
+        // In a real app, this is where the Google API call would go.
+        // For now, we simulate success to demonstrate the UI flow.
+        wp_send_json_success( 'Promotion sent to Google Merchant Center! (Simulation Mode)' );
+    }
+
     // ... (Rest of existing methods) ...
     public function render_gmc_product_settings() {
         global $post;
         echo '<div class="options_group">';
-        // Fix: Correct Text Domain
         echo '<p class="form-field"><strong>' . esc_html__( 'Google Merchant Center Attributes', 'cirrusly-commerce' ) . '</strong></p>';
         $current_val = get_post_meta( $post->ID, '_gla_identifier_exists', true );
         woocommerce_wp_checkbox( array( 'id' => 'gmc_is_custom_product', 'label' => 'Custom Product?', 'description' => 'No GTIN/Barcode', 'value' => ('no'===$current_val?'yes':'no'), 'cbvalue' => 'yes' ) );
@@ -461,7 +452,6 @@ class Cirrusly_Commerce_GMC {
         // phpcs:ignore WordPress.Security.NonceVerification.Missing
         if ( isset( $_POST['_gmc_custom_label_0'] ) ) update_post_meta( $post_id, '_gmc_custom_label_0', sanitize_text_field( wp_unslash( $_POST['_gmc_custom_label_0'] ) ) );
         
-        // Clear cache on save
         delete_transient( 'cirrusly_active_promos_stats' );
     }
 
@@ -476,12 +466,10 @@ class Cirrusly_Commerce_GMC {
         $promo = get_post_meta( $post_id, '_gmc_promotion_id', true );
         $label = get_post_meta( $post_id, '_gmc_custom_label_0', true );
         
-        // Render Badges (Visual indicators)
         if ( 'no' === $id_ex ) echo '<span class="gmc-badge gmc-badge-custom">Custom</span> ';
         if ( $promo ) echo '<span class="gmc-badge gmc-badge-promo" title="'.esc_attr($promo).'">Promo</span> ';
         if ( $label ) echo '<span class="gmc-badge gmc-badge-label" title="'.esc_attr($label).'">Label</span> ';
         
-        // Add hidden data for Quick Edit JS to grab
         echo '<span class="gmc-hidden-data" 
             data-custom="'.('no'===$id_ex?'yes':'no').'" 
             data-promo="'.esc_attr($promo).'" 
@@ -502,8 +490,8 @@ class Cirrusly_Commerce_GMC {
     }
 
     public function save_quick_bulk_edit( $product ) {
-        // phpcs:ignore WordPress.Security.NonceVerification.Missing
         $post_id = $product->get_id();
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing
         if ( isset( $_REQUEST['gmc_is_custom_product'] ) ) update_post_meta( $post_id, '_gla_identifier_exists', 'no' );
         // phpcs:ignore WordPress.Security.NonceVerification.Missing
         elseif ( isset( $_REQUEST['woocommerce_quick_edit'] ) && ! isset( $_REQUEST['bulk_edit'] ) ) update_post_meta( $post_id, '_gla_identifier_exists', 'yes' );

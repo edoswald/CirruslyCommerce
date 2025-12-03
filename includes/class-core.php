@@ -61,7 +61,6 @@ class Cirrusly_Commerce_Core {
     /**
      * Check if PRO features are active.
      * Relies strictly on Freemius license validation.
-     * Includes a secure developer override for testing.
      */
     public static function cirrusly_is_pro() {
         // 1. Secure Developer Override
@@ -422,6 +421,7 @@ class Cirrusly_Commerce_Core {
         echo '<div class="wrap">'; // Move wrapper outside/above header for consistency
         self::render_page_header( 'Cirrusly Commerce Dashboard' );
         $m = self::get_dashboard_metrics();
+        $is_pro = self::cirrusly_is_pro();
         ?>
         <div class="cc-intro-text" style="background:#fff; padding:15px; border:1px solid #ccd0d4; margin-bottom:20px; border-left:4px solid #2271b1;">
             <h3><?php esc_html_e( 'Welcome to Cirrusly Commerce', 'cirrusly-commerce' ); ?></h3>
@@ -440,12 +440,28 @@ class Cirrusly_Commerce_Core {
                 <div class="cc-card-head"><span>Google Merchant Center</span> <span class="dashicons dashicons-google"></span></div>
                 <div class="cc-stat-row"><span>Critical Issues</span><span class="cc-stat-val <?php echo $m['gmc_critical'] > 0 ? 'cc-val-bad' : 'cc-val-good'; ?>"><?php echo esc_html( $m['gmc_critical'] ); ?></span></div>
                 <div class="cc-stat-row"><span>Warnings</span><span class="cc-stat-val <?php echo $m['gmc_warnings'] > 0 ? 'cc-val-warn' : 'cc-val-good'; ?>"><?php echo esc_html( $m['gmc_warnings'] ); ?></span></div>
+                <div class="cc-stat-row" style="margin-top:15px; padding-top:10px; border-top:1px solid #f0f0f1;">
+                    <span>Real-Time Sync</span>
+                    <?php if($is_pro): ?>
+                        <span class="gmc-badge" style="background:#008a20;color:#fff;">ACTIVE</span>
+                    <?php else: ?>
+                        <span class="gmc-badge" style="background:#ccc;color:#666;">INACTIVE (PRO)</span>
+                    <?php endif; ?>
+                </div>
                 <div class="cc-actions"><a href="admin.php?page=cirrusly-gmc&tab=scan" class="button button-primary">Fix Issues</a></div>
             </div>
 
             <div class="cc-dash-card" style="border-top-color: #2271b1;">
                 <div class="cc-card-head"><span>Store Integrity</span> <span class="dashicons dashicons-analytics"></span></div>
                 <div class="cc-stat-row"><span>Products Missing Cost</span><span class="cc-stat-val <?php echo $m['missing_cost'] > 0 ? 'cc-val-bad' : 'cc-val-good'; ?>"><?php echo esc_html( $m['missing_cost'] ); ?></span></div>
+                <div class="cc-stat-row">
+                    <span>Automated Badging</span>
+                    <?php if($is_pro): ?>
+                         <span class="gmc-badge" style="background:#008a20;color:#fff;">ACTIVE</span>
+                    <?php else: ?>
+                         <span class="gmc-badge" style="background:#ccc;color:#666;">BASIC</span>
+                    <?php endif; ?>
+                </div>
                 <div class="cc-actions"><a href="admin.php?page=cirrusly-audit" class="button button-secondary">Open Audit</a></div>
             </div>
             
