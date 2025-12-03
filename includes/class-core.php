@@ -269,14 +269,19 @@ class Cirrusly_Commerce_Core {
             }
         }
         
-        // Handle File Upload (Service Account JSON)
-        if ( ! empty( $_FILES['cirrusly_service_account']['name'] ) ) {
-            $file = $_FILES['cirrusly_service_account'];
-            if( $file['error'] === 0 && pathinfo($file['name'], PATHINFO_EXTENSION) === 'json' ) {
+    // Handle File Upload (Service Account JSON)
+    if ( ! empty( $_FILES['cirrusly_service_account']['tmp_name'] ) ) {
+        $file = $_FILES['cirrusly_service_account'];
+        if( $file['error'] === 0 && pathinfo($file['name'], PATHINFO_EXTENSION) === 'json' ) {
+             // READ and SAVE the content, don't just save the name
+             $json_content = file_get_contents( $file['tmp_name'] );
+             if ( json_decode( $json_content ) ) { // Validate JSON
+                 update_option( 'cirrusly_service_account_json', $json_content ); // Save content
                  $input['service_account_uploaded'] = 'yes';
                  $input['service_account_name'] = sanitize_file_name($file['name']);
-            }
+             }
         }
+    }
 
         return $this->sanitize_options_array( $input );
     }
@@ -647,14 +652,21 @@ class Cirrusly_Commerce_Core {
             <tr><th scope="row">"New" Badge</th><td><input type="number" name="cirrusly_badge_config[new_days]" value="'.esc_attr($new_days).'" style="width:70px;"> days <span class="description">Products created within this many days get a "NEW" badge.</span></td></tr>
         </table>';
 
-        // PRO: Smart Badges
-        echo '<div class="'.esc_attr($pro_class).'" style="margin-top:20px; border:1px dashed #ccc; padding:15px;">';
-        if(!$is_pro) echo '<div class="cc-pro-overlay" style="background:rgba(255,255,255,0.8);"><a href="#upgrade-to-pro" class="cc-upgrade-btn">Unlock Smart Badges</a></div>';
-        echo '<h4>Smart Dynamic Badges <span class="cc-pro-badge">PRO</span></h4>
-            <label><input type="checkbox" name="cirrusly_badge_config[smart_inventory]" value="yes" '.checked('yes', $smart_inv, false).' '.esc_attr($disabled_attr).'> <strong>Inventory:</strong> Show "Low Stock" badge when qty < 5</label><br>
-            <label><input type="checkbox" name="cirrusly_badge_config[smart_performance]" value="yes" '.checked('yes', $smart_perf, false).' '.esc_attr($disabled_attr).'> <strong>Performance:</strong> Show "Best Seller" for top 10 products</label><br>
-            <label><input type="checkbox" name="cirrusly_badge_config[smart_scheduler]" value="yes" '.checked('yes', $smart_sched, false).' '.esc_attr($disabled_attr).'> <strong>Scheduler:</strong> Schedule badges for specific dates</label>
-        </div>';
+    // UPDATED: Smart Badges Section
+    echo '<div class="'.esc_attr($pro_class).'" style="margin-top:20px; border:1px dashed #ccc; padding:15px;">';
+    if(!$is_pro) echo '<div class="cc-pro-overlay" style="background:rgba(255,255,255,0.8);"><a href="#upgrade-to-pro" class="cc-upgrade-btn">Unlock Smart Badges</a></div>';
+    
+    echo '<h4>Smart Dynamic Badges <span class="cc-pro-badge">PRO</span></h4>
+        <label><input type="checkbox" name="cirrusly_badge_config[smart_inventory]" value="yes" '.checked('yes', $smart_inv, false).' '.esc_attr($disabled_attr).'> <strong>Inventory:</strong> Show "Low Stock" badge when qty < 5</label><br>
+        <label><input type="checkbox" name="cirrusly_badge_config[smart_performance]" value="yes" '.checked('yes', $smart_perf, false).' '.esc_attr($disabled_attr).'> <strong>Performance:</strong> Show "Best Seller" for top selling products</label><br>
+        
+        <div style="margin-top:10px;">
+            <label><input type="checkbox" name="cirrusly_badge_config[smart_scheduler]" value="yes" '.checked('yes', $smart_sched, false).' '.esc_attr($disabled_attr).'> <strong>Scheduler:</strong> Show "Event" badge between dates:</label><br>
+            <input type="date" name="cirrusly_badge_config[scheduler_start]" value="'.esc_attr($sched_start).'" '.esc_attr($disabled_attr).'> to 
+            <input type="date" name="cirrusly_badge_config[scheduler_end]" value="'.esc_attr($sched_end).'" '.esc_attr($disabled_attr).'>
+            <p class="description">Use this for store-wide events like "Black Friday".</p>
+        </div>
+    </div>';
 
         echo '<hr style="margin:20px 0; border:0; border-top:1px solid #eee;">
         <h4>Custom Tag Badges</h4><p class="description">Show specific images when a product has a certain tag.</p>
