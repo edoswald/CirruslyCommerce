@@ -13,7 +13,7 @@ All-in-one suite: GMC Validator, Promotion Manager, Pricing Engine, and Store Fi
 
 == Description ==
 
-Cirrusly Commerce is a comprehensive suite designed to optimize your WooCommerce store's financial health and Google Merchant Center (GMC) compliance. Initially built by us for internal use on cirruslyweather.com, it addresses the disconnect between your store's data and Google's strict requirements while providing clear insight into your proper profit margins.
+Cirrusly Commerce is a comprehensive suite designed to optimize your WooCommerce store's financial health and Google Merchant Center (GMC) compliance. Initially built by us for internal use as a set of code snippets on cirruslyweather.com, Cirrusly Commerce addresses the disconnect between your store's data and Google's strict requirements while providing clear insight into your proper profit margins.
 
 Key Features:
 
