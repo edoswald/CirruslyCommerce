@@ -2,12 +2,94 @@
 if ( ! defined( 'ABSPATH' ) ) exit;
 
 class Cirrusly_Commerce_Audit {
+
+    public static function init() {
+        // Hook for export - must run before headers are sent
+        add_action( 'admin_init', array( __CLASS__, 'handle_export' ) );
+    }
+
+    public static function handle_export() {
+        if ( isset($_GET['page']) && $_GET['page'] === 'cirrusly-audit' && isset($_GET['action']) && $_GET['action'] === 'export_csv' ) {
+            if ( ! current_user_can( 'edit_products' ) ) return;
+            
+            // Check for PRO
+            if ( ! Cirrusly_Commerce_Core::cirrusly_is_pro() ) {
+                wp_die('Export is a Pro feature.');
+            }
+
+            $data = get_transient( 'cw_audit_data' );
+            if ( ! $data ) {
+                wp_redirect( admin_url('admin.php?page=cirrusly-audit') );
+                exit;
+            }
+
+            header('Content-Type: text/csv');
+            header('Content-Disposition: attachment; filename="store-audit-' . date('Y-m-d') . '.csv"');
+            
+            $fp = fopen('php://output', 'w');
+            fputcsv($fp, array('ID', 'Product Name', 'Type', 'Cost (COGS)', 'Shipping Cost', 'Price', 'Net Profit', 'Margin %'));
+            
+            foreach ( $data as $row ) {
+                fputcsv($fp, array(
+                    $row['id'],
+                    $row['name'],
+                    $row['type'],
+                    $row['item_cost'],
+                    $row['ship_cost'],
+                    $row['price'],
+                    $row['net'],
+                    number_format($row['margin'], 2) . '%'
+                ));
+            }
+            fclose($fp);
+            exit;
+        }
+    }
+
+    public static function handle_import() {
+        if ( isset($_FILES['csv_import']) && current_user_can('edit_products') ) {
+            // Check PRO
+            if ( ! Cirrusly_Commerce_Core::cirrusly_is_pro() ) {
+                add_settings_error('cirrusly_audit', 'import_fail', 'Import is a Pro feature.', 'error');
+                return;
+            }
+
+            $file = $_FILES['csv_import']['tmp_name'];
+            $handle = fopen($file, "r");
+            $count = 0;
+            
+            // Skip header
+            fgetcsv($handle);
+            
+            while (($row = fgetcsv($handle)) !== FALSE) {
+                // Expected CSV: ID, Cost
+                // You can make this smarter to detect columns, but for now lets assume Col 0 is ID
+                $pid = intval($row[0]);
+                $cost = floatval($row[3]); // Assuming matches export format (Col 3 is cost)
+                
+                if ( $pid && $cost > 0 ) {
+                    update_post_meta($pid, '_cogs_total_value', $cost);
+                    $count++;
+                }
+            }
+            fclose($handle);
+            delete_transient( 'cw_audit_data' ); // Clear cache to show new data
+            add_settings_error('cirrusly_audit', 'import_success', "Imported costs for $count products.", 'success');
+        }
+    }
+
     public static function render_page() {
         if ( ! current_user_can( 'edit_products' ) ) wp_die( 'No permission' );
         
+        // Handle Import Submission
+        if ( isset($_POST['cc_import_nonce']) && wp_verify_nonce($_POST['cc_import_nonce'], 'cc_import_action') ) {
+            self::handle_import();
+        }
+
         echo '<div class="wrap">'; 
 
         Cirrusly_Commerce_Core::render_global_header( 'Store Financial Audit' );
+        settings_errors('cirrusly_audit');
 
         // 1. Handle Cache & Refresh
         $cache_key = 'cw_audit_data';
@@ -18,7 +100,7 @@ class Cirrusly_Commerce_Audit {
              $cached_data = false;
         }
 
-        // 2. Get Config
+        // 2. Get Config for Calculations
         $core = new Cirrusly_Commerce_Core(); 
         $config = $core->get_global_config();
         $revenue_tiers = json_decode( $config['revenue_tiers_json'], true );
@@ -27,6 +109,7 @@ class Cirrusly_Commerce_Audit {
         $pay_pct = isset($config['payment_pct']) ? ($config['payment_pct'] / 100) : 0.029;
         $pay_flat = isset($config['payment_flat']) ? $config['payment_flat'] : 0.30;
 
+        // Helper: Get Ship Revenue
         $get_rev = function($p) use ($revenue_tiers) { 
             if($revenue_tiers) {
                 foreach($revenue_tiers as $t) if($p>=$t['min'] && $p<=$t['max']) return $t['charge']; 
@@ -34,7 +117,7 @@ class Cirrusly_Commerce_Audit {
             return 0; 
         };
 
-        // 3. Build Data
+        // 3. Build Data (if not cached)
         if ( false === $cached_data ) {
             $args = array( 'post_type' => array('product','product_variation'), 'posts_per_page' => -1, 'post_status' => 'publish', 'fields' => 'ids' );
             $ids = get_posts($args);
@@ -42,9 +125,11 @@ class Cirrusly_Commerce_Audit {
             
             foreach($ids as $pid) {
                 $p = wc_get_product($pid); if(!$p) continue;
+                
                 $cost = (float)$p->get_meta('_cogs_total_value');
                 $ship_cost = (float)$p->get_meta('_cw_est_shipping');
                 
+                // Fallback Ship Cost
                 if($ship_cost <= 0 && !$p->is_virtual()) {
                     $cid = $p->get_shipping_class_id();
                     $slug = ($cid && ($t=get_term($cid,'product_shipping_class'))) ? $t->slug : 'default';
@@ -72,19 +157,33 @@ class Cirrusly_Commerce_Audit {
                 $ship_pl = $rev - $ship_cost;
                 
                 $data[] = array(
-                    'id' => $pid, 'name' => $p->get_name(), 'type' => $p->get_type(), 'parent_id' => $p->get_parent_id(),
-                    'cost' => $total_cost, 'item_cost' => $cost, 'ship_cost' => $ship_cost, 'ship_charge' => $rev,
-                    'ship_pl' => $ship_pl, 'price' => $price, 'net' => $net, 'margin' => $margin,
-                    'alerts' => $alerts, 'is_in_stock' => $p->is_in_stock(), 'cats' => wp_get_post_terms($pid, 'product_cat', array('fields'=>'slugs'))
+                    'id' => $pid,
+                    'name' => $p->get_name(),
+                    'type' => $p->get_type(),
+                    'parent_id' => $p->get_parent_id(),
+                    'cost' => $total_cost,
+                    'item_cost' => $cost,
+                    'ship_cost' => $ship_cost,
+                    'ship_charge' => $rev,
+                    'ship_pl' => $ship_pl,
+                    'price' => $price,
+                    'net' => $net,
+                    'margin' => $margin,
+                    'alerts' => $alerts,
+                    'is_in_stock' => $p->is_in_stock(),
+                    'cats' => wp_get_post_terms($pid, 'product_cat', array('fields'=>'slugs'))
                 );
             }
             set_transient( $cache_key, $data, 1 * HOUR_IN_SECONDS );
             $cached_data = $data;
         }
 
-        // Stats
+        // --- Calculate Audit Aggregates ---
         $total_skus = count($cached_data);
-        $loss_count = 0; $alert_count = 0; $low_margin_count = 0;
+        $loss_count = 0;
+        $alert_count = 0;
+        $low_margin_count = 0;
+
         foreach($cached_data as $row) {
             if($row['net'] < 0) $loss_count++;
             if(!empty($row['alerts'])) $alert_count++;
@@ -96,7 +195,7 @@ class Cirrusly_Commerce_Audit {
         $pro_class = $is_pro ? '' : 'cc-pro-feature';
         $disabled_attr = $is_pro ? '' : 'disabled';
 
-        // --- Header Strip with PRO Buttons ---
+        // --- Render Audit Header Strip ---
         ?>
         <div class="cc-dash-grid" style="grid-template-columns: 1fr; margin-bottom: 20px;">
             <div class="cc-dash-card cc-full-width" style="border-top-color: #2271b1;">
@@ -106,39 +205,63 @@ class Cirrusly_Commerce_Audit {
                 </div>
                 <div class="cc-stat-block">
                     <span class="cc-big-num" style="color:#d63638;"><?php echo esc_html( $loss_count ); ?></span>
-                    <span class="cc-label">Loss Makers</span>
+                    <span class="cc-label">Loss Makers (Net &lt; 0)</span>
+                </div>
+                <div class="cc-stat-block">
+                    <span class="cc-big-num" style="color:#dba617;"><?php echo esc_html( $alert_count ); ?></span>
+                    <span class="cc-label">Data Alerts</span>
+                </div>
+                <div class="cc-stat-block">
+                    <span class="cc-big-num"><?php echo esc_html( $low_margin_count ); ?></span>
+                    <span class="cc-label">Low Margin (&lt; 15%)</span>
                 </div>
                 
                 <!-- PRO Upsell Area -->
-                <div style="flex:2; display:flex; gap:10px; justify-content:center; align-items:center; border-left:1px solid #eee; padding-left:20px;">
+                <div style="flex:2; display:flex; gap:10px; justify-content:center; align-items:center; border-left:1px solid #eee; padding-left:20px; position:relative;">
+                    
                     <div class="<?php echo esc_attr($pro_class); ?>">
-                        <button class="button button-secondary" <?php echo esc_attr($disabled_attr); ?>>
+                        <a href="<?php echo esc_url( add_query_arg('action', 'export_csv') ); ?>" class="button button-secondary" <?php echo esc_attr($disabled_attr); ?>>
                             <span class="dashicons dashicons-download"></span> Export CSV
-                        </button>
+                        </a>
                     </div>
+                    
                     <div class="<?php echo esc_attr($pro_class); ?>">
-                        <button class="button button-secondary" <?php echo esc_attr($disabled_attr); ?>>
-                            <span class="dashicons dashicons-upload"></span> Bulk Import COGS
-                        </button>
+                        <form method="post" enctype="multipart/form-data" style="display:inline;">
+                            <?php wp_nonce_field('cc_import_action', 'cc_import_nonce'); ?>
+                            <label class="button button-secondary" style="cursor:pointer;">
+                                <span class="dashicons dashicons-upload"></span> Bulk Import COGS
+                                <input type="file" name="csv_import" style="display:none;" onchange="this.form.submit()" <?php echo esc_attr($disabled_attr); ?>>
+                            </label>
+                        </form>
                     </div>
+
                     <?php if(!$is_pro): ?>
-                    <a href="<?php echo esc_url( function_exists('cc_fs') ? cc_fs()->get_upgrade_url() : '#' ); ?>" class="cc-upgrade-btn button-small" style="font-size:11px;">
-                        <span class="dashicons dashicons-lock" style="font-size:14px; line-height:1.5;"></span> Unlock Pro Tools
-                    </a>
+                    <div class="cc-pro-overlay">
+                        <a href="<?php echo esc_url( function_exists('cc_fs') ? cc_fs()->get_upgrade_url() : '#' ); ?>" class="cc-upgrade-btn button-small" style="font-size:11px;">
+                            <span class="dashicons dashicons-lock" style="font-size:14px; line-height:1.5;"></span> Unlock Pro Tools
+                        </a>
+                    </div>
                     <?php endif; ?>
                 </div>
             </div>
         </div>
         <?php
 
-        // Filter Logic
+        // 4. Process Filters & Pagination
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended
         $f_margin = isset($_GET['margin']) ? floatval($_GET['margin']) : 25;
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended
         $f_cat = isset($_GET['cat']) ? sanitize_text_field(wp_unslash($_GET['cat'])) : '';
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended
         $f_oos = isset($_GET['hide_oos']);
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended
         $paged = isset($_GET['paged']) ? max(1, intval($_GET['paged'])) : 1;
         $per_page = 50;
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended
         $search = isset($_GET['s']) ? sanitize_text_field(wp_unslash($_GET['s'])) : '';
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended
         $orderby = isset($_GET['orderby']) ? sanitize_text_field(wp_unslash($_GET['orderby'])) : 'margin';
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended
         $order = isset($_GET['order']) ? sanitize_text_field(wp_unslash($_GET['order'])) : 'asc';
 
         $filtered_data = array();
@@ -146,7 +269,9 @@ class Cirrusly_Commerce_Audit {
             if($f_oos && !$row['is_in_stock']) continue;
             if($f_cat && !in_array($f_cat, $row['cats'])) continue;
             if($search && stripos($row['name'], $search) === false) continue;
+            // Filter Logic: Show if margin is LOW (problematic) OR has alerts
             if ( $row['margin'] >= $f_margin && empty($row['alerts']) ) continue;
+            
             $filtered_data[] = $row;
         }
         
@@ -159,37 +284,33 @@ class Cirrusly_Commerce_Audit {
         $total = count($filtered_data);
         $slice = array_slice($filtered_data, ($paged-1)*$per_page, $per_page);
 
+        // 5. Render View
+        
+        // Define allowed HTML for dropdowns
         $allowed_form_tags = array(
             'select' => array('name' => true, 'id' => true, 'class' => true),
             'option' => array('value' => true, 'selected' => true),
         );
 
-        echo '<div class="cc-settings-card">
-            <div class="cc-card-header">
-                <div style="display:flex; align-items:center; gap:10px;">
-                    <span class="dashicons dashicons-filter"></span>
-                    <h3 style="margin:0; font-size:14px; text-transform:uppercase; color:#646970;">Filter & Search</h3>
-                </div>
-                <div class="cc-ver-badge"><strong>'.esc_html($total).'</strong> Issues Found</div>
-            </div>
-            <div class="cc-card-body">
-                <form method="get" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-                    <input type="hidden" name="page" value="cirrusly-audit">
-                    <input type="text" name="s" value="'.esc_attr($search).'" placeholder="Search products...">
-                    <select name="margin">
-                        <option value="5" '.selected($f_margin,5,false).'>Margin < 5%</option>
-                        <option value="15" '.selected($f_margin,15,false).'>Margin < 15%</option>
-                        <option value="25" '.selected($f_margin,25,false).'>Margin < 25%</option>
-                        <option value="100" '.selected($f_margin,100,false).'>Show All (No Filter)</option>
-                    </select> 
-                    '.wp_kses( wc_product_dropdown_categories(array('option_none_text'=>'All Categories','name'=>'cat','selected'=>$f_cat,'value_field'=>'slug','echo'=>0)), $allowed_form_tags ).'
-                    <label style="margin-left:5px;"><input type="checkbox" name="hide_oos" value="1" '.checked($f_oos,true,false).'> Hide OOS</label>
-                    <button class="button button-primary">Filter</button>
-                    <a href="?page=cirrusly-audit&refresh_audit=1" class="button" title="Refresh Data from DB">Refresh Data</a>
-                </form>
-            </div>
+        echo '<div class="card" style="background:#fff; padding:15px; margin-bottom:20px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+            <form method="get" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                <input type="hidden" name="page" value="cirrusly-audit">
+                <input type="text" name="s" value="'.esc_attr($search).'" placeholder="Search products...">
+                <select name="margin">
+                    <option value="5" '.selected($f_margin,5,false).'>Margin < 5%</option>
+                    <option value="15" '.selected($f_margin,15,false).'>Margin < 15%</option>
+                    <option value="25" '.selected($f_margin,25,false).'>Margin < 25%</option>
+                    <option value="100" '.selected($f_margin,100,false).'>Show All (No Filter)</option>
+                </select> 
+                '.wp_kses( wc_product_dropdown_categories(array('option_none_text'=>'All Categories','name'=>'cat','selected'=>$f_cat,'value_field'=>'slug','echo'=>0)), $allowed_form_tags ).'
+                <label><input type="checkbox" name="hide_oos" value="1" '.checked($f_oos,true,false).'> Hide OOS</label>
+                <button class="button button-primary">Filter</button>
+                <a href="?page=cirrusly-audit&refresh_audit=1" class="button" title="Refresh Data from DB">Refresh Data</a>
+            </form>
+            <div style="text-align:right;"><strong>'.esc_html($total).'</strong> Issues Found</div>
         </div>';
         
+        // Helper for Sort Links
         $sort_link = function($col, $label) use ($orderby, $order) {
             $new_order = ($orderby === $col && $order === 'asc') ? 'desc' : 'asc';
             $arrow = ($orderby === $col) ? ($order === 'asc' ? ' ▲' : ' ▼') : '';
@@ -223,12 +344,20 @@ class Cirrusly_Commerce_Audit {
                 $net_style = $row['net'] < 0 ? 'color:#d63638;font-weight:bold;' : 'color:#008a20;font-weight:bold;';
                 $ship_style = $row['ship_pl'] >= 0 ? 'color:#008a20;' : 'color:#d63638;';
                 
+                // Inline Edit Logic (Pro Only)
+                $cost_cell = wp_kses_post(wc_price($row['cost']));
+                $ship_cell = wp_kses_post(wc_price($row['ship_pl']));
+                
+                if($is_pro) {
+                     $cost_cell = '<span class="cc-inline-edit" data-pid="'.esc_attr($row['id']).'" data-field="_cogs_total_value" contenteditable="true" style="border-bottom:1px dashed #999; cursor:pointer;">'.number_format($row['item_cost'], 2).'</span> <small style="color:#999;">+ Ship '.number_format($row['ship_cost'], 2).'</small>';
+                }
+
                 echo '<tr>
                     <td>'.esc_html($row['id']).'</td>
                     <td><a href="'.esc_url(get_edit_post_link($row['id'])).'">'.wp_kses_post($name_html).'</a></td>
-                    <td>'.wp_kses_post(wc_price($row['cost'])).' <small style="color:#999;display:block;">(Item '.wp_kses_post(wc_price($row['item_cost'])).' + Ship '.wp_kses_post(wc_price($row['ship_cost'])).')</small></td>
+                    <td>'.$cost_cell.'</td>
                     <td>'.wp_kses_post(wc_price($row['price'])).'</td>
-                    <td style="'.esc_attr($ship_style).'">'.wp_kses_post(wc_price($row['ship_pl'])).'</td>
+                    <td style="'.esc_attr($ship_style).'">'.$ship_cell.'</td>
                     <td style="'.esc_attr($net_style).'">'.wp_kses_post(wc_price($row['net'])).'</td>
                     <td>'.esc_html(number_format($row['margin'],1)).'%</td>
                     <td>'.wp_kses_post(implode(' ',$row['alerts'])).'</td>
@@ -237,6 +366,34 @@ class Cirrusly_Commerce_Audit {
             }
         }
         echo '</tbody></table>';
+
+        // Inline Edit Script (Pro)
+        if($is_pro) {
+            ?>
+            <script>
+            jQuery(document).ready(function($){
+                $('.cc-inline-edit').on('blur', function(){
+                    var pid = $(this).data('pid');
+                    var field = $(this).data('field');
+                    var val = $(this).text();
+                    
+                    $.post(ajaxurl, {
+                        action: 'cc_audit_save',
+                        pid: pid,
+                        field: field,
+                        value: val,
+                        _nonce: '<?php echo wp_create_nonce("cc_audit_save"); ?>'
+                    }, function(res){
+                        if(res.success) {
+                            // Optional: Show success toast
+                            $(this).css('background', '#e7f6e7');
+                        }
+                    });
+                });
+            });
+            </script>
+            <?php
+        }
 
         $pages = ceil($total/$per_page);
         if($pages>1) {

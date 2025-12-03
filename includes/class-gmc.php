@@ -15,6 +15,12 @@ class Cirrusly_Commerce_GMC {
         add_action( 'woocommerce_product_quick_edit_save', array( $this, 'save_quick_bulk_edit' ) );
         add_action( 'woocommerce_product_bulk_edit_save', array( $this, 'save_quick_bulk_edit' ) );
         add_action( 'admin_footer', array( $this, 'render_quick_edit_script' ) );
+
+        // NEW: Handle "Mark as Custom" action
+        add_action( 'admin_post_cc_mark_custom', array( $this, 'handle_mark_custom' ) );
+        
+        // NEW: Block Save on Critical Error (Pro Feature)
+        add_action( 'save_post_product', array( $this, 'check_compliance_on_save' ), 10, 3 );
     }
 
     public static function render_page() {
@@ -147,10 +153,7 @@ class Cirrusly_Commerce_GMC {
 
         foreach($posts as $post) {
             $found_terms = array();
-            
-            // Text to Scan
             $title = $post->post_title;
-            // Fix: Use wp_strip_all_tags instead of strip_tags
             $content = wp_strip_all_tags($post->post_content); 
             
             // 1. Term Scanning
@@ -341,96 +344,102 @@ class Cirrusly_Commerce_GMC {
         $is_pro = Cirrusly_Commerce_Core::cirrusly_is_pro();
         $pro_class = $is_pro ? '' : 'cc-pro-feature';
         $disabled_attr = $is_pro ? '' : 'disabled';
-
-        echo '<div class="cc-manual-helper"><h4>Health Check</h4><p>Scans product data for critical GMC issues like missing GTINs or prohibited titles. Click "Edit Product" to fix issues, then run a new scan.</p></div>';
         
-        // PRO: Auto-Fix Upsell
-        echo '<div class="'.esc_attr($pro_class).'" style="background:#f0f6fc; padding:15px; border:1px solid #c3c4c7; margin-bottom:20px; display:flex; justify-content:space-between; align-items:center; position:relative;">';
-            if(!$is_pro) {
-                echo '<div class="cc-pro-overlay">
-                    <a href="' . esc_url( function_exists('cc_fs') ? cc_fs()->get_upgrade_url() : '#' ) . '" class="cc-upgrade-btn"><span class="dashicons dashicons-lock cc-lock-icon"></span> Upgrade to Automate</a>
-                </div>';
-            }
-            echo '<div>
-                <strong>Automated Compliance <span class="cc-pro-badge">PRO</span></strong><br>
-                <span>Enable Scan-on-Save blocking and Auto-Fixing for common title errors.</span>
-            </div>
-            <div>
-                <label><input type="checkbox" '.esc_attr($disabled_attr).'> Block Save on Critical Error</label>
-                <label style="margin-left:10px;"><input type="checkbox" '.esc_attr($disabled_attr).'> Auto-strip Banned Words</label>
-            </div>
-        </div>';
+        // Check saved settings for "Block Save"
+        $scan_cfg = get_option('cirrusly_scan_config', array());
+        $block_save = isset($scan_cfg['block_on_critical']) ? 'checked' : '';
+        $auto_strip = isset($scan_cfg['auto_strip_banned']) ? 'checked' : '';
 
+        echo '<div class="cc-manual-helper"><h4>Health Check</h4><p>Scans product data for critical GMC issues.</p></div>';
+        
+        // PRO: Auto-Fix Upsell (Functional UI)
+        echo '<div class="'.esc_attr($pro_class).'" style="background:#f0f6fc; padding:15px; border:1px solid #c3c4c7; margin-bottom:20px; position:relative;">';
+            if(!$is_pro) echo '<div class="cc-pro-overlay"><a href="'.esc_url( function_exists('cc_fs') ? cc_fs()->get_upgrade_url() : '#' ).'" class="cc-upgrade-btn">Upgrade to Automate</a></div>';
+            
+            echo '<form method="post" action="options.php">';
+            // Ensure settings fields are output for the scan group
+            settings_fields('cirrusly_general_group'); 
+            
+            echo '<strong>Automated Compliance <span class="cc-pro-badge">PRO</span></strong><br>
+            <label><input type="checkbox" name="cirrusly_scan_config[block_on_critical]" value="yes" '.$block_save.' '.esc_attr($disabled_attr).'> Block Save on Critical Error</label>
+            <label style="margin-left:10px;"><input type="checkbox" name="cirrusly_scan_config[auto_strip_banned]" value="yes" '.$auto_strip.' '.esc_attr($disabled_attr).'> Auto-strip Banned Words</label>
+            <br><br>
+            <button type="submit" class="button button-small" '.esc_attr($disabled_attr).'>Save Rules</button>
+            </form>';
+        echo '</div>';
+
+        // Scan Button
         echo '<div style="background:#fff; padding:20px; border-bottom:1px solid #ccc;"><form method="post">';
         wp_nonce_field( 'cirrusly_gmc_scan', 'cc_gmc_scan_nonce' );
         echo '<input type="hidden" name="run_gmc_scan" value="1">';
         submit_button('Run Diagnostics Scan', 'primary', 'run_scan', false);
         echo '</form></div>';
 
+        // Handle Scan
         if ( isset( $_POST['run_gmc_scan'] ) && check_admin_referer( 'cirrusly_gmc_scan', 'cc_gmc_scan_nonce' ) ) {
             $results = $this->run_gmc_scan_logic();
-            $scan_data = array( 'timestamp' => current_time( 'timestamp' ), 'results' => $results );
-            update_option( 'woo_gmc_scan_data', $scan_data, false );
-            echo '<div class="notice notice-success inline"><p>Scan Complete. Results updated.</p></div>';
+            update_option( 'woo_gmc_scan_data', array( 'timestamp' => current_time( 'timestamp' ), 'results' => $results ), false );
+            echo '<div class="notice notice-success inline"><p>Scan Complete.</p></div>';
         }
         
+        // Results Table
         $scan_data = get_option( 'woo_gmc_scan_data' );
-        if ( ! empty( $scan_data ) && isset( $scan_data['results'] ) && !empty($scan_data['results']) ) {
+        if ( ! empty( $scan_data ) && !empty($scan_data['results']) ) {
             echo '<table class="wp-list-table widefat fixed striped"><thead><tr><th>Product</th><th>Issues</th><th>Action</th></tr></thead><tbody>';
             foreach($scan_data['results'] as $r) {
                 $p=wc_get_product($r['product_id']); if(!$p) continue;
                 $issues = ''; 
                 foreach($r['issues'] as $i) {
                     $color = ($i['type'] === 'critical') ? '#d63638' : '#dba617';
-                    // Fix: Escape the pill output
-                    $issues .= '<span class="gmc-badge" style="background:'.esc_attr($color).'; color:#fff; padding:3px 8px; border-radius:10px; font-size:11px; margin-right:5px;">'.esc_html($i['msg']).'</span> ';
+                    $issues .= '<span class="gmc-badge" style="background:'.esc_attr($color).'; color:#fff;">'.esc_html($i['msg']).'</span> ';
                 }
-                echo '<tr><td><a href="'.esc_url(get_edit_post_link($p->get_id())).'">'.esc_html($p->get_name()).'</a></td><td>'.wp_kses_post($issues).'</td><td><a href="'.esc_url(get_edit_post_link($p->get_id())).'" class="button button-small">Edit</a></td></tr>';
+                
+                // NEW: Mark as Custom Action
+                $actions = '<a href="'.esc_url(get_edit_post_link($p->get_id())).'" class="button button-small">Edit</a> ';
+                if ( strpos( $issues, 'Missing GTIN' ) !== false ) {
+                    $url = wp_nonce_url( admin_url( 'admin-post.php?action=cc_mark_custom&pid=' . $p->get_id() ), 'cc_mark_custom_' . $p->get_id() );
+                    $actions .= '<a href="'.esc_url($url).'" class="button button-small">Mark Custom</a>';
+                }
+
+                echo '<tr><td><a href="'.esc_url(get_edit_post_link($p->get_id())).'">'.esc_html($p->get_name()).'</a></td><td>'.$issues.'</td><td>'.$actions.'</td></tr>';
             }
             echo '</tbody></table>';
-        } else {
-            echo '<p>No issues found or scan not run.</p>';
         }
     }
 
-    public function run_gmc_scan_logic() {
-        $products = wc_get_products( array( 'status'=>'publish', 'limit'=>-1 ) );
-        $report = array();
-        foreach ( $products as $product ) {
-            $issues = array();
-            $needs_gtin = true;
-            $id_ex = get_post_meta($product->get_id(), '_gla_identifier_exists', true);
-            if('no'===$id_ex) $needs_gtin = false;
-            
-            // Check GTIN
-            if($needs_gtin) {
-                $has_gtin = false;
-                foreach(array('_gtin', '_global_unique_id', '_ean', '_upc') as $k) { 
-                    if(get_post_meta($product->get_id(), $k, true)) $has_gtin = true; 
-                }
-                if(!$has_gtin) $issues[] = array('type'=>'critical', 'msg'=>'Missing GTIN');
-            }
-
-            // Expanded Checks: Description Length
-            $desc_len = strlen(strip_tags($product->get_description()));
-            if($desc_len < 30) $issues[] = array('type'=>'warning', 'msg'=>'Desc Too Short');
-            if($desc_len > 5000) $issues[] = array('type'=>'warning', 'msg'=>'Desc Too Long');
-
-            // Expanded Checks: Image Filename
-            $img_id = $product->get_image_id();
-            if($img_id) {
-                $url = wp_get_attachment_url($img_id);
-                $filename = basename($url);
-                if(preg_match('/(watermark|logo|promo)/i', $filename)) {
-                    $issues[] = array('type'=>'warning', 'msg'=>'Suspicious Image Name');
-                }
-            }
-            
-            if(!empty($issues)) $report[] = array('product_id'=>$product->get_id(), 'issues'=>$issues);
-        }
-        return $report;
+    // NEW Handler for "Mark as Custom"
+    public function handle_mark_custom() {
+        if ( ! current_user_can( 'edit_products' ) ) wp_die('No permission');
+        $pid = intval( $_GET['pid'] );
+        check_admin_referer( 'cc_mark_custom_' . $pid );
+        
+        update_post_meta( $pid, '_gla_identifier_exists', 'no' );
+        wp_redirect( admin_url('admin.php?page=cirrusly-gmc&tab=scan&msg=custom_marked') );
+        exit;
     }
 
+    // NEW Logic: Block Save on Critical Error
+    public function check_compliance_on_save( $post_id, $post, $update ) {
+        // Only run if option enabled
+        $scan_cfg = get_option('cirrusly_scan_config', array());
+        if ( empty($scan_cfg['block_on_critical']) || $scan_cfg['block_on_critical'] !== 'yes' ) return;
+        if ( defined('DOING_AUTOSAVE') && DOING_AUTOSAVE ) return;
+        if ( $post->post_type !== 'product' ) return;
+
+        // Quick check for banned words
+        $monitored = $this->get_monitored_terms(); // Reuse existing method
+        foreach($monitored['medical'] as $word => $data) {
+             if ( stripos($post->post_title, $word) !== false ) {
+                 // We can't easily stop the save process in WP without throwing a die() or removing hooks, 
+                 // which is bad UX. Instead, we save it as 'draft'.
+                 $post->post_status = 'draft';
+                 wp_update_post( $post );
+                 // You'd ideally set a transient here to show an admin notice on reload
+             }
+        }
+    }
+    
+    // ... (Rest of existing methods) ...
     public function render_gmc_product_settings() {
         global $post;
         echo '<div class="options_group">';
@@ -493,8 +502,8 @@ class Cirrusly_Commerce_GMC {
     }
 
     public function save_quick_bulk_edit( $product ) {
-        $post_id = $product->get_id();
         // phpcs:ignore WordPress.Security.NonceVerification.Missing
+        $post_id = $product->get_id();
         if ( isset( $_REQUEST['gmc_is_custom_product'] ) ) update_post_meta( $post_id, '_gla_identifier_exists', 'no' );
         // phpcs:ignore WordPress.Security.NonceVerification.Missing
         elseif ( isset( $_REQUEST['woocommerce_quick_edit'] ) && ! isset( $_REQUEST['bulk_edit'] ) ) update_post_meta( $post_id, '_gla_identifier_exists', 'yes' );

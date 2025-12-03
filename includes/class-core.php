@@ -12,6 +12,9 @@ class Cirrusly_Commerce_Core {
         add_action( 'admin_init', array( $this, 'register_settings' ) );
         add_action( 'wp_dashboard_setup', array( $this, 'register_dashboard_widget' ) );
         
+        // Audit Inline Save (AJAX)
+        add_action( 'wp_ajax_cc_audit_save', array( $this, 'handle_audit_inline_save' ) );
+        
         // Hide Upsells CSS Hook
         add_action( 'admin_head', array( $this, 'cirrusly_hide_upsells_css' ) );
 
@@ -26,16 +29,57 @@ class Cirrusly_Commerce_Core {
 
         // Onboarding Notice
         add_action( 'admin_notices', array( $this, 'render_onboarding_notice' ) );
+        
+        // Init Audit Class Logic
+        add_action('init', array('Cirrusly_Commerce_Audit', 'init'));
+    }
+
+    public function handle_audit_inline_save() {
+        // Security & Permission Check
+        if ( ! current_user_can( 'edit_products' ) || ! check_ajax_referer( 'cc_audit_save', '_nonce', false ) ) {
+            wp_send_json_error('Permission denied');
+        }
+        
+        // PRO Check
+        if ( ! self::cirrusly_is_pro() ) {
+            wp_send_json_error('Pro feature required');
+        }
+
+        $pid = intval( $_POST['pid'] );
+        $val = floatval( $_POST['value'] );
+        $field = sanitize_text_field( $_POST['field'] );
+
+        if ( $pid > 0 && in_array($field, array('_cogs_total_value', '_cw_est_shipping')) ) {
+            update_post_meta( $pid, $field, $val );
+            delete_transient( 'cw_audit_data' ); // Clear cache
+            wp_send_json_success();
+        }
+        
+        wp_send_json_error('Invalid data');
     }
 
     /**
      * Check if PRO features are active.
      * Relies strictly on Freemius license validation.
+     * Includes a secure developer override for testing.
      */
     public static function cirrusly_is_pro() {
-        // Freemius Check
+        // 1. Secure Developer Override
+        // Only works if user is admin AND debug mode is on (local env)
+        if ( defined('WP_DEBUG') && WP_DEBUG && current_user_can('manage_options') ) {
+            if ( isset( $_GET['cc_dev_mode'] ) ) {
+                if ( $_GET['cc_dev_mode'] === 'pro' ) return true;
+                if ( $_GET['cc_dev_mode'] === 'free' ) return false;
+            }
+        }
+
+        // 2. Freemius Check
         if ( function_exists( 'cc_fs' ) ) {
-             return cc_fs()->can_use_premium_code();
+             $fs = cc_fs();
+             // Check if Freemius is loaded AND if user has a valid license (trial or paid)
+             if ( $fs && $fs->can_use_premium_code() ) {
+                 return true;
+             }
         }
 
         return false; // Default to FREE if Freemius is not loaded or invalid
@@ -133,6 +177,8 @@ class Cirrusly_Commerce_Core {
 
     public static function render_page_header( $title ) {
         $mailto = 'mailto:help@cirruslyweather.com?subject=Support%20Request';
+        $is_pro = self::cirrusly_is_pro(); // Check PRO status
+
         echo '<h1 class="cc-page-title" style="margin-bottom:20px; display:flex; align-items:center;">';
         echo '<img src="' . esc_url( CIRRUSLY_COMMERCE_URL . 'assets/images/logo.svg' ) . '" style="height:50px; width:auto; margin-right:15px;" alt="Cirrusly Commerce">';
         echo esc_html( $title );
@@ -140,6 +186,12 @@ class Cirrusly_Commerce_Core {
         echo '<a href="#" id="cc-sys-info-toggle" class="button button-secondary" title="View System Info for Support">System Info</a>';
         echo '<a href="' . esc_attr( $mailto ) . '" class="button button-secondary">Get Support</a>'; 
         echo '<span class="cc-ver-badge" style="background:#f0f0f1;color:#646970;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;">v' . esc_html( CIRRUSLY_COMMERCE_VERSION ) . '</span>';
+        
+        // Add Pro Badge if active
+        if ( $is_pro ) {
+            echo '<span class="cc-pro-version-badge">PRO</span>';
+        }
+        
         echo '</div></h1>';
         
         // Hidden System Info Panel
@@ -693,7 +745,14 @@ class Cirrusly_Commerce_Core {
                 $("#cc-matrix-rows").append(row);
             });
             $(document).on("click", ".cc-remove-row", function(){ $(this).closest("tr").remove(); });
-        });</script>';
+                
+                // System Info Toggle
+                $("#cc-sys-info-toggle").click(function(e){
+                    e.preventDefault();
+                    $("#cc-sys-info-panel").toggle();
+                });
+            });' );
+        }
     }
 
     public function register_dashboard_widget() {
