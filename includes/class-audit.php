@@ -3,14 +3,39 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 
 class Cirrusly_Commerce_Audit {
 
+    /**
+     * Registers audit-related hooks used by the admin area.
+     *
+     * Attaches the CSV export handler to the `admin_init` action so exports can be initiated before HTTP headers are sent.
+     */
     public static function init() {
         // Hook for export - must run before headers are sent
         add_action( 'admin_init', array( __CLASS__, 'handle_export' ) );
     }
 
     /**
-     * Helper to get or generate audit data.
-     * Used by both the Render View and the CSV Export.
+     * Generate or retrieve cached per-product audit data used for the admin audit table and CSV export.
+     *
+     * When not forcing a refresh, returns a cached dataset (stored for one hour). Each entry contains
+     * computed commercial metrics and metadata for a single product or variation.
+     *
+     * @param bool $force_refresh If true, bypass the cache and regenerate the dataset.
+     * @return array[] Array of item arrays. Each item contains the keys:
+     *                 - id: (int) Product ID.
+     *                 - name: (string) Product name.
+     *                 - type: (string) Product type (e.g., 'simple', 'variation').
+     *                 - parent_id: (int) Parent product ID for variations.
+     *                 - cost: (float) Total cost (COGS + shipping).
+     *                 - item_cost: (float) COGS value.
+     *                 - ship_cost: (float) Estimated or class-derived shipping cost.
+     *                 - ship_charge: (float) Shipping revenue charged to customer.
+     *                 - ship_pl: (float) Shipping profit/loss (ship_charge - ship_cost).
+     *                 - price: (float) Product price.
+     *                 - net: (float) Net profit after fees.
+     *                 - margin: (float) Margin percentage relative to price.
+     *                 - alerts: (string[]) Array of HTML alert badges for the product.
+     *                 - is_in_stock: (bool) Stock status.
+     *                 - cats: (string[]) Array of product category slugs.
      */
     public static function get_compiled_data( $force_refresh = false ) {
         $cache_key = 'cw_audit_data';
@@ -121,8 +146,20 @@ class Cirrusly_Commerce_Audit {
     }
 
     /**
-     * Calculate metrics for a single product. 
-     * Used by AJAX handler in Core to return real-time updates.
+     * Compute pricing and profitability metrics for a single product.
+     *
+     * Uses product price, cost, shipping estimates, configured revenue tiers, and payment fees
+     * to calculate net profit, margin, and shipping contribution for the specified product.
+     *
+     * @param int $pid The product ID to evaluate.
+     * @return array|false An associative array with computed values, or `false` if the product does not exist:
+     *                     - `net_val` (float): Net profit value (after fees).
+     *                     - `net_html` (string): Formatted net profit for display (HTML).
+     *                     - `net_style` (string): Inline CSS style for net display (color/weight).
+     *                     - `margin` (string): Margin formatted to one decimal place (percentage string).
+     *                     - `margin_val` (float): Numeric margin percentage.
+     *                     - `ship_pl_html` (string): Formatted shipping profit/loss for display (HTML).
+     *                     - `cost_html` (string): Formatted total cost (cost + shipping) for display (HTML).
      */
     public static function get_single_metric( $pid ) {
         // Force refresh just this item's calculation logic essentially
@@ -194,6 +231,11 @@ class Cirrusly_Commerce_Audit {
         );
     }
 
+    /**
+     * Outputs a CSV file of the compiled audit data when the audit admin page requests an export.
+     *
+     * Checks that the current user can edit products and that Pro features are enabled; if Pro is not enabled the request is terminated with wp_die. When invoked via the audit page export action, the method generates or loads the compiled audit data, sends CSV headers and the CSV payload to the client, and terminates execution.
+     */
     public static function handle_export() {
         if ( isset($_GET['page']) && $_GET['page'] === 'cirrusly-audit' && isset($_GET['action']) && $_GET['action'] === 'export_csv' ) {
             if ( ! current_user_can( 'edit_products' ) ) return;
@@ -228,6 +270,18 @@ class Cirrusly_Commerce_Audit {
         }
     }
 
+    /**
+     * Process an uploaded CSV to bulk-import product COGS and refresh cached audit data.
+     *
+     * Reads the uploaded 'csv_import' file (skipping the CSV header) and updates each row's product meta
+     * key `_cogs_total_value` when a valid product ID and positive cost are present. Requires the current
+     * user to have the `edit_products` capability and the plugin's Pro features enabled. Clears the
+     * compiled audit transient after import and registers a settings notice with the count of updated products.
+     *
+     * Notes:
+     * - Handles legacy Mac line endings on PHP versions prior to 8.1.
+     * - Expected CSV export format: ID(0), Name(1), Type(2), Cost(3).
+     */
     public static function handle_import() {
         if ( isset($_FILES['csv_import']) && current_user_can('edit_products') ) {
             if ( ! Cirrusly_Commerce_Core::cirrusly_is_pro() ) {
@@ -267,6 +321,16 @@ class Cirrusly_Commerce_Audit {
         }
     }
 
+    /**
+     * Render the "Store Financial Audit" admin page and handle related import actions.
+     *
+     * Verifies the current user has the `edit_products` capability and aborts if not authorized.
+     * When a POST contains a valid `cc_import_nonce`, processes a bulk COGS CSV import.
+     * Displays an audit dashboard that uses cached compiled audit data (with optional refresh via
+     * the `refresh_audit` query parameter), and renders filters, pagination, a sortable table of
+     * audited SKUs, and top-level summary cards. Pro-only controls (CSV export, bulk import,
+     * and inline COGS editing) are shown or enabled based on the Pro status.
+     */
     public static function render_page() {
         if ( ! current_user_can( 'edit_products' ) ) wp_die( 'No permission' );
         

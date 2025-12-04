@@ -21,7 +21,11 @@ class Cirrusly_Commerce_Blocks {
 	}
 
 	/**
-	 * Register blocks.
+	 * Register the MSRP block and its editor script.
+	 *
+	 * Registers the block editor JavaScript under the handle `cirrusly-block-msrp`
+	 * and registers the block type `cirrusly/msrp`, wiring the editor script and
+	 * the server-side render callback.
 	 */
 	public function register_blocks() {
 		// 1. Register the JavaScript file found in assets/js/
@@ -42,7 +46,13 @@ class Cirrusly_Commerce_Blocks {
 	}
 
     /**
-     * Callback to render the block dynamically on the frontend.
+     * Render the MSRP block HTML for the current product.
+     *
+     * Ensures a product context when on a product post type, then returns the MSRP HTML for that product or an empty string when no product is available or MSRP rendering is not provided.
+     *
+     * @param array  $attributes Block attributes.
+     * @param string $content    Inner block content.
+     * @return string The rendered HTML for the MSRP block, or an empty string if nothing can be rendered.
      */
     public function render_msrp_block( $attributes, $content ) {
         global $product;

@@ -5,10 +5,25 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class Cirrusly_Commerce_Reports {
 
+    /**
+     * Registers the 'cirrusly_weekly_profit_report' action to call send_weekly_email.
+     *
+     * Hooks Cirrusly_Commerce_Reports::send_weekly_email so the weekly profit report is sent when the action is triggered.
+     */
     public static function init() {
         add_action( 'cirrusly_weekly_profit_report', array( __CLASS__, 'send_weekly_email' ) );
     }
 
+    /**
+     * Generate and send a weekly profit email report summarizing the last 7 days of orders.
+     *
+     * This method checks reporting configuration and Pro status, aggregates completed and processing
+     * orders from the previous 7 days to compute gross revenue, estimated COGS, estimated shipping,
+     * estimated payment processor fees, net profit, and net margin, then builds an HTML summary and
+     * emails it to the configured recipient (or the site admin email). The method exits without
+     * sending if reporting is disabled, the Pro feature is not active, or there are no orders in the
+     * period.
+     */
     public static function send_weekly_email() {
         // 1. Check if enabled
         $scan_cfg = get_option( 'cirrusly_scan_config', array() );

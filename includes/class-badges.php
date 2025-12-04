@@ -123,6 +123,18 @@ class Cirrusly_Commerce_Badges {
         <?php
     }
 
+    /**
+     * Builds HTML for product badges based on site configuration and the product's state.
+     *
+     * Generates zero or more badge elements for:
+     * - premium "SMART" badges (Inventory, Performance, Scheduler) when the site is PRO and corresponding features are enabled,
+     * - sale-based discount badges calculated from MSRP or regular price,
+     * - "New" arrival badges based on product age,
+     * - custom tag-based image badges configured via JSON.
+     *
+     * @param \WC_Product|null $product The product to evaluate. If null or invalid, an empty string is returned.
+     * @return string HTML containing the concatenated badge elements (may be an empty string).
+     */
     private function get_badge_html( $product ) {
         if ( ! $product ) return '';
         

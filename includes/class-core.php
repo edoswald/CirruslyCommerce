@@ -6,6 +6,14 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class Cirrusly_Commerce_Core {
 
+    /**
+     * Register WordPress hooks for the plugin and initialize audit & reports integrations.
+     *
+     * Sets up admin menus, asset loading, settings, dashboard widget, AJAX handlers,
+     * scheduled scan hook, product save hooks to clear metrics cache, a filter to
+     * force enable WooCommerce COGS, onboarding notice rendering, and initializes
+     * the audit and reports subsystems.
+     */
     public function __construct() {
         add_action( 'admin_menu', array( $this, 'register_admin_menus' ) );
         add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_assets' ) );
@@ -41,9 +49,19 @@ class Cirrusly_Commerce_Core {
     }
 
     /**
-     * Helper: Generate Google OAuth2 Token from Service Account JSON
-     * Required for Real API Submission
-     */
+         * Create an OAuth2 access token using the stored Google service account JSON.
+         *
+         * Builds and signs a JWT from the saved service account credentials and exchanges it
+         * with Google's OAuth2 token endpoint to obtain an access token for the Content API.
+         *
+         * @return string|WP_Error The access token on success.
+         *                         Returns a WP_Error with codes:
+         *                         - 'no_creds' when no service account JSON is stored.
+         *                         - 'invalid_creds' when required keys (client_email/private_key) are missing.
+         *                         - 'signing_failed' when the JWT could not be signed with the private key.
+         *                         - 'auth_failed' when Google returns an error response.
+         *                         Or a transport `WP_Error` produced by `wp_remote_post`.
+         */
     public static function get_google_access_token() {
         $json_raw = get_option( 'cirrusly_service_account_json' );
         if ( ! $json_raw ) return new WP_Error( 'no_creds', 'Service Account JSON not uploaded.' );
@@ -93,6 +111,14 @@ class Cirrusly_Commerce_Core {
         return new WP_Error( 'auth_failed', 'Google Auth Failed: ' . wp_remote_retrieve_body($response) );
     }
 
+    /**
+     * Handle an AJAX inline save for audit fields on a product.
+     *
+     * Validates user capabilities and AJAX nonce, requires PRO access, and accepts POST fields `pid` (product ID),
+     * `value` (numeric), and `field` (meta key). If `field` is one of `_cogs_total_value` or `_cw_est_shipping`
+     * and `pid` is a positive integer, updates the product meta, clears the `cw_audit_data` transient, and returns
+     * a JSON success response. On failure, returns a JSON error response describing the reason.
+     */
     public function handle_audit_inline_save() {
         // Security & Permission Check
         if ( ! current_user_can( 'edit_products' ) || ! check_ajax_referer( 'cc_audit_save', '_nonce', false ) ) {
@@ -154,6 +180,17 @@ class Cirrusly_Commerce_Core {
     public function force_enable_cogs() { return 'yes'; }
     public function clear_metrics_cache() { delete_transient( 'cirrusly_dashboard_metrics' ); }
 
+    /**
+     * Enqueues and localizes admin scripts and styles used by Cirrusly on plugin pages and product edit screens.
+     *
+     * When the current admin page is a Cirrusly plugin page or a WooCommerce product edit screen, this method:
+     * - Enqueues media and the Cirrusly admin stylesheet.
+     * - On the Financial Audit page, enqueues and localizes the audit script with an AJAX URL and save nonce.
+     * - On product edit screens, enqueues and localizes the pricing script with a full pricing/shipping configuration (revenue tiers, matrix rules, shipping class costs, payment rates, profile mode/split, and a shipping class ID→slug map) for real-time calculations.
+     * - Adds inline JavaScript used by the settings UI (image upload, adding/removing dynamic rows, system info toggle).
+     *
+     * @param string $hook The current admin page hook suffix (e.g., 'post.php', 'post-new.php', or the plugin page hook).
+     */
     public function enqueue_assets( $hook ) {
         $page = isset( $_GET['page'] ) ? sanitize_text_field( wp_unslash( $_GET['page'] ) ) : '';
         $is_plugin_page = strpos( $page, 'cirrusly-' ) !== false;
@@ -245,6 +282,15 @@ class Cirrusly_Commerce_Core {
         }
     }
 
+    /**
+     * Render the admin page header for Cirrusly Commerce, including logo, title, controls, and global navigation.
+     *
+     * Renders the plugin logo and provided title, a PRO badge when the site is in PRO mode, a System Info toggle,
+     * a support mailto link, a version badge, a hidden system information panel with copy capability, and the
+     * global navigation links for the Cirrusly Commerce admin pages.
+     *
+     * @param string $title The page title to display in the header.
+     */
     public static function render_page_header( $title ) {
         $mailto = 'mailto:help@cirruslyweather.com?subject=Support%20Request';
         $is_pro = self::cirrusly_is_pro(); // Check PRO status
@@ -298,6 +344,12 @@ class Cirrusly_Commerce_Core {
         self::render_page_header( $title );
     }
 
+    /**
+     * Register Cirrusly Commerce top-level admin menu and its submenus in the WordPress admin.
+     *
+     * Adds the main "Cirrusly Commerce" menu and these submenus: Dashboard, GMC Hub, Financial Audit,
+     * Settings, and User Manual, wiring each item to the appropriate capability and render callback.
+     */
     public function register_admin_menus() {
         add_menu_page( 'Cirrusly Commerce', 'Cirrusly Commerce', 'edit_products', 'cirrusly-commerce', array( $this, 'render_main_dashboard' ), 'dashicons-analytics', 56 );
         add_submenu_page( 'cirrusly-commerce', 'Dashboard', 'Dashboard', 'edit_products', 'cirrusly-commerce', array( $this, 'render_main_dashboard' ) );
@@ -331,6 +383,19 @@ class Cirrusly_Commerce_Core {
         return $clean;
     }
 
+    /**
+     * Sanitizes scan scheduling options and processes an optional Service Account JSON upload.
+     *
+     * Handles enabling/disabling the daily GMC scan schedule. If a service account file is uploaded,
+     * validates the file (size, MIME/extension, JSON syntax, required service account keys), stores
+     * the raw JSON in the `cirrusly_service_account_json` option on success, and augments the returned
+     * settings with upload status and filename. Validation failures and success messages are registered
+     * via settings errors/notices.
+     *
+     * @param array $input The submitted scan configuration settings to sanitize and normalize.
+     * @return array The sanitized settings array, possibly updated with `service_account_uploaded` and
+     *               `service_account_name` when an upload was processed.
+     */
     public function handle_scan_schedule( $input ) {
         wp_clear_scheduled_hook( 'cirrusly_gmc_daily_scan' );
         if ( isset($input['enable_daily_scan']) && $input['enable_daily_scan'] === 'yes' ) {
@@ -419,6 +484,26 @@ class Cirrusly_Commerce_Core {
         return $this->sanitize_options_array( $input );
     }
 
+    /**
+     * Sanitizes and normalizes plugin settings for safe storage.
+     *
+     * Converts complex inputs into JSON-encoded strings (revenue_tiers_json, matrix_rules_json,
+     * class_costs_json, custom_badges_json), casts numeric fields, sanitizes text/URLs, and
+     * normalizes boolean-like smart feature checkboxes to 'yes'.
+     *
+     * @param array $input Associative settings array submitted from the admin form.
+     *                     Expected keys may include:
+     *                     - revenue_tiers (array): tiers with 'min', optional 'max' and 'charge'.
+     *                     - matrix_rules (array): rules with 'key', 'label', 'cost_mult'.
+     *                     - class_costs (array): mapping of shipping class slug => cost.
+     *                     - custom_badges (array): badges with 'tag', 'url', 'tooltip', 'width'.
+     *                     - payment_pct, payment_flat, payment_pct_2, payment_flat_2, profile_split (numeric).
+     *                     - profile_mode (string).
+     *                     - smart_inventory, smart_performance, smart_scheduler (checkboxes).
+     *
+     * @return array The sanitized and normalized settings array ready to be saved (with JSON-encoded
+     *               keys and cleaned scalar values).
+     */
     public function sanitize_settings( $input ) {
         if ( isset( $input['revenue_tiers'] ) && is_array( $input['revenue_tiers'] ) ) {
             $clean_tiers = array();
@@ -482,6 +567,23 @@ class Cirrusly_Commerce_Core {
         return $input;
     }
 
+    /****
+     * Retrieve the shipping and pricing configuration merged with default values.
+     *
+     * If no saved option exists for a key, the returned array provides sensible defaults
+     * (JSON-encoded strings for tier/matrix/class data and numeric defaults for payment/profile settings).
+     *
+     * @return array The merged configuration where saved options override defaults. Keys:
+     *               - 'revenue_tiers_json' (string, JSON-encoded array of revenue tiers)
+     *               - 'matrix_rules_json' (string, JSON-encoded matrix rules)
+     *               - 'class_costs_json' (string, JSON-encoded class costs)
+     *               - 'payment_pct' (float)
+     *               - 'payment_flat' (float)
+     *               - 'profile_mode' (string, e.g., 'single' or 'multi')
+     *               - 'payment_pct_2' (float)
+     *               - 'payment_flat_2' (float)
+     *               - 'profile_split' (int)
+     */
     public function get_global_config() {
         $saved = get_option( 'cirrusly_shipping_config' );
         $defaults = array(
@@ -636,6 +738,13 @@ class Cirrusly_Commerce_Core {
         </div><?php
     }
 
+    /**
+     * Renders the Cirrusly Commerce settings admin page and its tabbed sections.
+     *
+     * Displays the page header, tab navigation (General Settings, Profit Engine, Badge Manager),
+     * and the settings form for the active tab. The active tab is determined from the sanitized
+     * 'tab' query parameter and the corresponding settings group and section renderer are invoked.
+     */
     public function render_settings_page() {
         // phpcs:ignore WordPress.Security.NonceVerification.Recommended
         $tab = isset( $_GET['tab'] ) ? sanitize_text_field( wp_unslash( $_GET['tab'] ) ) : 'general';
@@ -665,6 +774,14 @@ class Cirrusly_Commerce_Core {
         echo '</form></div>';
     }
 
+    /**
+     * Render the General settings section of the Cirrusly Commerce admin.
+     *
+     * Outputs the Integrations, Automation, Frontend Display, Content API Connection (PRO),
+     * and Advanced Alerts (PRO) panels and their form controls into the settings page.
+     *
+     * @return void
+     */
     private function render_general_settings() {
         // Retrieve values
         $msrp = get_option( 'cirrusly_msrp_config', array() );
@@ -784,6 +901,17 @@ class Cirrusly_Commerce_Core {
         echo '</div>'; // End Grid
     }
 
+    /**
+     * Render the Badge Manager settings UI for the Cirrusly Commerce admin settings page.
+     *
+     * Outputs the settings form controls for enabling badges, badge sizing and calculation base,
+     * "new" badge age, Smart Dynamic Badges (Inventory, Performance, Scheduler) with PRO gating,
+     * and a repeatable table for custom tag-based badges (tag slug, image URL, tooltip, width).
+     *
+     * The UI is populated from the `cirrusly_badge_config` option and respects the plugin's PRO
+     * status when enabling/enforcing Smart Badges controls. This method prints HTML directly and
+     * does not return a value.
+     */
     private function render_badges_settings() {
         $cfg = get_option( 'cirrusly_badge_config', array() );
         $enabled = isset($cfg['enable_badges']) ? $cfg['enable_badges'] : '';
@@ -840,6 +968,12 @@ class Cirrusly_Commerce_Core {
         echo '</tbody></table><button type="button" class="button" id="cc-add-badge-row" style="margin-top:10px;">+ Add Badge Rule</button></div></div>';
     }
 
+    /**
+     * Render the Profit Engine settings UI shown on the Shipping / Profit Engine admin settings page.
+     *
+     * Outputs form controls and panels for configuring payment processor fees, multi-gateway profile settings,
+     * shipping revenue tiers, internal shipping cost per shipping class, and scenario matrix multipliers.
+     */
     private function render_profit_engine_settings() {
         $config = $this->get_global_config();
         $revenue_tiers = json_decode( $config['revenue_tiers_json'], true );
@@ -945,6 +1079,11 @@ class Cirrusly_Commerce_Core {
         echo '</tbody></table><button type="button" class="button" id="cc-add-matrix-row" style="margin-top:10px;">+ Add Scenario</button></div></div>';
     }
 
+    / **
+     * Registers the "Cirrusly Commerce Overview" dashboard widget for users with product edit capabilities.
+     *
+     * The widget is added to the WordPress dashboard only when the current user has the 'edit_products' capability.
+     */
     public function register_dashboard_widget() {
         if ( current_user_can( 'edit_products' ) ) {
             wp_add_dashboard_widget( 'cirrusly_commerce_overview', 'Cirrusly Commerce Overview', array( $this, 'render_wp_dashboard_widget' ) );
@@ -955,6 +1094,11 @@ class Cirrusly_Commerce_Core {
         echo '<div style="text-align:center; padding:10px;"><a class="button button-primary" href="' . esc_url( admin_url( 'admin.php?page=cirrusly-commerce' ) ) . '">Open Dashboard</a></div>';
     }
 
+    /**
+     * Runs the scheduled Google Merchant Center health scan, stores results, and optionally emails a report.
+     *
+     * Executes the GMC scan, saves the scan timestamp and results to the `woo_gmc_scan_data` option, and — if the cirrusly scan configuration includes `enable_email_report` set to "yes" — sends an HTML summary email to the configured `email_recipient` (or the site admin email when not set).
+     */
     public function execute_scheduled_scan() {
         $scanner = new Cirrusly_Commerce_GMC();
         $results = $scanner->run_gmc_scan_logic();
