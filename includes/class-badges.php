@@ -158,7 +158,7 @@ class Cirrusly_Commerce_Badges {
     if ( ! empty($badge_cfg['smart_scheduler']) && $badge_cfg['smart_scheduler'] === 'yes' ) {
         $start = !empty($badge_cfg['scheduler_start']) ? strtotime($badge_cfg['scheduler_start']) : 0;
         $end   = !empty($badge_cfg['scheduler_end']) ? strtotime($badge_cfg['scheduler_end']) : 0;
-        $now   = current_time('timestamp');
+        $now   = time();
 
         if ( $start && $end && $now >= $start && $now <= $end ) {
             $output .= '<span class="cw-badge-pill" style="background-color:#826eb4;">Event</span>';

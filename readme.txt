@@ -60,7 +60,7 @@ Navigate to Cirrusly Commerce > Settings to configure your Shipping Revenue Tier
 == Frequently Asked Questions ==
 
 = Why are there so few customization choices? =
-This is by design. Part of the reason is to prevent you from adding things that might work against the compliance features of this plugin, but it's also for speed reasons. The less customization, the smaller our plugin is, and the less code your site needs to load to display its features on the front end. Plus, we've incorporated some of our knowledge of what works and what doesn't into what customization we offer as well. 
+This is by design. Part of the reason is to prevent you from adding things that might work against the compliance features of this plugin, but it is for speed reasons as well.
 
 = Does this plugin add the MSRP to my Google Feed? =
 The plugin adds the data to your products (saved as _alg_msrp), but you need a feed plugin (like Product Feed PRO) to map this field to the g:price or g:sale_price attributes in your feed. We add our fields to their dropdowns automatically for easy mapping.
@@ -90,8 +90,7 @@ Store Audit: A financial breakdown of every product to spot profit leaks.
 * **Enhancement:** Added "System Info" tool to the support menu (header) to easily copy environment details for faster troubleshooting.
 * **Enhancement:** Pricing Engine now supports 5%, 15%, and 25% "Off MSRP" strategies.
 * **Enhancement:** Pricing Engine now supports "Nearest 5/0" rounding (e.g., $12.95 -> $15.00, $8.20 -> $10.00).
-* **UI Update:** Reorganized settings into tabbed cards for better usability.
-* **UI Update:** Added "Hide Pro Features" toggle in General Settings for users who prefer a cleaner, free-only interface.
+* **UI Update:** Reorganized settings into tabbed cards for better UX.
 * **Fix:** Downloadable/virtual items are now correctly handled (no shipping/cost is likely, so alerts suppressed)
 * **Fix:** Removal/fixing of code that caused instability post-1.0.5 on non-test stores. Some code was still referring to pre-v1.0 architecture (code snippets).
 * **Fix:** Sent emails now are actually useful.
