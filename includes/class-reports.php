@@ -105,8 +105,11 @@ class Cirrusly_Commerce_Reports {
         $message .= '</table>';
         $message .= '<p style="margin-top:20px; font-size:12px; color:#777;">*Calculated based on current product cost settings.</p>';
 
-        add_filter( 'wp_mail_content_type', function() { return 'text/html'; } );
+        // Store filter callback for proper removal
+        $html_filter = function() { return 'text/html'; };
+        
+        add_filter( 'wp_mail_content_type', $html_filter );
         wp_mail( $to, $subject, $message );
-        remove_filter( 'wp_mail_content_type', function() { return 'text/html'; } );
+        remove_filter( 'wp_mail_content_type', $html_filter );
     }
 }
