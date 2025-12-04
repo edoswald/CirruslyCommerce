@@ -175,8 +175,12 @@ class Cirrusly_Commerce_Audit {
         // Configs
         $revenue_tiers = json_decode( $config['revenue_tiers_json'], true );
         $class_costs   = json_decode( $config['class_costs_json'], true );
+        $mode = isset($config['profile_mode']) ? $config['profile_mode'] : 'single';
         $pay_pct       = isset($config['payment_pct']) ? ($config['payment_pct'] / 100) : 0.029;
         $pay_flat      = isset($config['payment_flat']) ? $config['payment_flat'] : 0.30;
+        $pay_pct_2     = isset($config['payment_pct_2']) ? ($config['payment_pct_2'] / 100) : 0.0349;
+        $pay_flat_2    = isset($config['payment_flat_2']) ? $config['payment_flat_2'] : 0.49;
+        $split         = isset($config['profile_split']) ? ($config['profile_split'] / 100) : 1.0;
         
         $is_shipping_exempt = $p->is_virtual() || $p->is_downloadable();
         
@@ -208,7 +212,15 @@ class Cirrusly_Commerce_Audit {
         if($price > 0 && $total_cost > 0) {
             $gross = $total_inc - $total_cost;
             $margin = ($gross/$price)*100;
-            $fee = ($total_inc * $pay_pct) + $pay_flat;
+           
+            if ( $mode === 'multi' ) {
+                $fee1 = ($total_inc * $pay_pct) + $pay_flat;
+                $fee2 = ($total_inc * $pay_pct_2) + $pay_flat_2;
+                $fee = ($fee1 * $split) + ($fee2 * (1 - $split));
+            } else {
+                $fee = ($total_inc * $pay_pct) + $pay_flat;
+            }
+            
             $net = $gross - $fee;
         }
         
@@ -216,9 +228,6 @@ class Cirrusly_Commerce_Audit {
 
         // Formatted HTML for JS return
         $net_style = $net < 0 ? 'color:#d63638;font-weight:bold;' : 'color:#008a20;font-weight:bold;';
-        $net_style = $net < 0 ? 'color:#d63638;font-weight:bold;' : 'color:#008a20;font-weight:bold;';
-         
-         return array(
         
         return array(
             'net_val' => $net,
