@@ -120,6 +120,25 @@ class Cirrusly_Commerce_Main {
 
         // Add Settings Link to Plugin List
         add_filter( 'plugin_action_links_' . plugin_basename( __FILE__ ), array( $this, 'add_settings_link' ) );
+
+        // Register Custom Cron Schedules
+        add_filter( 'cron_schedules', array( $this, 'add_weekly_cron_schedule' ) );
+    }
+
+    /**
+     * Registers a 'weekly' cron schedule if it does not already exist.
+     *
+     * @param array $schedules The existing cron schedules.
+     * @return array The modified cron schedules with the weekly interval.
+     */
+    public function add_weekly_cron_schedule( $schedules ) {
+        if ( ! isset( $schedules['weekly'] ) ) {
+            $schedules['weekly'] = array(
+                'interval' => 7 * 24 * 60 * 60, // 604,800 seconds
+                'display'  => __( 'Weekly', 'cirrusly-commerce' ),
+            );
+        }
+        return $schedules;
     }
 
     public function activate() {
