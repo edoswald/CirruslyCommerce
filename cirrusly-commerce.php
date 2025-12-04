@@ -14,6 +14,20 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+// cirrusly-commerce.php
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
+// -------------------------------------------------------------------------
+// COMPOSER AUTOLOADER
+// -------------------------------------------------------------------------
+// This loads Google (and any future libraries) automatically
+if ( file_exists( plugin_dir_path( __FILE__ ) . 'vendor/autoload.php' ) ) {
+    require_once plugin_dir_path( __FILE__ ) . 'vendor/autoload.php';
+}
+
 // Define Constants
 define( 'CIRRUSLY_COMMERCE_VERSION', '1.2.0' );
 define( 'CIRRUSLY_COMMERCE_PATH', plugin_dir_path( __FILE__ ) );
