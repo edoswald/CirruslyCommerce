@@ -64,10 +64,20 @@ class Cirrusly_Commerce_Reports {
 
         // Get Payment Processor Fees from Settings
         $ship_config = get_option( 'cirrusly_shipping_config', array() );
+        $mode = isset($ship_config['profile_mode']) ? $ship_config['profile_mode'] : 'single';
         $pay_pct = isset($ship_config['payment_pct']) ? ($ship_config['payment_pct'] / 100) : 0.029;
         $pay_flat = isset($ship_config['payment_flat']) ? $ship_config['payment_flat'] : 0.30;
+        $pay_pct_2 = isset($ship_config['payment_pct_2']) ? ($ship_config['payment_pct_2'] / 100) : 0.0349;
+        $pay_flat_2 = isset($ship_config['payment_flat_2']) ? $ship_config['payment_flat_2'] : 0.49;
+        $split = isset($ship_config['profile_split']) ? ($ship_config['profile_split'] / 100) : 1.0;
         
-        $est_fees = ($total_revenue * $pay_pct) + ($order_count * $pay_flat);
+        if ( $mode === 'multi' ) {
+            $fee1 = ($total_revenue * $pay_pct) + ($order_count * $pay_flat);
+            $fee2 = ($total_revenue * $pay_pct_2) + ($order_count * $pay_flat_2);
+            $est_fees = ($fee1 * $split) + ($fee2 * (1 - $split));
+        } else {
+            $est_fees = ($total_revenue * $pay_pct) + ($order_count * $pay_flat);
+        }
         $net_profit = $total_revenue - $total_cogs - $total_ship_cost - $est_fees;
         $margin = $total_revenue > 0 ? ($net_profit / $total_revenue) * 100 : 0;
 
