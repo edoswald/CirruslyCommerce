@@ -1146,11 +1146,9 @@ class Cirrusly_Commerce_Core {
             $message .= '</table>';
             $message .= '<p style="margin-top:20px;">You can view the full report in your <a href="' . admin_url('admin.php?page=cirrusly-gmc') . '">GMC Hub Dashboard</a>.</p>';
 
-            // Set HTML Content Type
-            add_filter( 'wp_mail_content_type', function() { return 'text/html'; } );
-            wp_mail( $to, $subject, $message );
-            // Reset Content Type
-            remove_filter( 'wp_mail_content_type', function() { return 'text/html'; } );
+            // Set HTML Content Type using headers parameter instead
+            $headers = array( 'Content-Type: text/html; charset=UTF-8' );
+            wp_mail( $to, $subject, $message, $headers );
         }
     }
 }
