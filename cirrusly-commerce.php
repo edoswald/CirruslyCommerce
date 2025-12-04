@@ -11,7 +11,7 @@
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
-    exit;
+	exit;
 }
 
 // Define Constants
@@ -65,23 +65,23 @@ if ( ! function_exists( 'cc_fs' ) ) {
     do_action( 'cc_fs_loaded' );
 }
 
-// -------------------------------------------------------------------------
-// CORE LOGIC
-// -------------------------------------------------------------------------
+// Init Freemius.
+cirrusly_commerce_fs();
+// Signal that SDK was initiated.
+do_action( 'cirrusly_commerce_fs_loaded' );
 
-// Autoloader-style requires
-require_once CIRRUSLY_COMMERCE_PATH . 'includes/class-core.php';
-require_once CIRRUSLY_COMMERCE_PATH . 'includes/class-gmc.php';
-require_once CIRRUSLY_COMMERCE_PATH . 'includes/class-pricing.php';
-require_once CIRRUSLY_COMMERCE_PATH . 'includes/class-audit.php';
-require_once CIRRUSLY_COMMERCE_PATH . 'includes/class-reviews.php';
-require_once CIRRUSLY_COMMERCE_PATH . 'includes/class-manual.php';
-require_once CIRRUSLY_COMMERCE_PATH . 'includes/class-blocks.php';
-require_once CIRRUSLY_COMMERCE_PATH . 'includes/class-compatibility.php';
-require_once CIRRUSLY_COMMERCE_PATH . 'includes/class-badges.php';
+// Include the main class.
+if ( ! class_exists( 'Cirrusly_Commerce' ) ) {
+	include_once dirname( __FILE__ ) . '/includes/class-core.php';
+}
 
 /**
- * Main Instance Class
+ * Main instance of Cirrusly_Commerce.
+ *
+ * Returns the main instance of Cirrusly_Commerce to prevent the need to use globals.
+ *
+ * @since  1.0.0
+ * @return Cirrusly_Commerce
  */
 class Cirrusly_Commerce_Main {
 

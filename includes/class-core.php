@@ -61,11 +61,9 @@ class Cirrusly_Commerce_Core {
     /**
      * Check if PRO features are active.
      * Relies strictly on Freemius license validation.
-     * Includes a secure developer override for testing.
      */
     public static function cirrusly_is_pro() {
         // 1. Secure Developer Override
-        // Only works if user is admin AND debug mode is on (local env)
         if ( defined('WP_DEBUG') && WP_DEBUG && current_user_can('manage_options') ) {
             if ( isset( $_GET['cc_dev_mode'] ) ) {
                 if ( $_GET['cc_dev_mode'] === 'pro' ) return true;
@@ -76,13 +74,12 @@ class Cirrusly_Commerce_Core {
         // 2. Freemius Check
         if ( function_exists( 'cc_fs' ) ) {
              $fs = cc_fs();
-             // Check if Freemius is loaded AND if user has a valid license (trial or paid)
              if ( $fs && $fs->can_use_premium_code() ) {
                  return true;
              }
         }
 
-        return false; // Default to FREE if Freemius is not loaded or invalid
+        return false; 
     }
 
     public function cirrusly_hide_upsells_css() {
@@ -99,7 +96,6 @@ class Cirrusly_Commerce_Core {
     public function clear_metrics_cache() { delete_transient( 'cirrusly_dashboard_metrics' ); }
 
     public function enqueue_assets( $hook ) {
-        // phpcs:ignore WordPress.Security.NonceVerification.Recommended
         $page = isset( $_GET['page'] ) ? sanitize_text_field( wp_unslash( $_GET['page'] ) ) : '';
         $is_plugin_page = strpos( $page, 'cirrusly-' ) !== false;
         $is_product_page = 'post.php' === $hook || 'post-new.php' === $hook;
@@ -108,6 +104,15 @@ class Cirrusly_Commerce_Core {
             wp_enqueue_media(); 
             wp_enqueue_style( 'cirrusly-admin-css', CIRRUSLY_COMMERCE_URL . 'assets/css/admin.css', array(), CIRRUSLY_COMMERCE_VERSION );
             
+            // Load Audit JS only on audit page
+            if ( $page === 'cirrusly-audit' ) {
+                wp_enqueue_script( 'cirrusly-audit-js', CIRRUSLY_COMMERCE_URL . 'assets/js/audit.js', array( 'jquery' ), CIRRUSLY_COMMERCE_VERSION, true );
+                wp_localize_script( 'cirrusly-audit-js', 'cc_audit_vars', array(
+                    'ajax_url' => admin_url( 'admin-ajax.php' ),
+                    'nonce'    => wp_create_nonce( 'cc_audit_save' )
+                ));
+            }
+
             if ( $is_product_page ) {
                 wp_enqueue_script( 'cirrusly-pricing-js', CIRRUSLY_COMMERCE_URL . 'assets/js/pricing.js', array( 'jquery' ), CIRRUSLY_COMMERCE_VERSION, true );
                 
@@ -183,15 +188,15 @@ class Cirrusly_Commerce_Core {
         echo '<img src="' . esc_url( CIRRUSLY_COMMERCE_URL . 'assets/images/logo.svg' ) . '" style="height:50px; width:auto; margin-right:15px;" alt="Cirrusly Commerce">';
         echo esc_html( $title );
         echo '<div style="margin-left:auto; display:flex; align-items:center; gap:10px;">';
-        echo '<a href="#" id="cc-sys-info-toggle" class="button button-secondary" title="View System Info for Support">System Info</a>';
-        echo '<a href="' . esc_attr( $mailto ) . '" class="button button-secondary">Get Support</a>'; 
-        echo '<span class="cc-ver-badge" style="background:#f0f0f1;color:#646970;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;">v' . esc_html( CIRRUSLY_COMMERCE_VERSION ) . '</span>';
         
-        // Add Pro Badge if active
+        // Pro Badge Logic
         if ( $is_pro ) {
             echo '<span class="cc-pro-version-badge">PRO</span>';
         }
         
+        echo '<a href="#" id="cc-sys-info-toggle" class="button button-secondary" title="View System Info for Support">System Info</a>';
+        echo '<a href="' . esc_attr( $mailto ) . '" class="button button-secondary">Get Support</a>'; 
+        echo '<span class="cc-ver-badge" style="background:#f0f0f1;color:#646970;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;">v' . esc_html( CIRRUSLY_COMMERCE_VERSION ) . '</span>';
         echo '</div></h1>';
         
         // Hidden System Info Panel
@@ -507,6 +512,7 @@ class Cirrusly_Commerce_Core {
         echo '<div class="wrap">'; // Move wrapper outside/above header for consistency
         self::render_page_header( 'Cirrusly Commerce Dashboard' );
         $m = self::get_dashboard_metrics();
+        $is_pro = self::cirrusly_is_pro();
         ?>
         <div class="cc-intro-text" style="background:#fff; padding:15px; border:1px solid #ccd0d4; margin-bottom:20px; border-left:4px solid #2271b1;">
             <h3><?php esc_html_e( 'Welcome to Cirrusly Commerce', 'cirrusly-commerce' ); ?></h3>
@@ -525,12 +531,28 @@ class Cirrusly_Commerce_Core {
                 <div class="cc-card-head"><span>Google Merchant Center</span> <span class="dashicons dashicons-google"></span></div>
                 <div class="cc-stat-row"><span>Critical Issues</span><span class="cc-stat-val <?php echo $m['gmc_critical'] > 0 ? 'cc-val-bad' : 'cc-val-good'; ?>"><?php echo esc_html( $m['gmc_critical'] ); ?></span></div>
                 <div class="cc-stat-row"><span>Warnings</span><span class="cc-stat-val <?php echo $m['gmc_warnings'] > 0 ? 'cc-val-warn' : 'cc-val-good'; ?>"><?php echo esc_html( $m['gmc_warnings'] ); ?></span></div>
+                <div class="cc-stat-row" style="margin-top:15px; padding-top:10px; border-top:1px solid #f0f0f1;">
+                    <span>Real-Time Sync</span>
+                    <?php if($is_pro): ?>
+                        <span class="gmc-badge" style="background:#008a20;color:#fff;">ACTIVE</span>
+                    <?php else: ?>
+                        <span class="gmc-badge" style="background:#ccc;color:#666;">INACTIVE (PRO)</span>
+                    <?php endif; ?>
+                </div>
                 <div class="cc-actions"><a href="admin.php?page=cirrusly-gmc&tab=scan" class="button button-primary">Fix Issues</a></div>
             </div>
 
             <div class="cc-dash-card" style="border-top-color: #2271b1;">
                 <div class="cc-card-head"><span>Store Integrity</span> <span class="dashicons dashicons-analytics"></span></div>
                 <div class="cc-stat-row"><span>Products Missing Cost</span><span class="cc-stat-val <?php echo $m['missing_cost'] > 0 ? 'cc-val-bad' : 'cc-val-good'; ?>"><?php echo esc_html( $m['missing_cost'] ); ?></span></div>
+                <div class="cc-stat-row">
+                    <span>Automated Badging</span>
+                    <?php if($is_pro): ?>
+                         <span class="gmc-badge" style="background:#008a20;color:#fff;">ACTIVE</span>
+                    <?php else: ?>
+                         <span class="gmc-badge" style="background:#ccc;color:#666;">BASIC</span>
+                    <?php endif; ?>
+                </div>
                 <div class="cc-actions"><a href="admin.php?page=cirrusly-audit" class="button button-secondary">Open Audit</a></div>
             </div>
             
@@ -655,7 +677,7 @@ class Cirrusly_Commerce_Core {
 
         // PRO: API Connection
         echo '<div class="cc-settings-card '.esc_attr($pro_class).'">';
-        if(!$is_pro) echo '<div class="cc-pro-overlay"><a href="#upgrade-to-pro" class="cc-upgrade-btn"><span class="dashicons dashicons-lock cc-lock-icon"></span> Upgrade to Connect API</a></div>';
+        if(!$is_pro) echo '<div class="cc-pro-overlay"><a href="'.esc_url( function_exists('cc_fs') ? cc_fs()->get_upgrade_url() : '#' ).'" class="cc-upgrade-btn"><span class="dashicons dashicons-lock cc-lock-icon"></span> Upgrade to Connect API</a></div>';
         echo '<div class="cc-card-header">
                 <h3>Content API Connection <span class="cc-pro-badge">PRO</span></h3>
                 <span class="dashicons dashicons-cloud"></span>
@@ -674,7 +696,7 @@ class Cirrusly_Commerce_Core {
 
         // PRO: Advanced Alerting
         echo '<div class="cc-settings-card '.esc_attr($pro_class).'">';
-        if(!$is_pro) echo '<div class="cc-pro-overlay"><a href="#upgrade-to-pro" class="cc-upgrade-btn"><span class="dashicons dashicons-lock cc-lock-icon"></span> Unlock Alerts</a></div>';
+        if(!$is_pro) echo '<div class="cc-pro-overlay"><a href="'.esc_url( function_exists('cc_fs') ? cc_fs()->get_upgrade_url() : '#' ).'" class="cc-upgrade-btn"><span class="dashicons dashicons-lock cc-lock-icon"></span> Unlock Alerts</a></div>';
         echo '<div class="cc-card-header">
                 <h3>Advanced Alerts <span class="cc-pro-badge">PRO</span></h3>
                 <span class="dashicons dashicons-email-alt"></span>
