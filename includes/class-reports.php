@@ -53,7 +53,6 @@ class Cirrusly_Commerce_Reports {
                 
                 $qty = $item->get_quantity();
                 
-                // Note: Ideally COGS should be snapshot on Order Item Meta.
                 // Fallback to current Product Meta if historical not found.
                 $cogs = (float) $product->get_meta( '_cogs_total_value' );
                 $ship = (float) $product->get_meta( '_cw_est_shipping' );

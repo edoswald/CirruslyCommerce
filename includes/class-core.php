@@ -32,6 +32,12 @@ class Cirrusly_Commerce_Core {
         
         // Init Audit Class Logic
         add_action('init', array('Cirrusly_Commerce_Audit', 'init'));
+
+        // Init Reports Class (Weekly Email) [ADDED]
+        include_once dirname( __FILE__ ) . '/class-reports.php';
+        if ( class_exists( 'Cirrusly_Commerce_Reports' ) ) {
+            Cirrusly_Commerce_Reports::init();
+        }
     }
 
     public function handle_audit_inline_save() {
@@ -651,6 +657,10 @@ class Cirrusly_Commerce_Core {
                 <hr style="border:0; border-top:1px solid #eee; margin:15px 0;">
                 <label><input type="checkbox" name="cirrusly_scan_config[enable_daily_scan]" value="yes" '.checked('yes', $daily, false).'> <strong>Run Daily Health Scan</strong></label>
                 <p class="description">Automatically checks for missing GTINs and prohibited terms every 24 hours.</p>
+
+                <br>
+                <label><input type="checkbox" name="cirrusly_scan_config[enable_email_report]" value="yes" '.checked('yes', isset($scan['enable_email_report']) ? $scan['enable_email_report'] : '', false).'> <strong>Receive Email Reports</strong></label>
+                <p class="description">Send scan results and weekly profit summaries to the admin email.</p>
                 
                 <hr style="border:0; border-top:1px solid #eee; margin:15px 0;">
                 <label><input type="checkbox" name="cirrusly_scan_config[hide_upsells]" value="yes" '.checked('yes', $hide_upsells, false).'> Hide Pro Features</label>

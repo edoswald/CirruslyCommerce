@@ -101,7 +101,7 @@ Store Audit: A financial breakdown of every product to spot profit leaks.
 
 == Changelog ==
 
-= 1.2.0 =
+= 1.2 =
 
 **Note:** Effective from this release, only changes to the free version of the plugin will be listed. For changes to the Pro version of the plugin (which also will include the free changes), please additionally refer to the README for the pro version instead.
 * **New Feature:** Introduced "Freemium" architecture. Pro features are now visible in the interface (grayed out) to showcase advanced capabilities if downloading from Freemius. 
@@ -112,6 +112,7 @@ Store Audit: A financial breakdown of every product to spot profit leaks.
 * **UI Update:** Added "Hide Pro Features" toggle in General Settings for users who prefer a cleaner, free-only interface.
 * **Fix:** Downloadable/virtual items are now correctly handled (no shipping/cost is likely, so alerts suppressed)
 * **Fix:** Removal/fixing of code that caused instability post 1.0.5 on non test stores. Some code was still referring to pre v1.0 architecture (code snippet).
+* **Fix:** Sent emails now are actually useful.
 
 = 1.1 =
 

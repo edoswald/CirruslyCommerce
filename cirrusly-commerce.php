@@ -118,14 +118,20 @@ class Cirrusly_Commerce_Main {
         if ( ! wp_next_scheduled( 'cirrusly_gmc_daily_scan' ) ) {
             wp_schedule_event( time(), 'daily', 'cirrusly_gmc_daily_scan' );
         }
+
+        // 2. Schedule Weekly Reports [ADDED]
+        if ( ! wp_next_scheduled( 'cirrusly_weekly_profit_report' ) ) {
+            wp_schedule_event( time(), 'weekly', 'cirrusly_weekly_profit_report' );
+        }
         
-        // 2. Force Enable Native COGS on Activation
+        // 3. Force Enable Native COGS on Activation
         update_option( 'woocommerce_enable_cost_of_goods_sold', 'yes' );
         
     }
 
     public function deactivate() {
         wp_clear_scheduled_hook( 'cirrusly_gmc_daily_scan' );
+        wp_clear_scheduled_hook( 'cirrusly_weekly_profit_report' ); // [ADDED]
         
         // Freemius deactivation hook (safe check)
         if ( function_exists('cc_fs') && cc_fs() ) {
