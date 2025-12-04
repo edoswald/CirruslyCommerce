@@ -183,7 +183,6 @@ class Cirrusly_Commerce_Badges {
         // Check if Pro AND connected to Google NLP
         if ( Cirrusly_Commerce_Core::cirrusly_is_pro() ) {
             // FIX: Assumes Cirrusly_Commerce_GMC::get_google_client() is available in the environment.
-            // This logic was kept separate in the old file structure but is correctly called here.
             $client = Cirrusly_Commerce_GMC::get_google_client();
             
             if ( ! is_wp_error( $client ) ) {
@@ -191,7 +190,7 @@ class Cirrusly_Commerce_Badges {
                 if ( $sentiment_badge ) $output .= $sentiment_badge;
             }
         }
-    }
+    } // Closing brace for the L205 IF statement (if it was intended)
 
     /* --------------------------------------------------------- */
     /* fs_premium_only end                                       */
@@ -294,7 +293,6 @@ class Cirrusly_Commerce_Badges {
         }
 
         try {
-            // FIX: Assuming Google\Service\CloudNaturalLanguage classes are autoloaded or included elsewhere.
             $service = new Google\Service\CloudNaturalLanguage( $client );
             $total_score = 0;
             $count = 0;
