@@ -737,7 +737,11 @@ public static function get_google_client() {
     try {
         $client = new Google\Client();
         $client->setApplicationName( 'Cirrusly Commerce' );
-        $client->setAuthConfig( json_decode( $json_key, true ) );
+        $auth_config = json_decode( $json_key, true );
+        if ( null === $auth_config ) {
+            return new WP_Error( 'invalid_json', 'Service Account JSON is malformed.' );
+        }
+        $client->setAuthConfig( $auth_config );
         $client->setScopes([
             'https://www.googleapis.com/auth/content',
             'https://www.googleapis.com/auth/cloud-language'
@@ -750,12 +754,24 @@ public static function get_google_client() {
 }
 
 public function handle_promo_api_submit() {
-    // ... [Your Security/Nonce Checks] ...
+    check_ajax_referer( 'cc_promo_api_submit', 'security' );
+    
+    if ( ! Cirrusly_Commerce_Core::cirrusly_is_pro() ) {
+        wp_send_json_error( 'Pro version required for API access.' );
+    }
 
     $client = self::get_google_client();
     if ( is_wp_error( $client ) ) wp_send_json_error( $client->get_error_message() );
 
     $merchant_id = get_option( 'cirrusly_gmc_merchant_id' );
+    if ( empty( $merchant_id ) ) {
+        wp_send_json_error( 'Merchant ID not configured.' );
+    }
+
+    // Extract POST data
+    $data = isset( $_POST['data'] ) ? $_POST['data'] : array();
+    $id = isset( $data['id'] ) ? sanitize_text_field( $data['id'] ) : '';
+    $title = isset( $data['title'] ) ? sanitize_text_field( $data['title'] ) : '';
     
     // Initialize the Service
     $service = new Google\Service\ShoppingContent( $client );

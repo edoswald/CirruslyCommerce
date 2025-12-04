@@ -169,7 +169,8 @@ class Cirrusly_Commerce_Pricing {
         
         woocommerce_wp_text_input( array( 'id' => '_alg_msrp', 'label' => 'MSRP ($)', 'class' => 'wc_input_price short cw-msrp-input', 'value' => $msrp, 'data_type' => 'price', 'wrapper_class' => 'cw-flex-field' ));
         woocommerce_wp_text_input( array( 'id' => '_cw_est_shipping', 'label' => 'Base Ship ($)', 'class' => 'wc_input_price short cw-ship-input', 'value' => $ship, 'data_type' => 'price', 'description' => 'Auto-fills', 'wrapper_class' => 'cw-flex-field' ));
-        woocommerce_wp_text_input( array( 'id' => '_cw_sale_end', 'label' => 'Sale Timer End', 'placeholder' => 'YYYY-MM-DD HH:MM', 'class' => 'short cw-date-input', 'wrapper_class' => 'cw-flex-field','description' => 'Enter date to show countdown.' ));
+        $sale_end = $product_object->get_meta( '_cw_sale_end' );
+        woocommerce_wp_text_input( array( 'id' => '_cw_sale_end', 'label' => 'Sale Timer End', 'placeholder' => 'YYYY-MM-DD HH:MM', 'class' => 'short cw-date-input', 'value' => $sale_end, 'wrapper_class' => 'cw-flex-field', 'description' => 'Enter date to show countdown.' ));
         echo '</div>';
         $this->pe_render_toolbar();
         echo '</div>';
@@ -288,6 +289,8 @@ class Cirrusly_Commerce_Pricing {
         if ( ! $product ) return;
 
         $merchant_id = get_option( 'cirrusly_gmc_merchant_id' );
+        if ( empty( $merchant_id ) ) return; // Not configured
+
         $service = new Google\Service\ShoppingContent( $client );
 
         // Construct GMC ID (online:en:US:ID)
