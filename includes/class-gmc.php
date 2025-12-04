@@ -754,12 +754,24 @@ public static function get_google_client() {
 }
 
 public function handle_promo_api_submit() {
-    // ... [Your Security/Nonce Checks] ...
+    check_ajax_referer( 'cc_promo_api_submit', 'security' );
+    
+    if ( ! Cirrusly_Commerce_Core::cirrusly_is_pro() ) {
+        wp_send_json_error( 'Pro version required for API access.' );
+    }
 
     $client = self::get_google_client();
     if ( is_wp_error( $client ) ) wp_send_json_error( $client->get_error_message() );
 
     $merchant_id = get_option( 'cirrusly_gmc_merchant_id' );
+    if ( empty( $merchant_id ) ) {
+        wp_send_json_error( 'Merchant ID not configured.' );
+    }
+
+    // Extract POST data
+    $data = isset( $_POST['data'] ) ? $_POST['data'] : array();
+    $id = isset( $data['id'] ) ? sanitize_text_field( $data['id'] ) : '';
+    $title = isset( $data['title'] ) ? sanitize_text_field( $data['title'] ) : '';
     
     // Initialize the Service
     $service = new Google\Service\ShoppingContent( $client );
