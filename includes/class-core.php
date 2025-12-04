@@ -698,6 +698,8 @@ class Cirrusly_Commerce_Core {
         $smart_inv = isset($cfg['smart_inventory']) ? $cfg['smart_inventory'] : '';
         $smart_perf = isset($cfg['smart_performance']) ? $cfg['smart_performance'] : '';
         $smart_sched = isset($cfg['smart_scheduler']) ? $cfg['smart_scheduler'] : '';
+        $sched_start = isset($cfg['scheduler_start']) ? $cfg['scheduler_start'] : '';
+        $sched_end = isset($cfg['scheduler_end']) ? $cfg['scheduler_end'] : '';
         
         $custom_badges = isset($cfg['custom_badges_json']) ? json_decode($cfg['custom_badges_json'], true) : array();
         if(!is_array($custom_badges)) $custom_badges = array();
