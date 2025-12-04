@@ -119,6 +119,7 @@ class Cirrusly_Commerce_Main {
         require_once $includes_path . 'class-blocks.php';
         require_once $includes_path . 'class-compatibility.php';
         require_once $includes_path . 'class-badges.php';
+        require_once $includes_path . 'class-manual.php';
 
         // Initialize Modules
         new Cirrusly_Commerce_Core();
