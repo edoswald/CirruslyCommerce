@@ -1079,7 +1079,7 @@ class Cirrusly_Commerce_Core {
         echo '</tbody></table><button type="button" class="button" id="cc-add-matrix-row" style="margin-top:10px;">+ Add Scenario</button></div></div>';
     }
 
-    / **
+    /**
      * Registers the "Cirrusly Commerce Overview" dashboard widget for users with product edit capabilities.
      *
      * The widget is added to the WordPress dashboard only when the current user has the 'edit_products' capability.
