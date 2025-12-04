@@ -84,12 +84,11 @@ if ( ! class_exists( 'Cirrusly_Commerce' ) ) {
  * @since  1.0.0
  * @return Cirrusly_Commerce
  */
-// ... existing code ...
 class Cirrusly_Commerce_Main {
 
     private static $instance = null;
 
-    / **
+    /**
      * Retrieve the singleton instance of Cirrusly_Commerce_Main, creating it if necessary.
      *
      * @return Cirrusly_Commerce_Main The single instance of the main plugin class.
@@ -134,9 +133,31 @@ class Cirrusly_Commerce_Main {
         // Register Hooks
         register_activation_hook( __FILE__, array( $this, 'activate' ) );
         register_deactivation_hook( __FILE__, array( $this, 'deactivate' ) );
+        
+        // Register Cron Intervals
+        add_filter( 'cron_schedules', array( $this, 'add_weekly_schedule' ) );
 
         // Add Settings Link to Plugin List
         add_filter( 'plugin_action_links_' . plugin_basename( __FILE__ ), array( $this, 'add_settings_link' ) );
+    }
+
+    /**
+     * Register custom cron intervals.
+     *
+     * Checks for the existence of a 'weekly' interval and registers it if missing.
+     * Used by the profit report schedule.
+     *
+     * @param array $schedules The existing cron schedules.
+     * @return array The modified schedules with 'weekly' added.
+     */
+    public function add_weekly_schedule( $schedules ) {
+        if ( ! isset( $schedules['weekly'] ) ) {
+            $schedules['weekly'] = array(
+                'interval' => 604800, // 7 * 24 * 60 * 60
+                'display'  => __( 'Once Weekly', 'cirrusly-commerce' )
+            );
+        }
+        return $schedules;
     }
 
     /**
