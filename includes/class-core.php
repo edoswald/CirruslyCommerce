@@ -389,7 +389,7 @@ class Cirrusly_Commerce_Core {
     /**
      * Register Cirrusly Commerce top-level admin menu and its submenus.
      */
-    public function register_admin_menus() {
+public function register_admin_menus() {
         add_menu_page( 'Cirrusly Commerce', 'Cirrusly Commerce', 'edit_products', 'cirrusly-commerce', array( $this, 'render_main_dashboard' ), 'dashicons-analytics', 56 );
         add_submenu_page( 'cirrusly-commerce', 'Dashboard', 'Dashboard', 'edit_products', 'cirrusly-commerce', array( $this, 'render_main_dashboard' ) );
         add_submenu_page( 'cirrusly-commerce', 'GMC Hub', 'GMC Hub', 'edit_products', 'cirrusly-gmc', array( 'Cirrusly_Commerce_GMC', 'render_page' ) );
@@ -411,7 +411,7 @@ class Cirrusly_Commerce_Core {
         register_setting( 'cirrusly_badge_group', 'cirrusly_badge_config', array( 'sanitize_callback' => array( $this, 'sanitize_settings' ) ) );
 
         // Countdown
-        register_setting( 'cirrusly_general_group', 'cirrusly_countdown_rules', array( 'sanitize_callback' => array( $this, 'sanitize_options_array' ) ) );
+        register_setting( 'cirrusly_general_group', 'cirrusly_countdown_rules', array( 'sanitize_callback' => array( $this, 'sanitize_countdown_rules' ) ) );
     }
 
     public function sanitize_options_array( $input ) {
@@ -422,6 +422,47 @@ class Cirrusly_Commerce_Core {
             }
         }
         return $clean;
+    }
+
+    /**
+     * Sanitizes complex nested countdown rule settings.
+     *
+     * Validates input is an array, iterates and sanitizes each rule's properties,
+     * defaults alignment, and returns the cleaned array.
+     *
+     * @param array $input Array of countdown rules.
+     * @return array Cleaned array of rules.
+     */
+    public function sanitize_countdown_rules( $input ) {
+        $clean_rules = array();
+        if ( ! is_array( $input ) ) {
+            return array();
+        }
+
+        foreach( $input as $rule ) {
+            if ( ! is_array( $rule ) ) {
+                continue;
+            }
+
+            $clean_rule = array();
+            
+            // Sanitize properties (assuming common structure)
+            $clean_rule['taxonomy'] = isset( $rule['taxonomy'] ) ? sanitize_key( $rule['taxonomy'] ) : '';
+            $clean_rule['value']    = isset( $rule['value'] ) ? sanitize_text_field( $rule['value'] ) : '';
+            $clean_rule['end_time'] = isset( $rule['end_time'] ) ? sanitize_text_field( $rule['end_time'] ) : '';
+            $clean_rule['message']  = isset( $rule['message'] ) ? sanitize_text_field( $rule['message'] ) : '';
+
+            // Sanitize align and default to 'left'
+            $align = isset( $rule['align'] ) ? sanitize_key( $rule['align'] ) : 'left';
+            $clean_rule['align'] = in_array( $align, array('left', 'right', 'center'), true ) ? $align : 'left';
+
+            // Only add the rule if it has sufficient data (e.g., a taxonomy or value)
+            if ( ! empty( $clean_rule['taxonomy'] ) || ! empty( $clean_rule['value'] ) || ! empty( $clean_rule['end_time'] ) ) {
+                $clean_rules[] = $clean_rule;
+            }
+        }
+        
+        return $clean_rules;
     }
 
     /**
