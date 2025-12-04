@@ -84,6 +84,7 @@ if ( ! class_exists( 'Cirrusly_Commerce' ) ) {
  * @since  1.0.0
  * @return Cirrusly_Commerce
  */
+// ... existing code ...
 class Cirrusly_Commerce_Main {
 
     private static $instance = null;
@@ -107,6 +108,19 @@ class Cirrusly_Commerce_Main {
      * injects the Settings (and upgrade) link into the plugin list in the admin.
      */
     public function __construct() {
+        // Define includes path
+        $includes_path = plugin_dir_path( __FILE__ ) . 'includes/';
+
+        // Load Module Files
+        // Core is loaded at the top of the file, ensuring Cirrusly_Commerce_Core exists if it's in class-core.php
+        require_once $includes_path . 'class-gmc.php';
+        require_once $includes_path . 'class-pricing.php';
+        require_once $includes_path . 'class-audit.php';
+        require_once $includes_path . 'class-reviews.php';
+        require_once $includes_path . 'class-blocks.php';
+        require_once $includes_path . 'class-compatibility.php';
+        require_once $includes_path . 'class-badges.php';
+
         // Initialize Modules
         new Cirrusly_Commerce_Core();
         new Cirrusly_Commerce_GMC();
@@ -126,7 +140,6 @@ class Cirrusly_Commerce_Main {
     }
 
     /**
-     * Run activation tasks for the plugin.
      *
      * Schedules a daily 'cirrusly_gmc_daily_scan' cron event if not already scheduled, schedules a weekly
      * 'cirrusly_weekly_profit_report' cron event if not already scheduled, and enables the
