@@ -95,6 +95,7 @@ class Cirrusly_Commerce_Core {
         $jwt = $payload . "." . $base64Url($signature);
 
         $response = wp_remote_post( 'https://oauth2.googleapis.com/token', array(
+            'timeout' => 15,
             'body' => array(
                 'grant_type' => 'urn:ietf:params:oauth:grant-type:jwt-bearer',
                 'assertion' => $jwt
@@ -334,7 +335,7 @@ class Cirrusly_Commerce_Core {
         echo "WooCommerce: " . (class_exists('WooCommerce') ? WC()->version : 'Not Installed') . "\n";
         echo "Cirrusly Commerce: " . CIRRUSLY_COMMERCE_VERSION . "\n";
         echo "PHP Version: " . phpversion() . "\n";
-        echo "Server Software: " . $_SERVER['SERVER_SOFTWARE'] . "\n";
+        echo "Server Software: " . esc_html( $_SERVER['SERVER_SOFTWARE'] ) . "\n";
         echo "Active Plugins:\n";
         $plugins = get_option('active_plugins');
         foreach($plugins as $p) { echo "- " . $p . "\n"; }
@@ -567,7 +568,7 @@ class Cirrusly_Commerce_Core {
         return $input;
     }
 
-    /****
+    /**
      * Retrieve the shipping and pricing configuration merged with default values.
      *
      * If no saved option exists for a key, the returned array provides sensible defaults
@@ -1102,7 +1103,7 @@ class Cirrusly_Commerce_Core {
     public function execute_scheduled_scan() {
         $scanner = new Cirrusly_Commerce_GMC();
         $results = $scanner->run_gmc_scan_logic();
-        $scan_data = array( 'timestamp' => current_time( 'timestamp' ), 'results' => $results );
+        $scan_data = array( 'timestamp' => time(), 'results' => $results );
         update_option( 'woo_gmc_scan_data', $scan_data, false );
         
         // Note: The setting 'enable_email_report' is checked here, but currently missing from the Settings UI form.

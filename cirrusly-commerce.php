@@ -154,7 +154,7 @@ class Cirrusly_Commerce_Main {
         
     }
 
-    / **
+    /**
      * Run plugin deactivation routines.
      *
      * Clears the plugin's scheduled cron hooks and notifies Freemius of the deactivation event when the Freemius SDK is available.
@@ -163,10 +163,8 @@ class Cirrusly_Commerce_Main {
         wp_clear_scheduled_hook( 'cirrusly_gmc_daily_scan' );
         wp_clear_scheduled_hook( 'cirrusly_weekly_profit_report' ); // [ADDED]
         
-        // Freemius deactivation hook (safe check)
-        if ( function_exists('cc_fs') && cc_fs() ) {
-            cc_fs()->_deactivate_plugin_event();
-        }
+        // Freemius SDK automatically handles deactivation events via its own hooks.
+        // No manual call to internal API methods is required.
     }
 
     /**
