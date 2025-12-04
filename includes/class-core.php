@@ -448,9 +448,9 @@ public function register_admin_menus() {
             
             // Sanitize properties (assuming common structure)
             $clean_rule['taxonomy'] = isset( $rule['taxonomy'] ) ? sanitize_key( $rule['taxonomy'] ) : '';
-            $clean_rule['value']    = isset( $rule['value'] ) ? sanitize_text_field( $rule['value'] ) : '';
-            $clean_rule['end_time'] = isset( $rule['end_time'] ) ? sanitize_text_field( $rule['end_time'] ) : '';
-            $clean_rule['message']  = isset( $rule['message'] ) ? sanitize_text_field( $rule['message'] ) : '';
+            $clean_rule['term']     = isset( $rule['term'] ) ? sanitize_text_field( $rule['term'] ) : '';
+            $clean_rule['end']      = isset( $rule['end'] ) ? sanitize_text_field( $rule['end'] ) : '';
+            $clean_rule['label']    = isset( $rule['label'] ) ? sanitize_text_field( $rule['label'] ) : '';
 
             // Sanitize align and default to 'left'
             $align = isset( $rule['align'] ) ? sanitize_key( $rule['align'] ) : 'left';
@@ -727,8 +727,8 @@ public function register_admin_menus() {
             // Fix: Use string comparison instead of array for compatibility with HPOS
             $orders = wc_get_orders( array(
                 'limit'        => -1, 
-                'status'       => array('wc-completed', 'wc-processing'), 
-                'date_created' => '>=' . date('Y-m-d', strtotime('-7 days')), 
+                'status'       => array('wc-completed', 'wc-processing'),
+                'date_created' => '>=' . wp_date('Y-m-d', strtotime('-7 days')), 
                 'return'       => 'ids'
             ) );
             

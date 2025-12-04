@@ -68,7 +68,7 @@ class Cirrusly_Commerce_Countdown {
         if ( ! empty( $manual_end ) ) {
             // Check if date is valid and in future
             if ( $this->is_date_future( $manual_end ) ) {
-                echo $this->generate_timer_html( $manual_end, 'Sale Ends In:', 'left' );
+                echo wp_kses_post( $this->generate_timer_html( $manual_end, 'Sale Ends In:', 'left' ) );
                 echo '<div style="margin-bottom: 15px;"></div>';
                 return; // Stop processing if manual override exists
             }
@@ -84,7 +84,7 @@ class Cirrusly_Commerce_Countdown {
                  if ( $this->is_date_future( $rule['end'] ) ) {
                     $align = isset($rule['align']) ? $rule['align'] : 'left';
                     $label = isset($rule['label']) ? $rule['label'] : 'Ends in:';
-                    echo $this->generate_timer_html( $rule['end'], $label, $align );
+                    echo wp_kses_post( $this->generate_timer_html( $manual_end, 'Sale Ends In:', 'left' ) );
                     echo '<div style="margin-bottom: 15px;"></div>';
                     break; // Apply first matching rule
                  }
@@ -137,13 +137,13 @@ class Cirrusly_Commerce_Countdown {
             <?php endif; ?>
             
             <div class="cw-timer-digits">
-                <div class="cw-time-group"><span class="cw-val cw-days"><?php echo $d_str; ?></span><span class="cw-unit">DAYS</span></div>
+                <div class="cw-time-group"><span class="cw-val cw-days"><?php echo esc_html( $d_str ); ?></span><span class="cw-unit">DAYS</span></div>
                 <span class="cw-sep">:</span>
-                <div class="cw-time-group"><span class="cw-val cw-hours"><?php echo $h_str; ?></span><span class="cw-unit">HRS</span></div>
+                <div class="cw-time-group"><span class="cw-val cw-hours"><?php echo esc_html( $h_str ); ?></span><span class="cw-unit">HRS</span></div>
                 <span class="cw-sep">:</span>
-                <div class="cw-time-group"><span class="cw-val cw-mins"><?php echo $m_str; ?></span><span class="cw-unit">MINS</span></div>
+                <div class="cw-time-group"><span class="cw-val cw-mins"><?php echo esc_html( $m_str ); ?></span><span class="cw-unit">MINS</span></div>
                 <span class="cw-sep">:</span>
-                <div class="cw-time-group"><span class="cw-val cw-secs"><?php echo $s_str; ?></span><span class="cw-unit">SECS</span></div>
+                <div class="cw-time-group"><span class="cw-val cw-secs"><?php echo esc_html( $s_str ); ?></span><span class="cw-unit">SECS</span></div>
             </div>
         </div>
         <?php

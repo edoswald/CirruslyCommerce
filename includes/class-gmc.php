@@ -550,23 +550,6 @@ class Cirrusly_Commerce_GMC {
         exit;
     }
 
-    /**
-     * Handle an AJAX request to submit a promotion to the Google Merchant Center API.
-     *
-     * Verifies the request nonce and the site Pro status, then returns a JSON response
-     * indicating success or an error message.
-     */
-    public function handle_promo_api_submit() {
-        check_ajax_referer( 'cc_promo_api_submit', 'security' );
-        
-        if ( ! Cirrusly_Commerce_Core::cirrusly_is_pro() ) {
-            wp_send_json_error( 'Pro version required for API access.' );
-        }
-
-        // Simulating success for now
-        wp_send_json_success( 'Promotion submitted.' );
-    }
-
     /****
      * Prevent publishing of products that contain critical (medical) terms when the block-on-critical option is enabled.
      *
