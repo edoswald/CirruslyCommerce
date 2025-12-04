@@ -95,6 +95,15 @@ class Cirrusly_Commerce_Main {
     }
 
     public function __construct() {
+        // Include Module Classes
+        require_once CIRRUSLY_COMMERCE_PATH . 'includes/class-gmc.php';
+        require_once CIRRUSLY_COMMERCE_PATH . 'includes/class-pricing.php';
+        require_once CIRRUSLY_COMMERCE_PATH . 'includes/class-audit.php';
+        require_once CIRRUSLY_COMMERCE_PATH . 'includes/class-reviews.php';
+        require_once CIRRUSLY_COMMERCE_PATH . 'includes/class-blocks.php';
+        require_once CIRRUSLY_COMMERCE_PATH . 'includes/class-compatibility.php';
+        require_once CIRRUSLY_COMMERCE_PATH . 'includes/class-badges.php';
+
         // Initialize Modules
         new Cirrusly_Commerce_Core();
         new Cirrusly_Commerce_GMC();
