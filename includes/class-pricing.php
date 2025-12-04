@@ -169,6 +169,7 @@ class Cirrusly_Commerce_Pricing {
         
         woocommerce_wp_text_input( array( 'id' => '_alg_msrp', 'label' => 'MSRP ($)', 'class' => 'wc_input_price short cw-msrp-input', 'value' => $msrp, 'data_type' => 'price', 'wrapper_class' => 'cw-flex-field' ));
         woocommerce_wp_text_input( array( 'id' => '_cw_est_shipping', 'label' => 'Base Ship ($)', 'class' => 'wc_input_price short cw-ship-input', 'value' => $ship, 'data_type' => 'price', 'description' => 'Auto-fills', 'wrapper_class' => 'cw-flex-field' ));
+        woocommerce_wp_text_input( array( 'id' => '_cw_sale_end', 'label' => 'Sale Timer End', 'placeholder' => 'YYYY-MM-DD HH:MM', 'class' => 'short cw-date-input', 'wrapper_class' => 'cw-flex-field','description' => 'Enter date to show countdown.' ));
         echo '</div>';
         $this->pe_render_toolbar();
         echo '</div>';
@@ -258,6 +259,7 @@ class Cirrusly_Commerce_Pricing {
         if ( isset( $_POST['_alg_msrp'] ) ) update_post_meta( $post_id, '_alg_msrp', wc_format_decimal( sanitize_text_field( wp_unslash( $_POST['_alg_msrp'] ) ) ) );
         // phpcs:ignore WordPress.Security.NonceVerification.Missing
         if ( isset( $_POST['_auto_pricing_min_price'] ) ) update_post_meta( $post_id, '_auto_pricing_min_price', wc_format_decimal( sanitize_text_field( wp_unslash( $_POST['_auto_pricing_min_price'] ) ) ) );
+        if ( isset( $_POST['_cw_sale_end'] ) ) update_post_meta( $post_id, '_cw_sale_end', sanitize_text_field( wp_unslash( $_POST['_cw_sale_end'] ) ) );
     }
 
     public function pe_save_variable( $vid, $i ) {

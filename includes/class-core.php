@@ -443,6 +443,9 @@ class Cirrusly_Commerce_Core {
 
         // Group: Badges
         register_setting( 'cirrusly_badge_group', 'cirrusly_badge_config', array( 'sanitize_callback' => array( $this, 'sanitize_settings' ) ) );
+
+        // Countdown
+        register_setting( 'cirrusly_general_group', 'cirrusly_countdown_rules', array( 'sanitize_callback' => array( $this, 'sanitize_options_array' ) ) );
     }
 
     public function sanitize_options_array( $input ) {
@@ -927,7 +930,21 @@ class Cirrusly_Commerce_Core {
                 <p class="description">Enable this to hide grayed-out Pro features from the interface.</p>
             </div>
         </div>';
-        
+
+        // Card: Promotions (Countdown)
+        echo '<div class="cc-settings-card '.esc_attr($pro_class).'">';
+            if(!$is_pro) echo '<div class="cc-pro-overlay"><a href="'.esc_url( function_exists('cc_fs') ? cc_fs()->get_upgrade_url() : '#' ).'" class="cc-upgrade-btn"><span class="dashicons dashicons-lock cc-lock-icon"></span> Unlock Smart Rules</a></div>';
+
+        echo '<div class="cc-card-header">
+            <h3>Smart Countdown Rules <span class="cc-pro-badge">PRO</span></h3>
+            <span class="dashicons dashicons-clock"></span>
+            </div>
+            <div class="cc-card-body">
+            <p>Automatically inject countdown timers based on product taxonomy (Category/Brand).</p>
+            <p class="description">Configuration for rules is currently handled via the <code>cirrusly_countdown_rules</code> filter in this version.</p>
+            </div>
+        </div>';
+
         // Card: Frontend Display (MSRP)
         echo '<div class="cc-settings-card">
             <div class="cc-card-header">
