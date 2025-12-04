@@ -269,19 +269,81 @@ class Cirrusly_Commerce_Core {
             }
         }
         
-    // Handle File Upload (Service Account JSON)
-    if ( ! empty( $_FILES['cirrusly_service_account']['tmp_name'] ) ) {
-        $file = $_FILES['cirrusly_service_account'];
-        if( $file['error'] === 0 && pathinfo($file['name'], PATHINFO_EXTENSION) === 'json' ) {
-             // READ and SAVE the content, don't just save the name
-             $json_content = file_get_contents( $file['tmp_name'] );
-             if ( json_decode( $json_content ) ) { // Validate JSON
-                 update_option( 'cirrusly_service_account_json', $json_content ); // Save content
-                 $input['service_account_uploaded'] = 'yes';
-                 $input['service_account_name'] = sanitize_file_name($file['name']);
-             }
+        // Handle File Upload (Service Account JSON)
+        if ( ! empty( $_FILES['cirrusly_service_account']['tmp_name'] ) ) {
+            $file = $_FILES['cirrusly_service_account'];
+
+            // 1. Enforce Max File Size (64KB Limit)
+            if ( $file['size'] > 65536 ) { // 64 * 1024
+                 add_settings_error( 'cirrusly_scan_config', 'size_error', 'File is too large. Max allowed size is 64KB.' );
+                 return $this->sanitize_options_array( $input );
+            }
+
+            // 2. Verify MIME Type (Robust Check)
+            $is_valid_mime = false;
+            
+            // Primary check using finfo
+            if ( function_exists( 'finfo_open' ) ) {
+                $finfo = finfo_open( FILEINFO_MIME_TYPE );
+                $mime = finfo_file( $finfo, $file['tmp_name'] );
+                finfo_close( $finfo );
+                
+                // Allow standard JSON mime types
+                if ( in_array( $mime, array( 'application/json', 'text/plain', 'text/json' ), true ) ) {
+                    $is_valid_mime = true;
+                }
+            } 
+            // Fallback to WordPress check
+            else {
+                $wp_check = wp_check_filetype_and_ext( $file['tmp_name'], $file['name'], array( 'json' => 'application/json' ) );
+                if ( $wp_check['ext'] === 'json' ) {
+                    $is_valid_mime = true;
+                }
+            }
+            
+            // Enforce extension match
+            if ( pathinfo( $file['name'], PATHINFO_EXTENSION ) !== 'json' ) {
+                $is_valid_mime = false;
+            }
+
+            if ( ! $is_valid_mime ) {
+                add_settings_error( 'cirrusly_scan_config', 'mime_error', 'Invalid file type. Please upload a valid JSON file.' );
+                return $this->sanitize_options_array( $input );
+            }
+
+            // 3. Safely Read & Validate JSON Structure
+            $json_content = file_get_contents( $file['tmp_name'] );
+            $data = json_decode( $json_content, true );
+
+            // Check valid JSON syntax
+            if ( json_last_error() !== JSON_ERROR_NONE || ! is_array( $data ) ) {
+                add_settings_error( 'cirrusly_scan_config', 'json_error', 'File does not contain valid JSON content.' );
+                return $this->sanitize_options_array( $input );
+            }
+
+            // Check for required Service Account keys
+            $required_keys = array( 'type', 'project_id', 'private_key_id', 'private_key', 'client_email' );
+            $missing_keys = array();
+            
+            foreach ( $required_keys as $key ) {
+                if ( ! isset( $data[ $key ] ) ) {
+                    $missing_keys[] = $key;
+                }
+            }
+
+            if ( ! empty( $missing_keys ) ) {
+                add_settings_error( 'cirrusly_scan_config', 'keys_missing', 'Invalid Service Account JSON. Missing required keys: ' . implode( ', ', $missing_keys ) );
+                return $this->sanitize_options_array( $input );
+            }
+
+            // 4. Sanitize & Store (Only on Success)
+            update_option( 'cirrusly_service_account_json', $json_content ); // Securely store raw content
+            
+            $input['service_account_uploaded'] = 'yes';
+            $input['service_account_name'] = sanitize_file_name( $file['name'] );
+
+            add_settings_error( 'cirrusly_scan_config', 'upload_success', 'Service Account JSON uploaded and verified successfully.', 'updated' );
         }
-    }
 
         return $this->sanitize_options_array( $input );
     }
