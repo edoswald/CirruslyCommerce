@@ -171,9 +171,10 @@ class Cirrusly_Commerce_Countdown {
         .cw-time-group { display: flex; flex-direction: column; align-items: center; }
         .cw-sep { font-size: 20px; font-weight: 800; color: #000; position: relative; top: -4px; }
         ";
-        wp_add_inline_style( 'wc-block-style', $css ); // Attach to WC styles or your own handle
-        // Fallback if no specific handle is active, print in head:
-        echo '<style>' . $css . '</style>';
+        // Register a minimal handle to attach inline styles
+        wp_register_style( 'cw-countdown-style', false );
+        wp_enqueue_style( 'cw-countdown-style' );
+        wp_add_inline_style( 'cw-countdown-style', $css );
     }
 
     public function render_worker_script() {
