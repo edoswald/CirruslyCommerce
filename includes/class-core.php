@@ -855,10 +855,51 @@ class Cirrusly_Commerce_Core {
         $scan_data = array( 'timestamp' => current_time( 'timestamp' ), 'results' => $results );
         update_option( 'woo_gmc_scan_data', $scan_data, false );
         
+        // Note: The setting 'enable_email_report' is checked here, but currently missing from the Settings UI form.
+        // Assuming it is manually set or intended to be coupled with 'enable_daily_scan'.
         $scan_cfg = get_option( 'cirrusly_scan_config', array() );
-        if ( !empty($scan_cfg['enable_email_report']) && $scan_cfg['enable_email_report'] === 'yes' ) {
+        
+        // Fallback: If results exist and daily scan is on, send report (or rely on hidden option)
+        $should_send = ( !empty($scan_cfg['enable_email_report']) && $scan_cfg['enable_email_report'] === 'yes' );
+
+        if ( $should_send && ! empty( $results ) ) {
             $to = !empty($scan_cfg['email_recipient']) ? $scan_cfg['email_recipient'] : get_option('admin_email');
-            wp_mail( $to, 'Cirrusly Commerce: Daily Scan Report', 'Scan Completed. Issues: ' . count($results) );
+            $subject = 'Action Required: ' . count($results) . ' Issues Found in GMC Health Scan';
+            
+            // Build HTML Message
+            $message  = '<h2>Cirrusly Commerce Daily Health Report</h2>';
+            $message .= '<p>The daily scan detected <strong>' . count($results) . ' products</strong> with potential Google Merchant Center issues.</p>';
+            $message .= '<table border="1" cellpadding="10" cellspacing="0" style="border-collapse:collapse; width:100%; border-color:#eee;">';
+            $message .= '<tr style="background:#f9f9f9;"><th>Product</th><th>Severity</th><th>Issue</th><th>Action</th></tr>';
+            
+            foreach ( $results as $row ) {
+                $product = wc_get_product( $row['product_id'] );
+                if ( ! $product ) continue;
+                
+                $issues_html = '';
+                foreach ( $row['issues'] as $issue ) {
+                    $color = ($issue['type'] === 'critical') ? '#d63638' : '#dba617';
+                    $issues_html .= '<div style="color:'. $color .'; margin-bottom:4px;"><strong>' . ucfirst($issue['type']) . ':</strong> ' . esc_html($issue['msg']) . '</div>';
+                }
+
+                $edit_url = admin_url( 'post.php?post=' . $row['product_id'] . '&action=edit' );
+                
+                $message .= '<tr>';
+                $message .= '<td><a href="' . $edit_url . '">' . $product->get_name() . '</a></td>';
+                $message .= '<td>' . $issues_html . '</td>';
+                $message .= '<td>See severity details above</td>';
+                $message .= '<td><a href="' . $edit_url . '" style="text-decoration:none; background:#2271b1; color:#fff; padding:5px 10px; border-radius:3px;">Fix Now</a></td>';
+                $message .= '</tr>';
+            }
+            
+            $message .= '</table>';
+            $message .= '<p style="margin-top:20px;">You can view the full report in your <a href="' . admin_url('admin.php?page=cirrusly-gmc') . '">GMC Hub Dashboard</a>.</p>';
+
+            // Set HTML Content Type
+            add_filter( 'wp_mail_content_type', function() { return 'text/html'; } );
+            wp_mail( $to, $subject, $message );
+            // Reset Content Type
+            remove_filter( 'wp_mail_content_type', function() { return 'text/html'; } );
         }
     }
 }
