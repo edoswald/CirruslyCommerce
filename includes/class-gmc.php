@@ -717,4 +717,100 @@ class Cirrusly_Commerce_GMC {
         <script>jQuery(function($){ var $wp_inline_edit = inlineEditPost.edit; inlineEditPost.edit = function( id ) { $wp_inline_edit.apply( this, arguments ); var pid = typeof(id)=='object'?parseInt(this.getId(id)):parseInt(id); if(pid>0){ var $row=$('#post-'+pid), $h=$row.find('.gmc-hidden-data'), $e=$('#edit-'+pid); $e.find('input[name="gmc_is_custom_product"]').prop('checked', 'yes'===$h.data('custom')); } }; });</script>
         <?php
     }
+
+    /**
+ * Helper: Get Authenticated Google Client
+ * Returns the client or WP_Error.
+ */
+public static function get_google_client() {
+    $json_key = get_option( 'cirrusly_gmc_service_account_json' ); 
+    
+    // Safety: Check if Composer loaded the class
+    if ( ! class_exists( 'Google\Client' ) ) {
+        return new WP_Error( 'missing_lib', 'Google Library not loaded. Run composer install.' );
+    }
+
+    if ( empty( $json_key ) ) {
+        return new WP_Error( 'missing_creds', 'Missing Service Account JSON.' );
+    }
+
+    try {
+        $client = new Google\Client();
+        $client->setApplicationName( 'Cirrusly Commerce' );
+        $client->setAuthConfig( json_decode( $json_key, true ) );
+        $client->setScopes([
+            'https://www.googleapis.com/auth/content',
+            'https://www.googleapis.com/auth/cloud-language'
+        ]);
+        
+        return $client;
+    } catch ( Exception $e ) {
+        return new WP_Error( 'auth_failed', 'Auth Error: ' . $e->getMessage() );
+    }
+}
+
+public function handle_promo_api_submit() {
+    // ... [Your Security/Nonce Checks] ...
+
+    $client = self::get_google_client();
+    if ( is_wp_error( $client ) ) wp_send_json_error( $client->get_error_message() );
+
+    $merchant_id = get_option( 'cirrusly_gmc_merchant_id' );
+    
+    // Initialize the Service
+    $service = new Google\Service\ShoppingContent( $client );
+
+    try {
+        // Create Promotion Object
+        $promo = new Google\Service\ShoppingContent\Promotion();
+        $promo->setPromotionId( $id );
+        $promo->setLongTitle( $title );
+        // ... (Set other fields like dates/codes) ...
+
+        // Send to Google
+        $service->promotions->create( $merchant_id, $promo );
+
+        wp_send_json_success( 'Promotion submitted successfully!' );
+    } catch ( Exception $e ) {
+        wp_send_json_error( 'Google Error: ' . $e->getMessage() );
+    }
+}
+
+private function is_medical_content( $text ) {
+    if ( str_word_count( $text ) < 20 ) return false;
+
+    $client = self::get_google_client();
+    if ( is_wp_error( $client ) ) return false;
+
+    // Initialize the Service
+    $service = new Google\Service\CloudNaturalLanguage( $client );
+
+    try {
+        // Build Document
+        $doc = new Google\Service\CloudNaturalLanguage\Document();
+        $doc->setContent( $text );
+        $doc->setType( 'PLAIN_TEXT' );
+
+        // Build Request
+        $request = new Google\Service\CloudNaturalLanguage\ClassifyTextRequest();
+        $request->setDocument( $doc );
+
+        // Execute
+        $result = $service->documents->classifyText( $request );
+        
+        // Analyze Categories
+        foreach ( $result->getCategories() as $category ) {
+            $name = $category->getName(); 
+            if ( strpos( $name, '/Health' ) !== false || strpos( $name, '/Medical' ) !== false ) {
+                return true;
+            }
+        }
+    } catch ( Exception $e ) {
+        // Log quietly
+        error_log( 'NLP Error: ' . $e->getMessage() );
+    }
+    
+    return false;
+}
+   
 }

@@ -178,6 +178,70 @@ class Cirrusly_Commerce_Badges {
         if ( $start && $end && $now >= $start && $now <= $end ) {
             $output .= '<span class="cw-badge-pill" style="background-color:#826eb4;">Event</span>';
         }
+
+    // 4. SMART BADGE: SENTIMENT (Customer Love)
+        // Check if Pro AND connected to Google NLP
+        if ( Cirrusly_Commerce_Core::cirrusly_is_pro() ) {
+            $client = Cirrusly_Commerce_GMC::get_google_client();
+            
+            if ( ! is_wp_error( $client ) ) {
+                $sentiment_badge = $this->get_sentiment_badge( $product, $client );
+                if ( $sentiment_badge ) $output .= $sentiment_badge;
+            }
+        }
+
+        return $output;
+
+    /**
+     * Analyze recent reviews using Google NLP to determine if "Customer Favorite"
+     */
+    private function get_sentiment_badge( $product, $client ) {
+        // Simple caching to avoid API costs/latency on every page load
+        $cache_key = 'cc_sentiment_' . $product->get_id();
+        $cached = get_transient( $cache_key );
+        if ( false !== $cached ) return $cached;
+
+        $comments = get_comments( array( 'post_id' => $product->get_id(), 'number' => 5, 'status' => 'approve' ) );
+        if ( empty( $comments ) ) {
+            set_transient( $cache_key, '', DAY_IN_SECONDS );
+            return '';
+        }
+
+        try {
+            $service = new Google\Service\CloudNaturalLanguage( $client );
+            $total_score = 0;
+            $count = 0;
+
+            foreach ( $comments as $comment ) {
+                $doc = new Google\Service\CloudNaturalLanguage\Document();
+                $doc->setContent( $comment->comment_content );
+                $doc->setType( 'PLAIN_TEXT' );
+                
+                $request = new Google\Service\CloudNaturalLanguage\AnalyzeSentimentRequest();
+                $request->setDocument($doc);
+
+                $resp = $service->documents->analyzeSentiment( $request );
+                $score = $resp->getDocumentSentiment()->getScore();
+                
+                $total_score += $score;
+                $count++;
+            }
+
+            // If average sentiment is > 0.6 (Highly Positive)
+            if ( $count > 0 && ($total_score / $count) > 0.6 ) {
+                $html = '<span class="cw-badge-pill" style="background-color:#e0115f;">Customer Fave ❤️</span>';
+                set_transient( $cache_key, $html, 7 * DAY_IN_SECONDS );
+                return $html;
+            }
+
+        } catch ( Exception $e ) {
+            // fail silently
+        }
+        
+        set_transient( $cache_key, '', DAY_IN_SECONDS );
+        return '';
+    }
+
     }
     
     /* --------------------------------------------------------- */

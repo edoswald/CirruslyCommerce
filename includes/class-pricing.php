@@ -260,6 +260,8 @@ class Cirrusly_Commerce_Pricing {
         // phpcs:ignore WordPress.Security.NonceVerification.Missing
         if ( isset( $_POST['_auto_pricing_min_price'] ) ) update_post_meta( $post_id, '_auto_pricing_min_price', wc_format_decimal( sanitize_text_field( wp_unslash( $_POST['_auto_pricing_min_price'] ) ) ) );
         if ( isset( $_POST['_cw_sale_end'] ) ) update_post_meta( $post_id, '_cw_sale_end', sanitize_text_field( wp_unslash( $_POST['_cw_sale_end'] ) ) );
+        // NEW: Trigger Real-Time Google Sync
+        $this->push_update_to_gmc( $post_id );
     }
 
     public function pe_save_variable( $vid, $i ) {
@@ -271,5 +273,40 @@ class Cirrusly_Commerce_Pricing {
         if ( isset( $_POST['_alg_msrp'][$i] ) ) update_post_meta( $vid, '_alg_msrp', wc_format_decimal( sanitize_text_field( wp_unslash( $_POST['_alg_msrp'][$i] ) ) ) );
         // phpcs:ignore WordPress.Security.NonceVerification.Missing
         if ( isset( $_POST['_auto_pricing_min_price'][$i] ) ) update_post_meta( $vid, '_auto_pricing_min_price', wc_format_decimal( sanitize_text_field( wp_unslash( $_POST['_auto_pricing_min_price'][$i] ) ) ) );
+        // NEW: Trigger Real-Time Google Sync   
+        $this->push_update_to_gmc( $vid );
     }
+
+    /**
+     * Pushes price/stock updates to Google immediately.
+     */
+    private function push_update_to_gmc( $product_id ) {
+        $client = Cirrusly_Commerce_GMC::get_google_client();
+        if ( is_wp_error( $client ) ) return; // No connection = No sync
+
+        $product = wc_get_product( $product_id );
+        if ( ! $product ) return;
+
+        $merchant_id = get_option( 'cirrusly_gmc_merchant_id' );
+        $service = new Google\Service\ShoppingContent( $client );
+
+        // Construct GMC ID (online:en:US:ID)
+        // Note: You might want to make 'US' and 'en' configurable settings later
+        $gmc_id = sprintf( 'online:en:US:%s', $product->get_sku() ?: $product->get_id() );
+
+        try {
+            $inventory = new Google\Service\ShoppingContent\ProductInventory();
+            $inventory->setAvailability( $product->is_in_stock() ? 'in stock' : 'out of stock' );
+            
+            $price = new Google\Service\ShoppingContent\Price();
+            $price->setValue( $product->get_price() );
+            $price->setCurrency( get_woocommerce_currency() );
+            $inventory->setPrice( $price );
+
+            $service->inventory->set( $merchant_id, $gmc_id, $inventory );
+        } catch ( Exception $e ) {
+            error_log( 'GMC Sync Failed: ' . $e->getMessage() );
+        }
+    }
+
 }
