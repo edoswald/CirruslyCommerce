@@ -10,12 +10,25 @@ jQuery(document).ready(function($) {
         return cw_ship_config['classes']['default'] || {cost:10.00};
     }
     
+    /**
+     * Determine the shipping revenue charge for a given price using configured tiers.
+     *
+     * @returns {number} The matching tier's charge, or 0 if no tier applies.
+     */
     function getShippingRevenue(price) {
         var tiers = cw_ship_config['revenue_tiers']; if (!tiers) return 0;
         for (var i=0; i<tiers.length; i++) { if (price >= tiers[i].min && price <= tiers[i].max) return tiers[i].charge; }
         return 0;
     }
     
+    /**
+     * Compute the payment processing fee for a given total incoming amount using the configured fee profile.
+     * 
+     * Reads fee settings from `cw_ship_config`. In `single` mode the fee is computed from the primary percentage and flat fee. 
+     * In `multi` mode the fee is a blend of two percentage+flat schedules combined according to `profile_split`.
+     * 
+     * @param {number} total_inc - The total incoming amount (for example, price plus shipping revenue) to base the fee on.
+     * @returns {number} The calculated fee amount. */
     function getFee(total_inc) {
         var mode = cw_ship_config.profile_mode || 'single';
         var pct = cw_ship_config.payment_pct ? (cw_ship_config.payment_pct/100) : 0.029;
@@ -35,6 +48,21 @@ jQuery(document).ready(function($) {
         return fee1;
     }
     
+    /**
+     * Build a lookup of relevant form elements for the product or variation containing the given element.
+     * @param {$} $el - A jQuery element inside the target form or .woocommerce_variation container.
+     * @returns {Object} An object with jQuery references:
+     *  - reg: regular price input,
+     *  - sale: sale price input,
+     *  - cost: cost input,
+     *  - min: minimum-price input,
+     *  - msrp: MSRP input,
+     *  - ship: estimated shipping input,
+     *  - shipClass: shipping class select,
+     *  - display: profit display element,
+     *  - matrix: shipping matrix container,
+     *  - rounding: rounding strategy control.
+     */
     function getContext($el) {
         var $c = $el.closest('form, .woocommerce_variation');
         
@@ -64,6 +92,12 @@ jQuery(document).ready(function($) {
         };
     }
     
+    /**
+     * Round a numeric price according to a chosen rounding strategy.
+     * @param {number|string} price - The input price to round; non-numeric or falsy values yield 0.
+     * @param {string} strategy - Rounding strategy: `'99'` (floor to integer then +0.99), `'50'` (round to .00, .50, or next integer based on decimal thresholds), `'nearest_5'` (round to nearest multiple of 5), or any other value for standard two-decimal rounding.
+     * @returns {number} The rounded price.
+     */
     function applyRounding(price, strategy) {
         if (!price || isNaN(price)) return 0;
         price = parseFloat(price);
@@ -80,6 +114,13 @@ jQuery(document).ready(function($) {
         return parseFloat(price.toFixed(2));
     }
 
+    /**
+     * Compute and render profit, margin, and an optional shipping matrix for the product/variation associated with the provided element.
+     *
+     * Reads price (regular/sale), cost, shipping, minimum price, and shipping class from the element's context; computes shipping revenue, payment fees, net profit, margin, and a floor margin when a minimum price is present. Updates the UI by writing the profit and margin into the display (.cw-profit-val and .cw-margin-val), adjusting the minimum-price input border color when floor margin is negative, and showing, hiding, and populating the shipping matrix section when configured.
+     *
+     * @param {$} $el - A jQuery element inside a product form or variation used to locate related inputs and display containers.
+     */
     function updateMetrics($el) {
         var ctx = getContext($el);
         if (!ctx.reg || !ctx.reg.length) return;
