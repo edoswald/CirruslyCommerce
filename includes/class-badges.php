@@ -138,8 +138,11 @@ class Cirrusly_Commerce_Badges {
     /* fs_premium_only start                                     */
     /* --------------------------------------------------------- */
     
+    // Only render SMART badges for PRO users
+    $is_pro = Cirrusly_Commerce_Core::cirrusly_is_pro();
+    
     // 1. SMART: INVENTORY (Low Stock)
-    if ( ! empty($badge_cfg['smart_inventory']) && $badge_cfg['smart_inventory'] === 'yes' ) {
+    if ( $is_pro && ! empty($badge_cfg['smart_inventory']) && $badge_cfg['smart_inventory'] === 'yes' ) {
         if ( $product->managing_stock() && $product->get_stock_quantity() > 0 && $product->get_stock_quantity() < 5 ) {
             $output .= '<span class="cw-badge-pill" style="background-color:#dba617;">Low Stock</span>';
         }
@@ -147,7 +150,7 @@ class Cirrusly_Commerce_Badges {
 
     // 2. SMART: PERFORMANCE (Best Seller)
     // Check if total sales > 50 (Simple threshold) or use transient for Top 10
-    if ( ! empty($badge_cfg['smart_performance']) && $badge_cfg['smart_performance'] === 'yes' ) {
+    if ( $is_pro && ! empty($badge_cfg['smart_performance']) && $badge_cfg['smart_performance'] === 'yes' ) {
         // Optimization: Check simple sales count to avoid heavy queries on every load
         if ( $product->get_total_sales() > 50 ) {
             $output .= '<span class="cw-badge-pill" style="background-color:#00a32a;">Best Seller</span>';
@@ -155,7 +158,7 @@ class Cirrusly_Commerce_Badges {
     }
 
     // 3. SMART: SCHEDULER (Date Range)
-    if ( ! empty($badge_cfg['smart_scheduler']) && $badge_cfg['smart_scheduler'] === 'yes' ) {
+    if ( $is_pro && ! empty($badge_cfg['smart_scheduler']) && $badge_cfg['smart_scheduler'] === 'yes' ) {
         $start = !empty($badge_cfg['scheduler_start']) ? strtotime($badge_cfg['scheduler_start']) : 0;
         $end   = !empty($badge_cfg['scheduler_end']) ? strtotime($badge_cfg['scheduler_end']) : 0;
         $now   = current_time('timestamp');
