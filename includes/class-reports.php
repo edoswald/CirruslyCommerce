@@ -25,8 +25,8 @@ class Cirrusly_Commerce_Reports {
 
         // 3. Gather Data (Last 7 Days)
         $date_query = array(
-            'after'     => date('Y-m-d', strtotime('-7 days')),
-            'before'    => date('Y-m-d', strtotime('now')),
+            'after'     => wp_date('Y-m-d', strtotime('-7 days')),
+            'before'    => wp_date('Y-m-d', current_time('timestamp')),
             'inclusive' => true,
         );
         
