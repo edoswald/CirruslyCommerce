@@ -49,22 +49,91 @@ class Cirrusly_Commerce_Core {
     }
 
     /**
-         * Create an OAuth2 access token using the stored Google service account JSON.
-         *
-         * Builds and signs a JWT from the saved service account credentials and exchanges it
-         * with Google's OAuth2 token endpoint to obtain an access token for the Content API.
-         *
-         * @return string|WP_Error The access token on success.
-         *                         Returns a WP_Error with codes:
-         *                         - 'no_creds' when no service account JSON is stored.
-         *                         - 'invalid_creds' when required keys (client_email/private_key) are missing.
-         *                         - 'signing_failed' when the JWT could not be signed with the private key.
-         *                         - 'auth_failed' when Google returns an error response.
-         *                         Or a transport `WP_Error` produced by `wp_remote_post`.
-         */
+     * Derive an encryption key from the WordPress Auth Salt.
+     * This ensures the key is unique to the site and stored in a file (wp-config.php)
+     * without requiring manual user edits.
+     */
+    private static function get_encryption_key() {
+        return hash( 'sha256', wp_salt( 'auth' ) );
+    }
+
+    /**
+     * Encrypt data using AES-256-CBC.
+     *
+     * @param string $data The plaintext data.
+     * @return string|false Base64 encoded string containing IV and encrypted data, or false on failure.
+     */
+    private static function encrypt_data( $data ) {
+        if ( empty( $data ) ) return false;
+
+        $key = self::get_encryption_key();
+        $method = 'aes-256-cbc';
+        $iv_length = openssl_cipher_iv_length( $method );
+        $iv = openssl_random_pseudo_bytes( $iv_length );
+        
+        $encrypted = openssl_encrypt( $data, $method, $key, 0, $iv );
+        
+        if ( false === $encrypted ) return false;
+
+        // Store IV + Encrypted Data together, base64 encoded
+        return base64_encode( $iv . $encrypted );
+    }
+
+    /**
+     * Decrypt data using AES-256-CBC.
+     *
+     * @param string $data The base64 encoded encrypted string.
+     * @return string|false The decrypted plaintext, or false on failure.
+     */
+    private static function decrypt_data( $data ) {
+        if ( empty( $data ) ) return false;
+
+        $key = self::get_encryption_key();
+        $data = base64_decode( $data );
+        $method = 'aes-256-cbc';
+        $iv_length = openssl_cipher_iv_length( $method );
+
+        // Basic validation
+        if ( strlen( $data ) <= $iv_length ) return false;
+
+        $iv = substr( $data, 0, $iv_length );
+        $encrypted_payload = substr( $data, $iv_length );
+
+        return openssl_decrypt( $encrypted_payload, $method, $key, 0, $iv );
+    }
+
+    /**
+     * Create an OAuth2 access token using the stored Google service account JSON.
+     *
+     * Builds and signs a JWT from the saved service account credentials and exchanges it
+     * with Google's OAuth2 token endpoint to obtain an access token for the Content API.
+     *
+     * @return string|WP_Error The access token on success.
+     * Returns a WP_Error with codes:
+     * - 'no_creds' when no service account JSON is stored.
+     * - 'invalid_creds' when required keys (client_email/private_key) are missing.
+     * - 'signing_failed' when the JWT could not be signed with the private key.
+     * - 'auth_failed' when Google returns an error response.
+     * Or a transport `WP_Error` produced by `wp_remote_post`.
+     */
     public static function get_google_access_token() {
-        $json_raw = get_option( 'cirrusly_service_account_json' );
-        if ( ! $json_raw ) return new WP_Error( 'no_creds', 'Service Account JSON not uploaded.' );
+        $stored_data = get_option( 'cirrusly_service_account_json' );
+        if ( ! $stored_data ) return new WP_Error( 'no_creds', 'Service Account JSON not uploaded.' );
+
+        // 1. Try to decrypt
+        $json_raw = self::decrypt_data( $stored_data );
+
+        // 2. Fallback: Check if it's legacy plaintext (backward compatibility)
+        if ( ! $json_raw ) {
+            // Attempt to decode as plain JSON to see if it's old unencrypted data
+            $test_json = json_decode( $stored_data, true );
+            if ( json_last_error() === JSON_ERROR_NONE && isset( $test_json['private_key'] ) ) {
+                $json_raw = $stored_data; // It was plaintext, use as is
+            } else {
+                // If it's not valid JSON and decryption failed, it's unusable
+                return new WP_Error( 'decrypt_failed', 'Could not decrypt Service Account credentials. Please re-upload the JSON file.' );
+            }
+        }
 
         $creds = json_decode( $json_raw, true );
         if ( empty($creds['client_email']) || empty($creds['private_key']) ) {
@@ -395,7 +464,7 @@ class Cirrusly_Commerce_Core {
      *
      * @param array $input The submitted scan configuration settings to sanitize and normalize.
      * @return array The sanitized settings array, possibly updated with `service_account_uploaded` and
-     *               `service_account_name` when an upload was processed.
+     * `service_account_name` when an upload was processed.
      */
     public function handle_scan_schedule( $input ) {
         wp_clear_scheduled_hook( 'cirrusly_gmc_daily_scan' );
@@ -473,13 +542,20 @@ class Cirrusly_Commerce_Core {
                 return $this->sanitize_options_array( $input );
             }
 
-            // 4. Sanitize & Store (Only on Success)
-            update_option( 'cirrusly_service_account_json', $json_content, false ); // Securely store raw content without autoload
-            
-            $input['service_account_uploaded'] = 'yes';
-            $input['service_account_name'] = sanitize_file_name( $file['name'] );
+            // 4. Encrypt & Store
+            // We now encrypt the JSON content before passing it to update_option
+            $encrypted_content = self::encrypt_data( $json_content );
 
-            add_settings_error( 'cirrusly_scan_config', 'upload_success', 'Service Account JSON uploaded and verified successfully.', 'updated' );
+            if ( $encrypted_content ) {
+                update_option( 'cirrusly_service_account_json', $encrypted_content, false );
+                
+                $input['service_account_uploaded'] = 'yes';
+                $input['service_account_name'] = sanitize_file_name( $file['name'] );
+
+                add_settings_error( 'cirrusly_scan_config', 'upload_success', 'Service Account JSON uploaded and encrypted successfully.', 'updated' );
+            } else {
+                add_settings_error( 'cirrusly_scan_config', 'encrypt_error', 'Encryption failed. Please try again.' );
+            }
         }
 
         return $this->sanitize_options_array( $input );
@@ -493,17 +569,17 @@ class Cirrusly_Commerce_Core {
      * normalizes boolean-like smart feature checkboxes to 'yes'.
      *
      * @param array $input Associative settings array submitted from the admin form.
-     *                     Expected keys may include:
-     *                     - revenue_tiers (array): tiers with 'min', optional 'max' and 'charge'.
-     *                     - matrix_rules (array): rules with 'key', 'label', 'cost_mult'.
-     *                     - class_costs (array): mapping of shipping class slug => cost.
-     *                     - custom_badges (array): badges with 'tag', 'url', 'tooltip', 'width'.
-     *                     - payment_pct, payment_flat, payment_pct_2, payment_flat_2, profile_split (numeric).
-     *                     - profile_mode (string).
-     *                     - smart_inventory, smart_performance, smart_scheduler (checkboxes).
+     * Expected keys may include:
+     * - revenue_tiers (array): tiers with 'min', optional 'max' and 'charge'.
+     * - matrix_rules (array): rules with 'key', 'label', 'cost_mult'.
+     * - class_costs (array): mapping of shipping class slug => cost.
+     * - custom_badges (array): badges with 'tag', 'url', 'tooltip', 'width'.
+     * - payment_pct, payment_flat, payment_pct_2, payment_flat_2, profile_split (numeric).
+     * - profile_mode (string).
+     * - smart_inventory, smart_performance, smart_scheduler (checkboxes).
      *
      * @return array The sanitized and normalized settings array ready to be saved (with JSON-encoded
-     *               keys and cleaned scalar values).
+     * keys and cleaned scalar values).
      */
     public function sanitize_settings( $input ) {
         if ( isset( $input['revenue_tiers'] ) && is_array( $input['revenue_tiers'] ) ) {
@@ -575,15 +651,15 @@ class Cirrusly_Commerce_Core {
      * (JSON-encoded strings for tier/matrix/class data and numeric defaults for payment/profile settings).
      *
      * @return array The merged configuration where saved options override defaults. Keys:
-     *               - 'revenue_tiers_json' (string, JSON-encoded array of revenue tiers)
-     *               - 'matrix_rules_json' (string, JSON-encoded matrix rules)
-     *               - 'class_costs_json' (string, JSON-encoded class costs)
-     *               - 'payment_pct' (float)
-     *               - 'payment_flat' (float)
-     *               - 'profile_mode' (string, e.g., 'single' or 'multi')
-     *               - 'payment_pct_2' (float)
-     *               - 'payment_flat_2' (float)
-     *               - 'profile_split' (int)
+     * - 'revenue_tiers_json' (string, JSON-encoded array of revenue tiers)
+     * - 'matrix_rules_json' (string, JSON-encoded matrix rules)
+     * - 'class_costs_json' (string, JSON-encoded class costs)
+     * - 'payment_pct' (float)
+     * - 'payment_flat' (float)
+     * - 'profile_mode' (string, e.g., 'single' or 'multi')
+     * - 'payment_pct_2' (float)
+     * - 'payment_flat_2' (float)
+     * - 'profile_split' (int)
      */
     public function get_global_config() {
         $saved = get_option( 'cirrusly_shipping_config' );
