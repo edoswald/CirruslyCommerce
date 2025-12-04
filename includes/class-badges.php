@@ -278,7 +278,13 @@ class Cirrusly_Commerce_Badges {
     }
 
     /**
-     * Analyze recent reviews using Google NLP to determine if "Customer Favorite"
+     * Determine whether recent approved reviews exhibit strong positive sentiment and return a "Customer Fave" badge HTML when they do.
+     *
+     * Uses the Google Cloud Natural Language API to analyze up to 5 approved comments for the given product, computes the average sentiment score, and returns a small HTML badge when the average score exceeds 0.6. Results are cached in a transient: a positive badge is cached for 7 days; an empty result is cached for 1 day. On any error or if there are no comments, an empty string is returned (and cached for 1 day).
+     *
+     * @param \WC_Product $product The product to analyze.
+     * @param \Google_Client $client An authenticated Google API client configured for Cloud Natural Language.
+     * @return string The badge HTML ("Customer Fave ❤️") when sentiment is highly positive, or an empty string otherwise.
      */
     private function get_sentiment_badge( $product, $client ) {
         // Simple caching to avoid API costs/latency on every page load

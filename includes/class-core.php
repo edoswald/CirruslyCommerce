@@ -104,9 +104,11 @@ class Cirrusly_Commerce_Core {
     }
 
     /**
-     * Create an OAuth2 access token using the stored Google service account JSON.
+     * Obtain an OAuth2 access token from the stored Google service account JSON.
      *
-     * @return string|WP_Error The access token on success.
+     * Builds and signs a JWT using the stored service account credentials and exchanges it for an OAuth2 access token.
+     *
+     * @return string|WP_Error Access token string on success, or a WP_Error describing the failure.
      */
     public static function get_google_access_token() {
         $stored_data = get_option( 'cirrusly_service_account_json' );
@@ -174,7 +176,14 @@ class Cirrusly_Commerce_Core {
     }
 
     /**
-     * Handle an AJAX inline save for audit fields on a product.
+     * Handle an AJAX request to save an inline audit field for a product.
+     *
+     * Validates user capability and request nonce, enforces PRO feature gating, and processes
+     * POST parameters `pid` (product ID), `value`, and `field`. If `pid` is greater than zero
+     * and `field` is one of `_cogs_total_value` or `_cw_est_shipping`, updates the post meta
+     * and clears the `cw_audit_data` transient. Sends a JSON success response on successful
+     * update or a JSON error with one of the messages: "Permission denied", "Pro feature required",
+     * or "Invalid data".
      */
     public function handle_audit_inline_save() {
         // Security & Permission Check
@@ -201,7 +210,11 @@ class Cirrusly_Commerce_Core {
     }
 
     /**
-     * Check if PRO features are active.
+     * Determine whether PRO features are enabled for the current context.
+     *
+     * Checks a developer override (when WP_DEBUG is true and the current user can manage options, via the `cc_dev_mode` query parameter) and the Freemius license state.
+     *
+     * @return bool `true` if PRO features are active, `false` otherwise.
      */
     public static function cirrusly_is_pro() {
         // 1. Secure Developer Override
@@ -223,6 +236,12 @@ class Cirrusly_Commerce_Core {
         return false; 
     }
 
+    / **
+     * Outputs admin CSS to hide PRO/upsell UI on Cirrusly admin pages when configured.
+     *
+     * Checks the Cirrusly scan settings and, if the 'hide_upsells' option is set to 'yes',
+     * injects a small style block that hides elements with the `.cc-pro-feature` class.
+     */
     public function cirrusly_hide_upsells_css() {
         // Only run on plugin pages
         if ( ! isset( $_GET['page'] ) || strpos( $_GET['page'], 'cirrusly-' ) === false ) return;
@@ -234,10 +253,22 @@ class Cirrusly_Commerce_Core {
     }
 
     public function force_enable_cogs() { return 'yes'; }
-    public function clear_metrics_cache() { delete_transient( 'cirrusly_dashboard_metrics' ); }
+    /**
+ * Clears the cached dashboard metrics.
+ *
+ * Removes the `cirrusly_dashboard_metrics` transient so metrics are recalculated on the next request.
+ */
+public function clear_metrics_cache() { delete_transient( 'cirrusly_dashboard_metrics' ); }
 
     /**
-     * Enqueues and localizes admin scripts and styles.
+     * Enqueue and localize admin scripts and styles for Cirrusly plugin pages and product edit screens.
+     *
+     * Loads media and the plugin admin stylesheet on Cirrusly admin pages and product edit pages.
+     * - On the Financial Audit page it enqueues the audit script and localizes AJAX URL and nonce.
+     * - On product edit screens it enqueues the pricing script and localizes shipping, pricing, matrix, class-cost, and payment configuration (as `cw_vars`) plus a shipping-class ID->slug map.
+     * Also injects a small inline script that provides UI helpers (image uploader, row add/remove, and system info toggle).
+     *
+     * @param string $hook The current admin page hook (e.g., 'post.php', 'post-new.php', or the plugin page hook).
      */
     public function enqueue_assets( $hook ) {
         $page = isset( $_GET['page'] ) ? sanitize_text_field( wp_unslash( $_GET['page'] ) ) : '';
@@ -330,8 +361,16 @@ class Cirrusly_Commerce_Core {
         }
     }
 
-    /**
-     * Render the admin page header for Cirrusly Commerce.
+    /****
+     * Render the Cirrusly Commerce admin page header including branding, status badges,
+     * system information panel, and top navigation links.
+     *
+     * Outputs the page title with logo, a PRO badge when the site is licensed,
+     * a System Info button and hidden system information panel (containing a copyable
+     * textarea), a Get Support mailto link, a version badge, and links to Dashboard,
+     * GMC Hub, Financial Audit, and Settings.
+     *
+     * @param string $title The title to display in the header.
      */
     public static function render_page_header( $title ) {
         $mailto = 'mailto:help@cirruslyweather.com?subject=Support%20Request';
@@ -382,6 +421,11 @@ class Cirrusly_Commerce_Core {
 
     }
 
+    /**
+     * Render the global Cirrusly Commerce admin page header for the given page title.
+     *
+     * @param string $title The page title to display in the header.
+     */
     public static function render_global_header( $title ) {
         self::render_page_header( $title );
     }
@@ -398,6 +442,22 @@ public function register_admin_menus() {
         add_submenu_page( 'cirrusly-commerce', 'User Manual', 'User Manual', 'edit_products', 'cirrusly-manual', array( 'Cirrusly_Commerce_Manual', 'render_page' ) );
     }
 
+    /**
+     * Register plugin settings and associate their sanitization handlers with WordPress.
+     *
+     * Registers settings for the General, Shipping (Profit Engine), Badges, and Countdown groups
+     * and maps each option to its respective sanitize callback.
+     *
+     * Registered options and their sanitize callbacks:
+     * - cirrusly_scan_config => handle_scan_schedule
+     * - cirrusly_msrp_config => sanitize_options_array
+     * - cirrusly_google_reviews_config => sanitize_options_array
+     * - cirrusly_shipping_config => sanitize_settings
+     * - cirrusly_badge_config => sanitize_settings
+     * - cirrusly_countdown_rules => sanitize_countdown_rules
+     *
+     * @return void
+     */
     public function register_settings() {
         // Consolidated Group: General
         register_setting( 'cirrusly_general_group', 'cirrusly_scan_config', array( 'sanitize_callback' => array( $this, 'handle_scan_schedule' ) ) );
@@ -414,6 +474,16 @@ public function register_admin_menus() {
         register_setting( 'cirrusly_general_group', 'cirrusly_countdown_rules', array( 'sanitize_callback' => array( $this, 'sanitize_countdown_rules' ) ) );
     }
 
+    /**
+     * Sanitizes an associative array's keys and values using sanitize_text_field.
+     *
+     * Applies sanitize_text_field to each key and value in the provided array and
+     * returns a new array containing the cleaned entries. If the input is not an
+     * array, an empty array is returned.
+     *
+     * @param array|null $input Associative array to sanitize.
+     * @return array The sanitized associative array with cleaned keys and values.
+     */
     public function sanitize_options_array( $input ) {
         $clean = array();
         if ( is_array( $input ) ) {
@@ -425,13 +495,13 @@ public function register_admin_menus() {
     }
 
     /**
-     * Sanitizes complex nested countdown rule settings.
+     * Normalize and sanitize an array of countdown rule definitions.
      *
-     * Validates input is an array, iterates and sanitizes each rule's properties,
-     * defaults alignment, and returns the cleaned array.
+     * Each returned rule will contain the keys: `taxonomy`, `value`, `end_time`, `message`,
+     * and `align` (one of "left", "right", or "center"; defaults to "left").
      *
-     * @param array $input Array of countdown rules.
-     * @return array Cleaned array of rules.
+     * @param array $input Array of countdown rules (each rule as an associative array).
+     * @return array Cleaned array of sanitized countdown rules.
      */
     public function sanitize_countdown_rules( $input ) {
         $clean_rules = array();
@@ -466,7 +536,14 @@ public function register_admin_menus() {
     }
 
     /**
-     * Sanitizes scan scheduling options and processes an optional Service Account JSON upload.
+     * Process and sanitize GMC scan scheduling settings and handle an optional Service Account JSON upload.
+     *
+     * If daily scanning is enabled, schedules the daily scan; if a valid Service Account JSON file is uploaded,
+     * the function validates the file, encrypts and stores its contents, and sets upload metadata on the returned settings.
+     *
+     * @param array $input Raw settings input from the settings form.
+     * @return array The sanitized settings array. May include keys `service_account_uploaded` (`'yes'`) and
+     *               `service_account_name` when an upload was accepted.
      */
     public function handle_scan_schedule( $input ) {
         wp_clear_scheduled_hook( 'cirrusly_gmc_daily_scan' );
@@ -543,7 +620,18 @@ public function register_admin_menus() {
     }
 
     /**
-     * Sanitizes and normalizes plugin settings.
+     * Sanitize and normalize plugin settings submitted from the admin UI.
+     *
+     * Converts complex input structures into canonical stored forms:
+     * - Converts `revenue_tiers` to `revenue_tiers_json` (array of {min,max,charge} with numeric values).
+     * - Converts `matrix_rules` to `matrix_rules_json` (keyed map with sanitized keys, labels, and numeric cost multipliers).
+     * - Converts `class_costs` to `class_costs_json` (map of sanitized class slug => float cost).
+     * - Converts `custom_badges` to `custom_badges_json` (array of badges with sanitized tag, URL, tooltip, and width).
+     * - Casts payment fields (`payment_pct`, `payment_flat`, `payment_pct_2`, `payment_flat_2`, `profile_split`) to floats and sanitizes `profile_mode`.
+     * - Normalizes smart badge checkbox flags (`smart_inventory`, `smart_performance`, `smart_scheduler`) to the string `'yes'` when present.
+     *
+     * @param array $input Raw settings input from the settings form.
+     * @return array Sanitized settings array ready to be saved to options.
      */
     public function sanitize_settings( $input ) {
         if ( isset( $input['revenue_tiers'] ) && is_array( $input['revenue_tiers'] ) ) {
@@ -609,7 +697,16 @@ public function register_admin_menus() {
     }
 
     /**
-     * Retrieve the shipping and pricing configuration merged with default values.
+     * Get the shipping and pricing configuration merged with default values.
+     *
+     * Returns the saved cirrusly_shipping_config option merged with built-in defaults for
+     * revenue tiers, scenario matrix rules, shipping class costs, payment fee settings and
+     * profile mode/split values.
+     *
+     * @return array Merged configuration array containing keys such as
+     *               `revenue_tiers_json`, `matrix_rules_json`, `class_costs_json`,
+     *               `payment_pct`, `payment_flat`, `profile_mode`, `payment_pct_2`,
+     *               `payment_flat_2`, and `profile_split`.
      */
     public function get_global_config() {
         $saved = get_option( 'cirrusly_shipping_config' );
@@ -655,7 +752,38 @@ public function register_admin_menus() {
         }
     }
 
-    // --- Metrics Caching ---
+    /**
+     * Collects and caches store metrics used by the admin dashboard.
+     *
+     * Gathers Google Merchant Center scan counts, content scan issues, catalog and cost statistics,
+     * margin and loss-maker estimates, a 7-day revenue pulse, and active badge flags, then stores
+     * the result in a transient for one hour.
+     *
+     * @return array{
+     *   gmc_critical:int,
+     *   gmc_warnings:int,
+     *   content_issues:int,
+     *   missing_cost:int,
+     *   loss_makers:int,
+     *   total_products:int,
+     *   on_sale_count:int,
+     *   avg_margin:float,
+     *   weekly_revenue:float,
+     *   weekly_orders:int,
+     *   active_badges:string[]
+     * } Associative array of dashboard metrics:
+     * - `gmc_critical`: Number of critical GMC issues.
+     * - `gmc_warnings`: Number of non-critical GMC warnings.
+     * - `content_issues`: Count of site content/policy issues from the content scan.
+     * - `missing_cost`: Count of published products/variations missing cost data.
+     * - `loss_makers`: Estimated count of products with negative net (unprofitable).
+     * - `total_products`: Total published products including variations.
+     * - `on_sale_count`: Number of products currently on sale.
+     * - `avg_margin`: Average margin percentage across sampled products (one decimal).
+     * - `weekly_revenue`: Sum of order totals in the last 7 days for completed/processing orders.
+     * - `weekly_orders`: Number of orders counted in the weekly revenue period.
+     * - `active_badges`: List of enabled smart badge strategy names.
+     */
     public static function get_dashboard_metrics() {
         $metrics = get_transient( 'cirrusly_dashboard_metrics' );
         if ( false === $metrics ) {
@@ -767,6 +895,13 @@ public function register_admin_menus() {
         return $metrics;
     }
 
+    /**
+     * Renders the Cirrusly Commerce main admin dashboard page.
+     *
+     * Outputs the dashboard UI including the Store Pulse (last 7 days), catalog and margin summary,
+     * Google Merchant Center status, store integrity metrics, and quick links. The displayed data
+     * reflect current dashboard metrics and respect PRO feature gating.
+     */
     public function render_main_dashboard() {
         echo '<div class="wrap">'; 
         self::render_page_header( 'Cirrusly Commerce Dashboard' );
@@ -1221,6 +1356,13 @@ public function register_admin_menus() {
         }
     }
 
+    /**
+     * Render the Cirrusly Commerce overview widget content for the WordPress dashboard.
+     *
+     * Outputs a compact widget that displays the last 7 days revenue and orders, average margin,
+     * a two‑cell health grid (Google Merchant Center status and loss makers), and a button
+     * linking to the full Cirrusly Commerce dashboard.
+     */
     public function render_wp_dashboard_widget() {
         $m = self::get_dashboard_metrics();
         
@@ -1259,9 +1401,9 @@ public function register_admin_menus() {
     }
 
     /**
-     * Runs the scheduled Google Merchant Center health scan, stores results, and optionally emails a report.
+     * Perform the scheduled Google Merchant Center health scan and persist the results.
      *
-     * Executes the GMC scan, saves the scan timestamp and results to the `woo_gmc_scan_data` option, and — if the cirrusly scan configuration includes `enable_email_report` set to "yes" — sends an HTML summary email to the configured `email_recipient` (or the site admin email when not set).
+     * Runs the GMC scan, updates the `woo_gmc_scan_data` option with a timestamped result set, and — when the cirrusly scan configuration has `enable_email_report` set to `"yes"` and the scan returned issues — sends an HTML summary email to the configured `email_recipient` (or the site admin email when none is configured).
      */
     public function execute_scheduled_scan() {
         $scanner = new Cirrusly_Commerce_GMC();
