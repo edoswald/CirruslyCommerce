@@ -447,14 +447,16 @@ class Cirrusly_Commerce_GMC {
                 }
             }
 
-            // 2. Check Banned Words in Title
+            // 2. Check Banned Words in Title (using word boundaries)
             foreach ( $monitored['medical'] as $word => $rules ) {
-                if ( stripos( $title, $word ) !== false ) {
+                $pattern = '/\b' . preg_quote($word, '/') . '\b/i';
+                if ( preg_match( $pattern, $title ) ) {
                     $p_issues[] = array( 'type' => 'critical', 'msg' => 'Restricted: ' . $word, 'reason' => $rules['reason'] );
                 }
             }
             foreach ( $monitored['promotional'] as $word => $rules ) {
-                if ( $rules['scope'] === 'title' && stripos( $title, $word ) !== false ) {
+                $pattern = '/\b' . preg_quote($word, '/') . '\b/i';
+                if ( $rules['scope'] === 'title' && preg_match( $pattern, $title ) ) {
                     $p_issues[] = array( 'type' => 'warning', 'msg' => 'Promo: ' . $word, 'reason' => $rules['reason'] );
                 }
             }
