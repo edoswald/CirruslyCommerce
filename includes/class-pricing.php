@@ -140,6 +140,18 @@ class Cirrusly_Commerce_Pricing {
         return $price_html;
     }
 
+    /**
+     * Render the admin UI fields for simple product pricing and the pricing toolbar.
+     *
+     * Outputs HTML inputs for Google minimum price, MAP, MSRP, base shipping, and sale timer end, populating each field from the product's post meta and then renders the pricing engine toolbar.
+     *
+     * The following meta keys are used to populate fields:
+     * - _auto_pricing_min_price (Google Min)
+     * - _cirrusly_map_price (MAP)
+     * - _alg_msrp (MSRP)
+     * - _cw_est_shipping (Base Ship)
+     * - _cw_sale_end (Sale Timer End)
+     */
     public function pe_render_simple_fields() {
         global $product_object;
         $ship = $product_object->get_meta( '_cw_est_shipping' );
@@ -251,6 +263,15 @@ class Cirrusly_Commerce_Pricing {
         <?php
     }
 
+    /**
+     * Persist simple product pricing fields to post meta and trigger a real-time GMC update.
+     *
+     * Saves submitted pricing-related fields for a simple product into post meta:
+     * `_cw_est_shipping`, `_cirrusly_map_price`, `_alg_msrp`, `_auto_pricing_min_price`, and `_cw_sale_end`.
+     * After saving, initiates a real-time Google Merchant Center inventory/price update for the product.
+     *
+     * @param int $post_id The product post ID to save meta for.
+     */
     public function pe_save_simple( $post_id ) {
         // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Woo Core Context
         if ( isset( $_POST['_cw_est_shipping'] ) ) update_post_meta( $post_id, '_cw_est_shipping', wc_format_decimal( sanitize_text_field( wp_unslash( $_POST['_cw_est_shipping'] ) ) ) );
@@ -265,6 +286,16 @@ class Cirrusly_Commerce_Pricing {
         $this->push_update_to_gmc( $post_id );
     }
 
+    /**
+     * Save pricing-related meta for a product variation and trigger a real-time GMC update.
+     *
+     * Reads variation-scoped pricing fields from the current POST (shipping estimate, MAP price,
+     * MSRP, and auto-pricing minimum), sanitizes and formats them, updates the variation's post meta,
+     * and then requests a push of the updated price/stock to Google Merchant Center.
+     *
+     * @param int $vid Variation post ID to update.
+     * @param int $i   Index of the variation in the submitted variation loop (used to read the POST arrays).
+     */
     public function pe_save_variable( $vid, $i ) {
         // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Woo Core Context
         if ( isset( $_POST['_cw_est_shipping'][$i] ) ) update_post_meta( $vid, '_cw_est_shipping', wc_format_decimal( sanitize_text_field( wp_unslash( $_POST['_cw_est_shipping'][$i] ) ) ) );
@@ -279,7 +310,13 @@ class Cirrusly_Commerce_Pricing {
     }
 
     /**
-     * Pushes price/stock updates to Google immediately.
+     * Trigger a real-time Google Merchant Center inventory update for the given product.
+     *
+     * Builds a Merchant Center product identifier (using the product SKU if available, otherwise the product ID),
+     * and sends the product's current price and availability to the configured merchant account.
+     *
+     * @param int $product_id The WooCommerce product post ID to synchronize.
+     * @return void
      */
     private function push_update_to_gmc( $product_id ) {
         $client = Cirrusly_Commerce_GMC::get_google_client();

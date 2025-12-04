@@ -711,6 +711,13 @@ class Cirrusly_Commerce_GMC {
         delete_transient( 'cirrusly_active_promos_stats' );
     }
 
+    / **
+     * Injects a small inline script on the Products list page that synchronizes the Quick Edit form's GMC fields
+     * with the product's hidden GMC metadata in the row.
+     *
+     * The script runs only on the admin products listing and updates the "Custom Product" checkbox in Quick Edit
+     * to reflect the row's stored GMC custom flag.
+     */
     public function render_quick_edit_script() {
         global $pagenow; if('edit.php'!==$pagenow || 'product'!==get_post_type()) return;
         ?>
@@ -719,8 +726,17 @@ class Cirrusly_Commerce_GMC {
     }
 
     /**
- * Helper: Get Authenticated Google Client
- * Returns the client or WP_Error.
+ * Create and return a configured Google API client for Cirrusly Commerce.
+ *
+ * Attempts to build a Google\Client using the service account JSON stored in
+ * the `cirrusly_gmc_service_account_json` option and configures scopes for
+ * Shopping Content and Cloud Natural Language APIs.
+ *
+ * @return Google\Client|WP_Error Configured Google\Client on success, or a WP_Error with one of the following codes:
+ *                                - 'missing_lib' if the Google PHP client library is not available.
+ *                                - 'missing_creds' if the service account JSON option is empty.
+ *                                - 'invalid_json' if the stored JSON cannot be decoded.
+ *                                - 'auth_failed' if client configuration or initialization fails (message included).
  */
 public static function get_google_client() {
     $json_key = get_option( 'cirrusly_gmc_service_account_json' ); 
@@ -753,6 +769,15 @@ public static function get_google_client() {
     }
 }
 
+/**
+ * Handles an AJAX request to submit a Promotion to the Google Shopping Content API.
+ *
+ * Validates the AJAX nonce and PRO entitlement, obtains a configured Google client and the
+ * merchant ID, builds a Promotion object from POSTed data (at minimum `id` and `title`),
+ * and submits it to the Merchant Center via the ShoppingContent service. Responds with
+ * JSON success on successful submission or JSON error messages for validation, configuration,
+ * client, or API failures.
+ */
 public function handle_promo_api_submit() {
     check_ajax_referer( 'cc_promo_api_submit', 'security' );
     
@@ -792,6 +817,16 @@ public function handle_promo_api_submit() {
     }
 }
 
+/**
+ * Determines whether the given text is classified as medical or health-related by Google Cloud Natural Language.
+ *
+ * Uses Google Cloud Natural Language classification and returns `true` when any returned category contains
+ * "/Health" or "/Medical". If the text is too short for reliable classification, the Google client is unavailable,
+ * or an error occurs during classification, the function returns `false`.
+ *
+ * @param string $text The text to classify.
+ * @return bool `true` if the text is classified as medical/health content, `false` otherwise.
+ */
 private function is_medical_content( $text ) {
     if ( str_word_count( $text ) < 20 ) return false;
 
