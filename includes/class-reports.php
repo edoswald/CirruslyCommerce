@@ -5,10 +5,25 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class Cirrusly_Commerce_Reports {
 
+    /**
+     * Registers the 'cirrusly_weekly_profit_report' action to call send_weekly_email.
+     *
+     * Hooks Cirrusly_Commerce_Reports::send_weekly_email so the weekly profit report is sent when the action is triggered.
+     */
     public static function init() {
         add_action( 'cirrusly_weekly_profit_report', array( __CLASS__, 'send_weekly_email' ) );
     }
 
+    /**
+     * Generate and send a weekly profit email report summarizing the last 7 days of orders.
+     *
+     * This method checks reporting configuration and Pro status, aggregates completed and processing
+     * orders from the previous 7 days to compute gross revenue, estimated COGS, estimated shipping,
+     * estimated payment processor fees, net profit, and net margin, then builds an HTML summary and
+     * emails it to the configured recipient (or the site admin email). The method exits without
+     * sending if reporting is disabled, the Pro feature is not active, or there are no orders in the
+     * period.
+     */
     public static function send_weekly_email() {
         // 1. Check if enabled
         $scan_cfg = get_option( 'cirrusly_scan_config', array() );
@@ -25,8 +40,8 @@ class Cirrusly_Commerce_Reports {
 
         // 3. Gather Data (Last 7 Days)
         $date_query = array(
-            'after'     => date('Y-m-d', strtotime('-7 days')),
-            'before'    => date('Y-m-d', strtotime('now')),
+            'after'     => wp_date('Y-m-d', strtotime('-7 days')),
+            'before'    => wp_date('Y-m-d', current_time('timestamp')),
             'inclusive' => true,
         );
         
@@ -64,10 +79,20 @@ class Cirrusly_Commerce_Reports {
 
         // Get Payment Processor Fees from Settings
         $ship_config = get_option( 'cirrusly_shipping_config', array() );
+        $mode = isset($ship_config['profile_mode']) ? $ship_config['profile_mode'] : 'single';
         $pay_pct = isset($ship_config['payment_pct']) ? ($ship_config['payment_pct'] / 100) : 0.029;
         $pay_flat = isset($ship_config['payment_flat']) ? $ship_config['payment_flat'] : 0.30;
+        $pay_pct_2 = isset($ship_config['payment_pct_2']) ? ($ship_config['payment_pct_2'] / 100) : 0.0349;
+        $pay_flat_2 = isset($ship_config['payment_flat_2']) ? $ship_config['payment_flat_2'] : 0.49;
+        $split = isset($ship_config['profile_split']) ? ($ship_config['profile_split'] / 100) : 1.0;
         
-        $est_fees = ($total_revenue * $pay_pct) + ($order_count * $pay_flat);
+        if ( $mode === 'multi' ) {
+            $fee1 = ($total_revenue * $pay_pct) + ($order_count * $pay_flat);
+            $fee2 = ($total_revenue * $pay_pct_2) + ($order_count * $pay_flat_2);
+            $est_fees = ($fee1 * $split) + ($fee2 * (1 - $split));
+        } else {
+            $est_fees = ($total_revenue * $pay_pct) + ($order_count * $pay_flat);
+        }
         $net_profit = $total_revenue - $total_cogs - $total_ship_cost - $est_fees;
         $margin = $total_revenue > 0 ? ($net_profit / $total_revenue) * 100 : 0;
 
@@ -95,8 +120,11 @@ class Cirrusly_Commerce_Reports {
         $message .= '</table>';
         $message .= '<p style="margin-top:20px; font-size:12px; color:#777;">*Calculated based on current product cost settings.</p>';
 
-        add_filter( 'wp_mail_content_type', function() { return 'text/html'; } );
+        // Store filter callback for proper removal
+        $html_filter = function() { return 'text/html'; };
+        
+        add_filter( 'wp_mail_content_type', $html_filter );
         wp_mail( $to, $subject, $message );
-        remove_filter( 'wp_mail_content_type', function() { return 'text/html'; } );
+        remove_filter( 'wp_mail_content_type', $html_filter );
     }
 }

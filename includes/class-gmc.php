@@ -6,6 +6,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class Cirrusly_Commerce_GMC {
 
+    /**
+     * Initialize GMC integration by registering WordPress and WooCommerce hooks and filters.
+     *
+     * Registers all admin UI, saving, quick-edit, bulk-edit, compliance, auto-strip, AJAX and admin action handlers
+     * required for Google Merchant Center related features (product meta UI, admin columns, quick edit behavior,
+     * promo submission endpoint, content/product scanning hooks, and save-time compliance enforcement).
+     */
     public function __construct() {
         add_action( 'woocommerce_product_options_inventory_product_data', array( $this, 'render_gmc_product_settings' ) );
         add_action( 'woocommerce_process_product_meta', array( $this, 'save_product_meta' ) );
@@ -29,6 +36,9 @@ class Cirrusly_Commerce_GMC {
         add_action( 'wp_ajax_cc_submit_promo_to_gmc', array( $this, 'handle_promo_api_submit' ) );
     }
 
+    /**
+     * Instantiate this class and display the Google Merchant Center hub page in the admin.
+     */
     public static function render_page() {
         $instance = new self();
         $instance->render_gmc_hub_page();
@@ -60,6 +70,17 @@ class Cirrusly_Commerce_GMC {
         <?php
     }
 
+    /**
+     * Provide the set of monitored terms grouped by category for content and product scans.
+     *
+     * Each category maps monitored term strings to a metadata array describing why the term is flagged.
+     *
+     * @return array Associative array where keys are category names (e.g., 'promotional', 'medical') and values are
+     *               arrays mapping term => metadata. Metadata arrays contain:
+     *               - 'severity' (string): severity label such as 'Critical', 'High', or 'Medium'.
+     *               - 'scope' (string): where to check the term, e.g., 'title' or 'all'.
+     *               - 'reason' (string): human-readable explanation for flagging the term.
+     */
     private function get_monitored_terms() {
         return array(
             'promotional' => array(
@@ -79,6 +100,13 @@ class Cirrusly_Commerce_GMC {
         );
     }
 
+    /**
+     * Renders the Site Content Audit UI and handles running and displaying content scan results.
+     *
+     * Outputs the "Required Policies" checklist and the "Restricted Terms Scan" form; when the scan form is submitted
+     * and verified, runs the content scan, persists results to the `cirrusly_content_scan_data` option, and displays
+     * the last scan's findings with per-item flagged terms and edit links.
+     */
     private function render_content_scan_view() {
         // UPDATED: Description
         echo '<div class="cc-manual-helper">
@@ -199,6 +227,22 @@ class Cirrusly_Commerce_GMC {
         return $issues;
     }
 
+    /**
+     * Render the Promotions tab UI for managing and submitting Google Merchant Center promotions.
+     *
+     * Outputs a Promotion Feed Generator form (fields for promotion ID, title, dates, applicability,
+     * offer type and optional generic code) with client-side code to generate a single-line feed entry
+     * and an AJAX "One-Click Submit to Google" action that is visually gated for PRO users.
+     *
+     * Also displays an Active Promotions table (cached in a transient) and, when a promotion is selected,
+     * a management view listing products assigned to that promotion with bulk actions to move or remove
+     * the promotion from selected products. Handles processing of the promo bulk-action POST request
+     * (with nonce verification), updates product meta, clears the promo stats transient and displays a
+     * success notice.
+     *
+     * The AJAX submit button uses a server nonce (`cc_promo_api_submit`) and is disabled for non-PRO users;
+     * client-side validation ensures Promotion ID and Title are provided before sending.
+     */
     private function render_promotions_view() {
         $is_pro = Cirrusly_Commerce_Core::cirrusly_is_pro();
         $pro_class = $is_pro ? '' : 'cc-pro-feature';
@@ -351,6 +395,15 @@ class Cirrusly_Commerce_GMC {
         }
     }
 
+    /**
+     * Render the Health Check admin UI for Google Merchant Center integration.
+     *
+     * Displays Pro-gated automated compliance controls (block save on critical errors,
+     * auto-strip banned words), a manual Diagnostics Scan form, and the latest scan results.
+     * If a diagnostics scan is submitted with a valid nonce, runs the scan logic and stores
+     * results in the `woo_gmc_scan_data` option. Scan results include per-product issues
+     * with Edit and a "Mark Custom" action for products flagged with a missing GTIN.
+     */
     private function render_scan_view() {
         $is_pro = Cirrusly_Commerce_Core::cirrusly_is_pro();
         $pro_class = $is_pro ? '' : 'cc-pro-feature';
@@ -415,6 +468,18 @@ class Cirrusly_Commerce_GMC {
         }
     }
 
+    /**
+     * Scan published products for GMC-related issues such as missing GTINs and monitored banned or promotional terms.
+     *
+     * Iterates all published products, flags products that are not marked as custom but lack a GTIN-like meta, and detects monitored medical (critical) and promotional (warning) terms in product titles. Returns an array of detected issues grouped by product ID.
+     *
+     * @return array[] Each element is an associative array with keys:
+     *               - 'product_id' (int): The product post ID.
+     *               - 'issues' (array[]): List of issue objects, each with:
+     *                   - 'type' (string): 'critical' or 'warning'.
+     *                   - 'msg' (string): Short message describing the issue (e.g., 'Missing GTIN', 'Restricted: cure').
+     *                   - 'reason' (string): Explanation for why the term or issue was flagged.
+     */
     public function run_gmc_scan_logic() {
         $issues_found = array();
         $args = array( 'post_type' => 'product', 'posts_per_page' => -1, 'post_status' => 'publish' );
@@ -447,14 +512,16 @@ class Cirrusly_Commerce_GMC {
                 }
             }
 
-            // 2. Check Banned Words in Title
+            // 2. Check Banned Words in Title (using word boundaries)
             foreach ( $monitored['medical'] as $word => $rules ) {
-                if ( stripos( $title, $word ) !== false ) {
+                $pattern = '/\b' . preg_quote($word, '/') . '\b/i';
+                if ( preg_match( $pattern, $title ) ) {
                     $p_issues[] = array( 'type' => 'critical', 'msg' => 'Restricted: ' . $word, 'reason' => $rules['reason'] );
                 }
             }
             foreach ( $monitored['promotional'] as $word => $rules ) {
-                if ( $rules['scope'] === 'title' && stripos( $title, $word ) !== false ) {
+                $pattern = '/\b' . preg_quote($word, '/') . '\b/i';
+                if ( $rules['scope'] === 'title' && preg_match( $pattern, $title ) ) {
                     $p_issues[] = array( 'type' => 'warning', 'msg' => 'Promo: ' . $word, 'reason' => $rules['reason'] );
                 }
             }
@@ -466,7 +533,13 @@ class Cirrusly_Commerce_GMC {
         return $issues_found;
     }
 
-    // NEW Handler for "Mark as Custom"
+    /**
+     * Marks a product as a custom product (no GTIN) and redirects back to the GMC scan tab.
+     *
+     * Verifies the current user can edit products and validates the admin nonce for the given
+     * product ID taken from $_GET['pid']; sets the post meta '_gla_identifier_exists' to 'no'
+     * for that product, then redirects to the Cirrusly GMC scan page and terminates execution.
+     */
     public function handle_mark_custom() {
         if ( ! current_user_can( 'edit_products' ) ) wp_die('No permission');
         $pid = intval( $_GET['pid'] );
@@ -477,7 +550,12 @@ class Cirrusly_Commerce_GMC {
         exit;
     }
 
-    // NEW: API Promo Submit Handler
+    /**
+     * Handle an AJAX request to submit a promotion to the Google Merchant Center API.
+     *
+     * Verifies the request nonce and the site Pro status, then returns a JSON response
+     * indicating success or an error message.
+     */
     public function handle_promo_api_submit() {
         check_ajax_referer( 'cc_promo_api_submit', 'security' );
         
@@ -489,7 +567,17 @@ class Cirrusly_Commerce_GMC {
         wp_send_json_success( 'Promotion submitted.' );
     }
 
-    // NEW Logic: Block Save on Critical Error
+    /****
+     * Prevent publishing of products that contain critical (medical) terms when the block-on-critical option is enabled.
+     *
+     * When enabled in cirrusly_scan_config['block_on_critical'], this method checks a product's title for monitored
+     * medical terms and, if any are found, forces the product into draft status to prevent it from being published.
+     * The check is skipped during autosaves and for non-product post types.
+     *
+     * @param int     $post_id The ID of the post being saved.
+     * @param WP_Post $post    The post object being saved.
+     * @param bool    $update  Whether this is an existing post being updated (true) or a new post (false).
+     */
     public function check_compliance_on_save( $post_id, $post, $update ) {
         // Only run if option enabled
         $scan_cfg = get_option('cirrusly_scan_config', array());
@@ -509,7 +597,16 @@ class Cirrusly_Commerce_GMC {
         }
     }
 
-    // NEW Logic: Auto-strip Banned Words
+    /**
+     * Removes configured banned medical terms from a product's title and, when allowed, its content before saving.
+     *
+     * Iterates the monitored medical term list and strips whole-word, case-insensitive matches from post_title.
+     * If a term's scope is "all", the term is also removed from post_content. Multiple whitespace is collapsed in the title after removals.
+     *
+     * @param array $data   The post data being saved (will be returned, possibly modified).
+     * @param array $postarr The original post array passed to wp_insert_post.
+     * @return array The potentially modified post data with banned medical terms removed where applicable.
+     */
     public function handle_auto_strip_on_save( $data, $postarr ) {
         // Check if enabled
         $scan_cfg = get_option('cirrusly_scan_config', array());
@@ -541,7 +638,13 @@ class Cirrusly_Commerce_GMC {
         return $data;
     }
     
-    // ... (Rest of existing methods) ...
+    /**
+     * Renders the Google Merchant Center attributes meta box controls on the product edit screen.
+     *
+     * Outputs form fields for marking a product as custom (no GTIN), for a Promotion ID, and for Custom Label 0.
+     *
+     * @return void
+     */
     public function render_gmc_product_settings() {
         global $post;
         echo '<div class="options_group">';

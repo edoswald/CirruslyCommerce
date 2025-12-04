@@ -23,7 +23,13 @@ define( 'CIRRUSLY_COMMERCE_URL', plugin_dir_url( __FILE__ ) );
 // FREEMIUS INTEGRATION
 // -------------------------------------------------------------------------
 if ( ! function_exists( 'cc_fs' ) ) {
-    // Create a helper function for easy SDK access.
+    /**
+     * Get the Freemius SDK instance for the plugin.
+     *
+     * Initializes the SDK on first call and returns the shared instance.
+     *
+     * @return object Freemius SDK instance.
+     */
     function cc_fs() {
         global $cc_fs;
 
@@ -87,6 +93,11 @@ class Cirrusly_Commerce_Main {
 
     private static $instance = null;
 
+    / **
+     * Retrieve the singleton instance of Cirrusly_Commerce_Main, creating it if necessary.
+     *
+     * @return Cirrusly_Commerce_Main The single instance of the main plugin class.
+     */
     public static function instance() {
         if ( is_null( self::$instance ) ) {
             self::$instance = new self();
@@ -94,6 +105,12 @@ class Cirrusly_Commerce_Main {
         return self::$instance;
     }
 
+    /**
+     * Bootstraps plugin modules, registers lifecycle hooks, and adds the plugin settings link.
+     *
+     * Instantiates core plugin modules, registers activation and deactivation handlers, and
+     * injects the Settings (and upgrade) link into the plugin list in the admin.
+     */
     public function __construct() {
         // Include Module Classes
         require_once CIRRUSLY_COMMERCE_PATH . 'includes/class-gmc.php';
@@ -141,6 +158,14 @@ class Cirrusly_Commerce_Main {
         return $schedules;
     }
 
+    /**
+     * Run activation tasks for the plugin.
+     *
+     * Schedules a daily 'cirrusly_gmc_daily_scan' cron event if not already scheduled, schedules a weekly
+     * 'cirrusly_weekly_profit_report' cron event if not already scheduled, and enables the
+     * WooCommerce "cost of goods sold" option by setting the `woocommerce_enable_cost_of_goods_sold`
+     * option to "yes".
+     */
     public function activate() {
         // 1. Schedule Scans
         if ( ! wp_next_scheduled( 'cirrusly_gmc_daily_scan' ) ) {
@@ -157,6 +182,11 @@ class Cirrusly_Commerce_Main {
         
     }
 
+    / **
+     * Run plugin deactivation routines.
+     *
+     * Clears the plugin's scheduled cron hooks and notifies Freemius of the deactivation event when the Freemius SDK is available.
+     */
     public function deactivate() {
         wp_clear_scheduled_hook( 'cirrusly_gmc_daily_scan' );
         wp_clear_scheduled_hook( 'cirrusly_weekly_profit_report' ); // [ADDED]
@@ -167,6 +197,12 @@ class Cirrusly_Commerce_Main {
         }
     }
 
+    /**
+     * Insert the plugin Settings link into the plugin action links and add a "Go Pro" link for free users when the Freemius SDK is available.
+     *
+     * @param array $links Existing plugin action links.
+     * @return array The modified links array with the Settings link prepended and a "Go Pro" link added when applicable.
+     */
     public function add_settings_link( $links ) {
         $settings_link = '<a href="' . esc_url( admin_url( 'admin.php?page=cirrusly-settings' ) ) . '">Settings</a>';
         array_unshift( $links, $settings_link );
