@@ -1106,11 +1106,8 @@ class Cirrusly_Commerce_Core {
         $scan_data = array( 'timestamp' => time(), 'results' => $results );
         update_option( 'woo_gmc_scan_data', $scan_data, false );
         
-        // Note: The setting 'enable_email_report' is checked here, but currently missing from the Settings UI form.
-        // Assuming it is manually set or intended to be coupled with 'enable_daily_scan'.
         $scan_cfg = get_option( 'cirrusly_scan_config', array() );
         
-        // Fallback: If results exist and daily scan is on, send report (or rely on hidden option)
         $should_send = ( !empty($scan_cfg['enable_email_report']) && $scan_cfg['enable_email_report'] === 'yes' );
 
         if ( $should_send && ! empty( $results ) ) {

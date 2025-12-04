@@ -71,11 +71,6 @@ if ( ! function_exists( 'cc_fs' ) ) {
     do_action( 'cc_fs_loaded' );
 }
 
-// Init Freemius.
-cirrusly_commerce_fs();
-// Signal that SDK was initiated.
-do_action( 'cirrusly_commerce_fs_loaded' );
-
 // Include the main class.
 if ( ! class_exists( 'Cirrusly_Commerce' ) ) {
 	include_once dirname( __FILE__ ) . '/includes/class-core.php';
