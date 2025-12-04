@@ -30,7 +30,7 @@ class Cirrusly_Commerce_Manual {
                     <a href="#profit">Profit Engine</a>
                     <a href="#pricing">Pricing Engine</a>
                     <a href="#badges">Badge Manager</a>
-                    <a href="#reports">Reports & Automation</a>
+                    <a href="#reports">Reports &amp; Automation</a>
                     <a href="#compat">Compatibility</a>
                     <a href="#keys">Meta Keys</a>
                 </nav>
@@ -141,15 +141,15 @@ class Cirrusly_Commerce_Manual {
                     </ul>
                     <p><strong>Smart Badges:</strong> <span class="cc-manual-pro">PRO</span></p>
                     <ul class="cc-manual-list">
-                        <li><strong>Inventory Trigger:</strong> Shows "Low Stock" when quantity drops below 5.</li>
+                        <li><strong>Inventory Trigger:</strong> Shows "Low Stock" when quantity drops below 5 (fixed threshold).</li>
                         <li><strong>Performance Trigger:</strong> Shows "Best Seller" for top-performing products based on sales velocity.</li>
                         <li><strong>Scheduler:</strong> Schedule event badges (e.g., "Black Friday Deal") to appear only during specific date ranges.</li>
                     </ul>
                 </div>
 
                 <div class="cc-manual-section" id="reports">
-                    <h3>Reports & Automation</h3>
-                    <p>Configure these features under <em>Settings > General</em>.</p>
+                    <h3>Reports &amp; Automation</h3>
+                    <p>Configure these features under <em>Cirrusly Commerce > Settings > General</em>.</p>
                     
                     <h4>Daily Health Scan</h4>
                     <p>Runs automatically in the background every 24 hours. Checks for missing GTINs, empty descriptions, and banned words. Enable "Email Reports" to get a summary sent to your admin email.</p>
@@ -157,7 +157,7 @@ class Cirrusly_Commerce_Manual {
                     <h4>Weekly Profit Report <span class="cc-manual-pro">PRO</span></h4>
                     <p>Delivered every Monday. This email digest includes:</p>
                     <ul>
-                        <li>Total Sales & Net Profit for the week.</li>
+                        <li>Total Sales &amp; Net Profit for the week.</li>
                         <li>Top 5 Performing Products (by margin).</li>
                         <li>Inventory value summary.</li>
                     </ul>
@@ -165,8 +165,8 @@ class Cirrusly_Commerce_Manual {
                     <h4>Google Reviews Integration</h4>
                     <p>Enable the "Google Customer Reviews" module to automatically inject the survey opt-in code on your Order Received page. Requires your Google Merchant ID.</p>
                     
-                    <h4>Security & API <span class="cc-manual-pro">PRO</span></h4>
-                    <p>The Service Account JSON used for the Content API is <strong>encrypted</strong> before storage in the database for maximum security. You do not need to manage keys manually; the system handles encryption automatically.</p>
+                    <h4>Security &amp; API <span class="cc-manual-pro">PRO</span></h4>
+                    <p>The Service Account JSON used for the Content API is <strong>encrypted</strong> before storage in the database to ensure it is encrypted at rest. You do not need to manage keys manually; the system handles encryption automatically.</p>
                 </div>
 
                 <div class="cc-manual-section" id="compat">
@@ -174,7 +174,7 @@ class Cirrusly_Commerce_Manual {
                     <p>Cirrusly Commerce integrates with the following plugins:</p>
                     <ul class="cc-manual-list">
                         <li><strong>Product Feed PRO (AdTribes):</strong> Custom fields (MSRP, MAP) appear in attribute mapping.</li>
-                        <li><strong>Rank Math & Yoast SEO:</strong> MSRP/GTIN fields are registered for schema markup.</li>
+                        <li><strong>Rank Math &amp; Yoast SEO:</strong> MSRP/GTIN fields are registered for schema markup.</li>
                         <li><strong>WooCommerce Subscriptions:</strong> Pricing Engine supports recurring pricing fields.</li>
                         <li><strong>Flexible Shipping:</strong> Detects shipping classes for cost calculation.</li>
                         <li><strong>WPFactory MSRP:</strong> Shares the <code>_alg_msrp</code> key for seamless migration.</li>

@@ -320,6 +320,8 @@ class Cirrusly_Commerce_Audit {
                 $cost = isset($row[3]) ? floatval($row[3]) : 0;
                 
                 if ( $pid && $cost > 0 ) {
+                    $product = wc_get_product( $pid );
+                    if ( ! $product ) continue;
                     update_post_meta($pid, '_cogs_total_value', $cost);
                     $count++;
                 }

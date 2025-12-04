@@ -408,7 +408,8 @@ class Cirrusly_Commerce_Core {
         echo "Server Software: " . esc_html( $_SERVER['SERVER_SOFTWARE'] ) . "\n";
         echo "Active Plugins:\n";
         $plugins = get_option('active_plugins');
-        foreach($plugins as $p) { echo "- " . $p . "\n"; }
+        foreach($plugins as $p) { echo "- " . esc_html( $p ) . "\n"; }
+
     }
 
     public static function render_global_header( $title ) {
