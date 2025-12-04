@@ -301,9 +301,10 @@ class Cirrusly_Commerce_Core {
                 }
             }
             
-            // Enforce extension match
-            if ( pathinfo( $file['name'], PATHINFO_EXTENSION ) !== 'json' ) {
-                $is_valid_mime = false;
+            // Enforce extension match (case-insensitive)
+            $ext = strtolower( pathinfo( $file['name'], PATHINFO_EXTENSION ) );
+            if ( $ext !== 'json' ) {
+               $is_valid_mime = false;
             }
 
             if ( ! $is_valid_mime ) {
@@ -337,7 +338,7 @@ class Cirrusly_Commerce_Core {
             }
 
             // 4. Sanitize & Store (Only on Success)
-            update_option( 'cirrusly_service_account_json', $json_content ); // Securely store raw content
+            update_option( 'cirrusly_service_account_json', $json_content, false ); // Securely store raw content without autoload
             
             $input['service_account_uploaded'] = 'yes';
             $input['service_account_name'] = sanitize_file_name( $file['name'] );
