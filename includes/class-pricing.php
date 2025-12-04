@@ -288,6 +288,8 @@ class Cirrusly_Commerce_Pricing {
         if ( ! $product ) return;
 
         $merchant_id = get_option( 'cirrusly_gmc_merchant_id' );
+        if ( empty( $merchant_id ) ) return; // Not configured
+
         $service = new Google\Service\ShoppingContent( $client );
 
         // Construct GMC ID (online:en:US:ID)
