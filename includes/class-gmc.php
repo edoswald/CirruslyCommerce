@@ -737,7 +737,11 @@ public static function get_google_client() {
     try {
         $client = new Google\Client();
         $client->setApplicationName( 'Cirrusly Commerce' );
-        $client->setAuthConfig( json_decode( $json_key, true ) );
+        $auth_config = json_decode( $json_key, true );
+        if ( null === $auth_config ) {
+            return new WP_Error( 'invalid_json', 'Service Account JSON is malformed.' );
+        }
+        $client->setAuthConfig( $auth_config );
         $client->setScopes([
             'https://www.googleapis.com/auth/content',
             'https://www.googleapis.com/auth/cloud-language'
