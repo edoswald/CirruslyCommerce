@@ -502,7 +502,8 @@ class Cirrusly_Commerce_Audit {
                     <a href="?page=cirrusly-audit&refresh_audit=1" class="button" title="Refresh Data from DB">Refresh Data</a>
                 </form>
             </div>
-            <?php echo $pagination_html; ?>
+            <?php echo wp_kses_post( $pagination_html ); ?>
+
         </div>
         
         <?php
@@ -565,7 +566,8 @@ class Cirrusly_Commerce_Audit {
         echo '</tbody></table>';
 
         // Pagination Bottom
-        echo '<div class="tablenav bottom">'.$pagination_html.'</div>';
+        echo '<div class="tablenav bottom">' . wp_kses_post( $pagination_html ) . '</div>';
+
 
         // Inline Edit Script (Pro)
         if($is_pro) {
@@ -612,7 +614,11 @@ class Cirrusly_Commerce_Audit {
                 
                 // UX: Select text on click
                 $('.cc-inline-edit').on('focus', function() {
-                    document.execCommand('selectAll',false,null);
+                    var range = document.createRange();
+                    range.selectNodeContents(this);
+                    var sel = window.getSelection();
+                    sel.removeAllRanges();
+                    sel.addRange(range);
                 });
             });
             </script>

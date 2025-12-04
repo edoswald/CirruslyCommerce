@@ -70,8 +70,8 @@ class Cirrusly_Commerce_Core {
         $method = 'aes-256-cbc';
         $iv_length = openssl_cipher_iv_length( $method );
         $iv = openssl_random_pseudo_bytes( $iv_length );
-        
-        $encrypted = openssl_encrypt( $data, $method, $key, 0, $iv );
+
+        $encrypted = openssl_encrypt( $data, $method, $key, OPENSSL_RAW_DATA, $iv );
         
         if ( false === $encrypted ) return false;
 
@@ -99,7 +99,8 @@ class Cirrusly_Commerce_Core {
         $iv = substr( $data, 0, $iv_length );
         $encrypted_payload = substr( $data, $iv_length );
 
-        return openssl_decrypt( $encrypted_payload, $method, $key, 0, $iv );
+        return openssl_decrypt( $encrypted_payload, $method, $key, OPENSSL_RAW_DATA, $iv );
+
     }
 
     /**
@@ -1089,7 +1090,7 @@ class Cirrusly_Commerce_Core {
             
             <div class="'.esc_attr($pro_class).'" style="margin-top:15px; border-top:1px dashed #ccc; padding-top:15px;">
                 <p><strong>Multiple Gateways <span class="cc-pro-badge">PRO</span></strong></p>
-                <label><input type="radio" name="cirrusly_shipping_config[profile_mode]" value="single" '.checked('single', $profile_mode, false).' disabled checked> Single Profile</label><br>
+                <label><input type="radio" name="cirrusly_shipping_config[profile_mode]" value="single" '.checked('single', $profile_mode, false).' '.esc_attr($disabled_attr).'> Single Profile</label><br>
                 <label><input type="radio" name="cirrusly_shipping_config[profile_mode]" value="multi" '.checked('multi', $profile_mode, false).' '.esc_attr($disabled_attr).'> Mixed Mode (Blend Rates)</label><br><br>
                 
                 <div style="background:#f9f9f9; padding:10px; display:'.($profile_mode==='multi'?'block':'none').'; border-radius:4px;">
