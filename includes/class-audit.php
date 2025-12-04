@@ -179,7 +179,9 @@ class Cirrusly_Commerce_Audit {
 
         // Formatted HTML for JS return
         $net_style = $net < 0 ? 'color:#d63638;font-weight:bold;' : 'color:#008a20;font-weight:bold;';
-        $ship_style = $ship_pl >= 0 ? 'color:#008a20;' : 'color:#d63638;';
+        $net_style = $net < 0 ? 'color:#d63638;font-weight:bold;' : 'color:#008a20;font-weight:bold;';
+         
+         return array(
         
         return array(
             'net_val' => $net,
