@@ -233,8 +233,10 @@ class Cirrusly_Commerce_Audit {
                 return;
             }
 
-            // Fix: Handle Mac line endings in CSVs
-            ini_set('auto_detect_line_endings', true);
+            // Fix: Handle Mac line endings in CSVs (deprecated in PHP 8.1+)
+            if ( version_compare( PHP_VERSION, '8.1.0', '<' ) ) {
+                ini_set('auto_detect_line_endings', true);
+            }
 
             $file = $_FILES['csv_import']['tmp_name'];
             $handle = fopen($file, "r");
