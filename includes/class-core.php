@@ -40,6 +40,59 @@ class Cirrusly_Commerce_Core {
         }
     }
 
+    /**
+     * Helper: Generate Google OAuth2 Token from Service Account JSON
+     * Required for Real API Submission
+     */
+    public static function get_google_access_token() {
+        $json_raw = get_option( 'cirrusly_service_account_json' );
+        if ( ! $json_raw ) return new WP_Error( 'no_creds', 'Service Account JSON not uploaded.' );
+
+        $creds = json_decode( $json_raw, true );
+        if ( empty($creds['client_email']) || empty($creds['private_key']) ) {
+            return new WP_Error( 'invalid_creds', 'Invalid Service Account JSON.' );
+        }
+
+        $header = json_encode(array('alg' => 'RS256', 'typ' => 'JWT'));
+        $now = time();
+        $claim = json_encode(array(
+            'iss' => $creds['client_email'],
+            'scope' => 'https://www.googleapis.com/auth/content',
+            'aud' => 'https://oauth2.googleapis.com/token',
+            'exp' => $now + 3600,
+            'iat' => $now
+        ));
+
+        $base64Url = function($data) {
+            return str_replace(['+', '/', '='], ['-', '_', ''], base64_encode($data));
+        };
+
+        $payload = $base64Url($header) . "." . $base64Url($claim);
+        $signature = '';
+        
+        if ( ! openssl_sign($payload, $signature, $creds['private_key'], 'SHA256') ) {
+            return new WP_Error( 'signing_failed', 'Could not sign JWT. Check private key.' );
+        }
+
+        $jwt = $payload . "." . $base64Url($signature);
+
+        $response = wp_remote_post( 'https://oauth2.googleapis.com/token', array(
+            'body' => array(
+                'grant_type' => 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+                'assertion' => $jwt
+            )
+        ));
+
+        if ( is_wp_error( $response ) ) return $response;
+
+        $body = json_decode( wp_remote_retrieve_body( $response ), true );
+        if ( isset( $body['access_token'] ) ) {
+            return $body['access_token'];
+        }
+
+        return new WP_Error( 'auth_failed', 'Google Auth Failed: ' . wp_remote_retrieve_body($response) );
+    }
+
     public function handle_audit_inline_save() {
         // Security & Permission Check
         if ( ! current_user_can( 'edit_products' ) || ! check_ajax_referer( 'cc_audit_save', '_nonce', false ) ) {
@@ -784,6 +837,8 @@ class Cirrusly_Commerce_Core {
         
         $payment_pct = isset($config['payment_pct']) ? $config['payment_pct'] : 2.9;
         $payment_flat = isset($config['payment_flat']) ? $config['payment_flat'] : 0.30;
+        // Fix: Added profile mode retrieval
+        $profile_mode = isset($config['profile_mode']) ? $config['profile_mode'] : 'single';
 
         if ( ! is_array( $revenue_tiers ) ) $revenue_tiers = array();
 
@@ -813,8 +868,8 @@ class Cirrusly_Commerce_Core {
             
             <div class="'.esc_attr($pro_class).'" style="margin-top:15px; border-top:1px dashed #ccc; padding-top:15px;">
                 <p><strong>Advanced Profiles <span class="cc-pro-badge">PRO</span></strong></p>
-                <label><input type="radio" disabled checked> Single Profile</label><br>
-                <label><input type="radio" '.esc_attr($disabled_attr).'> Multiple Gateways (Stripe + PayPal Mix)</label>
+                <label><input type="radio" name="cirrusly_shipping_config[profile_mode]" value="single" '.checked('single', $profile_mode, false).' disabled checked> Single Profile</label><br>
+                <label><input type="radio" name="cirrusly_shipping_config[profile_mode]" value="multi" '.checked('multi', $profile_mode, false).' '.esc_attr($disabled_attr).'> Multiple Gateways (Stripe + PayPal Mix)</label>
             </div>
         </div></div>';
 
