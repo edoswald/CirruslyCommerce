@@ -176,12 +176,18 @@ class Cirrusly_Commerce_Core {
                 wp_enqueue_script( 'cirrusly-pricing-js', CIRRUSLY_COMMERCE_URL . 'assets/js/pricing.js', array( 'jquery' ), CIRRUSLY_COMMERCE_VERSION, true );
                 
                 $config = $this->get_global_config();
+                
+                // Pass ALL payment config to JS for real-time calculation
                 $js_config = array(
                     'revenue_tiers' => json_decode( $config['revenue_tiers_json'] ),
                     'matrix_rules'  => json_decode( $config['matrix_rules_json'] ),
                     'classes'       => array(),
                     'payment_pct'   => isset($config['payment_pct']) ? (float)$config['payment_pct'] : 2.9,
-                    'payment_flat'  => isset($config['payment_flat']) ? (float)$config['payment_flat'] : 0.30
+                    'payment_flat'  => isset($config['payment_flat']) ? (float)$config['payment_flat'] : 0.30,
+                    'profile_mode'  => isset($config['profile_mode']) ? $config['profile_mode'] : 'single',
+                    'payment_pct_2' => isset($config['payment_pct_2']) ? (float)$config['payment_pct_2'] : 2.9,
+                    'payment_flat_2'=> isset($config['payment_flat_2']) ? (float)$config['payment_flat_2'] : 0.30,
+                    'profile_split' => isset($config['profile_split']) ? (float)$config['profile_split'] : 100,
                 );
                 
                 $class_costs = json_decode( $config['class_costs_json'], true );
@@ -464,8 +470,9 @@ class Cirrusly_Commerce_Core {
         }
         
         // Sanitize new payment fields
-        if ( isset( $input['payment_pct'] ) ) $input['payment_pct'] = floatval( $input['payment_pct'] );
-        if ( isset( $input['payment_flat'] ) ) $input['payment_flat'] = floatval( $input['payment_flat'] );
+        $fields = ['payment_pct', 'payment_flat', 'payment_pct_2', 'payment_flat_2', 'profile_split'];
+        foreach($fields as $f) { if(isset($input[$f])) $input[$f] = floatval($input[$f]); }
+        if(isset($input['profile_mode'])) $input['profile_mode'] = sanitize_text_field($input['profile_mode']);
 
         // Sanitize Smart Badge Checkboxes
         if ( isset( $input['smart_inventory'] ) ) $input['smart_inventory'] = 'yes';
@@ -491,7 +498,11 @@ class Cirrusly_Commerce_Core {
             )),
             'class_costs_json' => json_encode(array('default' => 10.00)),
             'payment_pct' => 2.9,
-            'payment_flat' => 0.30
+            'payment_flat' => 0.30,
+            'profile_mode' => 'single',
+            'payment_pct_2' => 3.49,
+            'payment_flat_2' => 0.49,
+            'profile_split' => 100
         );
         return wp_parse_args( $saved, $defaults );
     }
@@ -857,19 +868,27 @@ class Cirrusly_Commerce_Core {
         <div class="cc-card-body">
             <table class="form-table cc-settings-table">
                 <tr>
-                    <th scope="row">Percent (%)</th>
-                    <td><input type="number" step="0.1" name="cirrusly_shipping_config[payment_pct]" value="'.esc_attr($payment_pct).'"> % (e.g. Stripe is 2.9)</td>
-                </tr>
-                <tr>
-                    <th scope="row">Flat Fee ($)</th>
-                    <td><input type="number" step="0.01" name="cirrusly_shipping_config[payment_flat]" value="'.esc_attr($payment_flat).'"> $ (e.g. Stripe is 0.30)</td>
+                    <th scope="row">Primary Gateway</th>
+                    <td>
+                        <input type="number" step="0.1" name="cirrusly_shipping_config[payment_pct]" value="'.esc_attr($payment_pct).'"> % + 
+                        <input type="number" step="0.01" name="cirrusly_shipping_config[payment_flat]" value="'.esc_attr($payment_flat).'"> $
+                    </td>
                 </tr>
             </table>
             
             <div class="'.esc_attr($pro_class).'" style="margin-top:15px; border-top:1px dashed #ccc; padding-top:15px;">
-                <p><strong>Advanced Profiles <span class="cc-pro-badge">PRO</span></strong></p>
+                <p><strong>Multiple Gateways <span class="cc-pro-badge">PRO</span></strong></p>
                 <label><input type="radio" name="cirrusly_shipping_config[profile_mode]" value="single" '.checked('single', $profile_mode, false).' disabled checked> Single Profile</label><br>
-                <label><input type="radio" name="cirrusly_shipping_config[profile_mode]" value="multi" '.checked('multi', $profile_mode, false).' '.esc_attr($disabled_attr).'> Multiple Gateways (Stripe + PayPal Mix)</label>
+                <label><input type="radio" name="cirrusly_shipping_config[profile_mode]" value="multi" '.checked('multi', $profile_mode, false).' '.esc_attr($disabled_attr).'> Mixed Mode (Blend Rates)</label><br><br>
+                
+                <div style="background:#f9f9f9; padding:10px; display:'.($profile_mode==='multi'?'block':'none').'; border-radius:4px;">
+                    <strong>Secondary Gateway (e.g., PayPal):</strong><br>
+                    <input type="number" step="0.1" name="cirrusly_shipping_config[payment_pct_2]" value="'.esc_attr(isset($config['payment_pct_2']) ? $config['payment_pct_2'] : 3.49).'" style="width:60px"> % + 
+                    <input type="number" step="0.01" name="cirrusly_shipping_config[payment_flat_2]" value="'.esc_attr(isset($config['payment_flat_2']) ? $config['payment_flat_2'] : 0.49).'" style="width:60px"> $<br><br>
+                    
+                    <strong>Mix Split:</strong><br>
+                    <input type="number" name="cirrusly_shipping_config[profile_split]" value="'.esc_attr(isset($config['profile_split']) ? $config['profile_split'] : 100).'" style="width:60px"> % of orders use Primary Gateway.
+                </div>
             </div>
         </div></div>';
 

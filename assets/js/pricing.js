@@ -16,6 +16,25 @@ jQuery(document).ready(function($) {
         return 0;
     }
     
+    function getFee(total_inc) {
+        var mode = cw_ship_config.profile_mode || 'single';
+        var pct = cw_ship_config.payment_pct ? (cw_ship_config.payment_pct/100) : 0.029;
+        var flat = cw_ship_config.payment_flat ? cw_ship_config.payment_flat : 0.30;
+        
+        var fee1 = (total_inc * pct) + flat;
+        
+        if ( mode === 'multi' ) {
+            var pct2 = cw_ship_config.payment_pct_2 ? (cw_ship_config.payment_pct_2/100) : 0.0349;
+            var flat2 = cw_ship_config.payment_flat_2 ? cw_ship_config.payment_flat_2 : 0.49;
+            var split = cw_ship_config.profile_split ? (cw_ship_config.profile_split/100) : 1.0;
+            
+            var fee2 = (total_inc * pct2) + flat2;
+            return (fee1 * split) + (fee2 * (1 - split));
+        }
+        
+        return fee1;
+    }
+    
     function getContext($el) {
         var $c = $el.closest('form, .woocommerce_variation');
         
@@ -56,7 +75,6 @@ jQuery(document).ready(function($) {
             if (decimal >= 0.25 && decimal < 0.75) return Math.floor(price) + 0.50;
             return Math.ceil(price);
         } else if (strategy === 'nearest_5') {
-            // Rounds to nearest 5 or 10 (whole number multiple of 5)
             return Math.round(price / 5) * 5;
         }
         return parseFloat(price.toFixed(2));
@@ -72,15 +90,16 @@ jQuery(document).ready(function($) {
         
         var shipClassId = ctx.shipClass.val();
         var classData = getClassData(shipClassId);
-        
-        // Get fees from config
-        var pay_pct = cw_ship_config.payment_pct ? (cw_ship_config.payment_pct/100) : 0.029;
-        var pay_flat = cw_ship_config.payment_flat ? cw_ship_config.payment_flat : 0.30;
 
         if (price > 0 && total_cost > 0) {
             var shipRev = getShippingRevenue(price);
-            var gross = price - total_cost + shipRev;
-            var margin = (gross/price)*100;
+            var total_inc = price + shipRev;
+            var gross = total_inc - total_cost;
+            
+            // Use blended fee function
+            var fee = getFee(total_inc);
+            var net = gross - fee;
+            var margin = (net/price)*100;
             
             var floor_html = '';
             if ( min > 0 ) {
@@ -92,7 +111,7 @@ jQuery(document).ready(function($) {
                 if ( floor_margin < 0 ) ctx.min.css('border-color', 'red'); else ctx.min.css('border-color', '');
             }
 
-            ctx.display.find('.cw-profit-val').text('$'+gross.toFixed(2));
+            ctx.display.find('.cw-profit-val').text('$'+net.toFixed(2));
             ctx.display.find('.cw-margin-val').html(margin.toFixed(1)+'%' + floor_html);
             
             if(ctx.matrix.length && classData && classData.matrix === true) {
@@ -101,8 +120,8 @@ jQuery(document).ready(function($) {
                 var rulesObj = Array.isArray(rules) ? rules : Object.values(rules);
                 if(rulesObj.length) {
                     $.each(rulesObj, function(k,v){
-                        var fee = (price + shipRev) * pay_pct + pay_flat;
-                        var netScenario = (price - cost - fee + shipRev) - (ship * v.cost_mult);
+                        var feeScenario = getFee(price + shipRev);
+                        var netScenario = (price - cost - feeScenario + shipRev) - (ship * v.cost_mult);
                         var marginScenario = (netScenario / price) * 100;
                         var cls = netScenario > 0 ? 'prof-green' : 'prof-red';
                         html += '<div class="cw-matrix-item '+cls+'"><span style="display:block;font-weight:bold;">'+v.label+'</span>$'+netScenario.toFixed(2)+' <small style="display:block;font-size:9px;">('+marginScenario.toFixed(0)+'%)</small></div>';

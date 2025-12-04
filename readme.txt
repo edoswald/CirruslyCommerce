@@ -19,10 +19,6 @@ Key Features:
 
 Pricing Engine: Calculate real-time profit margins right on the product edit screen. Enter your Cost (COGS), MSRP, and MAP to see your net profit after shipping and fees instantly. Includes auto-calculation strategies (e.g., "10% Off MSRP", "Target 20% Margin") and rounding rules (.99, .50).
 
-Key Features:
-
-Pricing Engine: Calculate real-time profit margins right on the product edit screen. Enter your Cost (COGS), MSRP, and MAP to see your net profit after shipping and fees instantly. Includes auto-calculation strategies (e.g., "10% Off MSRP", "Target 20% Margin") and rounding rules (.99, .50).
-
 GMC Health Check: Scan your entire catalog for critical issues that cause Google Merchant Center disapprovals, such as missing GTINs, prohibited words in titles (e.g., "Free Shipping"), and missing attributes.
 
 MSRP Display: Display MSRP/List Price on your frontend (Product Pages and Shop Grids) to show value. Includes a Gutenberg Block for complete control over placement and styling.
@@ -103,15 +99,15 @@ Store Audit: A financial breakdown of every product to spot profit leaks.
 
 = 1.2 =
 
-**Note:** Effective from this release, only changes to the free version of the plugin will be listed. For changes to the Pro version of the plugin (which also will include the free changes), please additionally refer to the README for the pro version instead.
-* **New Feature:** Introduced "Freemium" architecture. Pro features are now visible in the interface (grayed out) to showcase advanced capabilities if downloading from Freemius. 
+**Note:** Effective from this release, only changes to the free version of the plugin will be listed. For changes to the Pro version of the plugin (which also include the free changes), please refer to the pro version README instead.
+* **New Feature:** Introduced "Freemium" architecture. Pro features are now visible in the interface (grayed out) to showcase advanced capabilities if downloading from Freemius. They are not visible from the WP Plugin Directory version. 
 * **Enhancement:** Added "System Info" tool to the support menu (header) to easily copy environment details for faster troubleshooting.
 * **Enhancement:** Pricing Engine now supports 5%, 15%, and 25% "Off MSRP" strategies.
 * **Enhancement:** Pricing Engine now supports "Nearest 5/0" rounding (e.g., $12.95 -> $15.00, $8.20 -> $10.00).
 * **UI Update:** Reorganized settings into tabbed cards for better usability.
 * **UI Update:** Added "Hide Pro Features" toggle in General Settings for users who prefer a cleaner, free-only interface.
 * **Fix:** Downloadable/virtual items are now correctly handled (no shipping/cost is likely, so alerts suppressed)
-* **Fix:** Removal/fixing of code that caused instability post 1.0.5 on non test stores. Some code was still referring to pre v1.0 architecture (code snippet).
+* **Fix:** Removal/fixing of code that caused instability post-1.0.5 on non-test stores. Some code was still referring to pre-v1.0 architecture (code snippets).
 * **Fix:** Sent emails now are actually useful.
 
 = 1.1 =
