@@ -14,56 +14,62 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'CIRRUSLY_COMMERCE_VERSION', '1.1.1' );
-define( 'CIRRUSLY_COMMERCE_FILE', __FILE__ );
-define( 'CIRRUSLY_COMMERCE_ABSPATH', plugin_dir_path( __FILE__ ) );
-define( 'CIRRUSLY_COMMERCE_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
-define( 'CIRRUSLY_COMMERCE_ASSETS_URL', CIRRUSLY_COMMERCE_PLUGIN_URL . 'assets/' );
+// Define Constants
+define( 'CIRRUSLY_COMMERCE_VERSION', '1.2.0' );
+define( 'CIRRUSLY_COMMERCE_PATH', plugin_dir_path( __FILE__ ) );
+define( 'CIRRUSLY_COMMERCE_URL', plugin_dir_url( __FILE__ ) );
 
-if ( ! function_exists( 'cirrusly_commerce_fs' ) ) {
-	// Create a helper function for easy SDK access.
-	function cirrusly_commerce_fs() {
-		global $cirrusly_commerce_fs;
+// -------------------------------------------------------------------------
+// FREEMIUS INTEGRATION
+// -------------------------------------------------------------------------
+if ( ! function_exists( 'cc_fs' ) ) {
+    /**
+     * Get the Freemius SDK instance for the plugin.
+     *
+     * Initializes the SDK on first call and returns the shared instance.
+     *
+     * @return object Freemius SDK instance.
+     */
+    function cc_fs() {
+        global $cc_fs;
 
-		if ( ! isset( $cirrusly_commerce_fs ) ) {
-			// Define the path to the Freemius SDK
-			$fs_start_path = dirname( __FILE__ ) . '/vendor/freemius/start.php';
+        if ( ! isset( $cc_fs ) ) {
+            // Include Freemius SDK.
+            require_once dirname( __FILE__ ) . '/vendor/freemius/start.php';
 
-			// FIX: Check if the Freemius SDK exists before requiring it.
-			// This prevents a Fatal Error if the 'vendor' directory is missing (e.g. gitignored repo install).
-			if ( ! file_exists( $fs_start_path ) ) {
-				// Optionally log this error or add an admin notice here if needed.
-				return null; 
-			}
+            $cc_fs = fs_dynamic_init( array(
+                'id'                  => '22048',
+                'slug'                => 'cirrusly-commerce',
+                'type'                => 'plugin',
+                'public_key'          => 'pk_34dc77b4bc7764037f0e348daac4a',
+                'is_premium'          => true,
+                'premium_suffix'      => 'Pro',
+                // If your plugin is a serviceware, set this option to false.
+                'has_premium_version' => true,
+                'has_addons'          => false,
+                'has_paid_plans'      => true,
+                // Automatically removed in the free version. If you're not using the
+                // auto-generated free version, delete this line before uploading to wp.org.
+                'wp_org_gatekeeper'   => 'OA7#BoRiBNqdf52FvzEf!!074aRLPs8fspif$7K1#4u4Csys1fQlCecVcUTOs2mcpeVHi#C2j9d09fOTvbC0HloPT7fFee5WdS3G',
+                'trial'               => array(
+                    'days'               => 3,
+                    'is_require_payment' => false,
+                ),
+                'menu'                => array(
+                    'slug'           => 'cirrusly-settings',
+                    'support'        => false,
+                ),
+            ) );
+        }
 
-			// Activate helper for the Freemius SDK.
-			require_once $fs_start_path;
+        return $cc_fs;
+    }
 
-			$cirrusly_commerce_fs = fs_dynamic_init( array(
-				'id'                  => '16238',
-				'slug'                => 'cirrusly-commerce',
-				'type'                => 'plugin',
-				'public_key'          => 'pk_5575505e60938361719661448695d',
-				'is_premium'          => true,
-				'is_premium_only'     => false,
-				'has_addons'          => false,
-				'has_paid_plans'      => true,
-				'menu'                => array(
-					'slug'       => 'cirrusly-commerce',
-					'first-path' => 'admin.php?page=cirrusly-commerce',
-					'support'    => false,
-				),
-			) );
-		}
-
-		return $cirrusly_commerce_fs;
-	}
+    // Init Freemius.
+    cc_fs();
+    // Signal that SDK was initiated.
+    do_action( 'cc_fs_loaded' );
 }
-
-// Init Freemius.
-cirrusly_commerce_fs();
-// Signal that SDK was initiated.
-do_action( 'cirrusly_commerce_fs_loaded' );
 
 // Include the main class.
 if ( ! class_exists( 'Cirrusly_Commerce' ) ) {
@@ -78,9 +84,137 @@ if ( ! class_exists( 'Cirrusly_Commerce' ) ) {
  * @since  1.0.0
  * @return Cirrusly_Commerce
  */
-function cirrusly_commerce() {
-	return Cirrusly_Commerce::instance();
+class Cirrusly_Commerce_Main {
+
+    private static $instance = null;
+
+    /**
+     * Retrieve the singleton instance of Cirrusly_Commerce_Main, creating it if necessary.
+     *
+     * @return Cirrusly_Commerce_Main The single instance of the main plugin class.
+     */
+    public static function instance() {
+        if ( is_null( self::$instance ) ) {
+            self::$instance = new self();
+        }
+        return self::$instance;
+    }
+
+    /**
+     * Bootstraps plugin modules, registers lifecycle hooks, and adds the plugin settings link.
+     *
+     * Instantiates core plugin modules, registers activation and deactivation handlers, and
+     * injects the Settings (and upgrade) link into the plugin list in the admin.
+     */
+    public function __construct() {
+        // Define includes path
+        $includes_path = plugin_dir_path( __FILE__ ) . 'includes/';
+
+        // Load Module Files
+        // Core is loaded at the top of the file, ensuring Cirrusly_Commerce_Core exists if it's in class-core.php
+        require_once $includes_path . 'class-gmc.php';
+        require_once $includes_path . 'class-pricing.php';
+        require_once $includes_path . 'class-audit.php';
+        require_once $includes_path . 'class-reviews.php';
+        require_once $includes_path . 'class-blocks.php';
+        require_once $includes_path . 'class-compatibility.php';
+        require_once $includes_path . 'class-badges.php';
+        require_once $includes_path . 'class-manual.php';
+
+        // Initialize Modules
+        new Cirrusly_Commerce_Core();
+        new Cirrusly_Commerce_GMC();
+        new Cirrusly_Commerce_Pricing();
+        new Cirrusly_Commerce_Audit();
+        new Cirrusly_Commerce_Reviews();
+        new Cirrusly_Commerce_Blocks();
+        new Cirrusly_Commerce_Compatibility();
+        new Cirrusly_Commerce_Badges();
+
+        // Register Hooks
+        register_activation_hook( __FILE__, array( $this, 'activate' ) );
+        register_deactivation_hook( __FILE__, array( $this, 'deactivate' ) );
+        
+        // Register Cron Intervals
+        add_filter( 'cron_schedules', array( $this, 'add_weekly_schedule' ) );
+
+        // Add Settings Link to Plugin List
+        add_filter( 'plugin_action_links_' . plugin_basename( __FILE__ ), array( $this, 'add_settings_link' ) );
+    }
+
+    /**
+     * Register custom cron intervals.
+     *
+     * Checks for the existence of a 'weekly' interval and registers it if missing.
+     * Used by the profit report schedule.
+     *
+     * @param array $schedules The existing cron schedules.
+     * @return array The modified schedules with 'weekly' added.
+     */
+    public function add_weekly_schedule( $schedules ) {
+        if ( ! isset( $schedules['weekly'] ) ) {
+            $schedules['weekly'] = array(
+                'interval' => 604800, // 7 * 24 * 60 * 60
+                'display'  => __( 'Once Weekly', 'cirrusly-commerce' )
+            );
+        }
+        return $schedules;
+    }
+
+    /**
+     *
+     * Schedules a daily 'cirrusly_gmc_daily_scan' cron event if not already scheduled, schedules a weekly
+     * 'cirrusly_weekly_profit_report' cron event if not already scheduled, and enables the
+     * WooCommerce "cost of goods sold" option by setting the `woocommerce_enable_cost_of_goods_sold`
+     * option to "yes".
+     */
+    public function activate() {
+        // 1. Schedule Scans
+        if ( ! wp_next_scheduled( 'cirrusly_gmc_daily_scan' ) ) {
+            wp_schedule_event( time(), 'daily', 'cirrusly_gmc_daily_scan' );
+        }
+
+        // 2. Schedule Weekly Reports [ADDED]
+        if ( ! wp_next_scheduled( 'cirrusly_weekly_profit_report' ) ) {
+            wp_schedule_event( time(), 'weekly', 'cirrusly_weekly_profit_report' );
+        }
+        
+        // 3. Force Enable Native COGS on Activation
+        update_option( 'woocommerce_enable_cost_of_goods_sold', 'yes' );
+        
+    }
+
+    /**
+     * Run plugin deactivation routines.
+     *
+     * Clears the plugin's scheduled cron hooks and notifies Freemius of the deactivation event when the Freemius SDK is available.
+     */
+    public function deactivate() {
+        wp_clear_scheduled_hook( 'cirrusly_gmc_daily_scan' );
+        wp_clear_scheduled_hook( 'cirrusly_weekly_profit_report' ); // [ADDED]
+        
+        // Freemius SDK automatically handles deactivation events via its own hooks.
+        // No manual call to internal API methods is required.
+    }
+
+    /**
+     * Insert the plugin Settings link into the plugin action links and add a "Go Pro" link for free users when the Freemius SDK is available.
+     *
+     * @param array $links Existing plugin action links.
+     * @return array The modified links array with the Settings link prepended and a "Go Pro" link added when applicable.
+     */
+    public function add_settings_link( $links ) {
+        $settings_link = '<a href="' . esc_url( admin_url( 'admin.php?page=cirrusly-settings' ) ) . '">Settings</a>';
+        array_unshift( $links, $settings_link );
+        
+        // Add "Go Pro" link if Free AND Freemius is loaded
+        if ( function_exists('cc_fs') && cc_fs() && cc_fs()->is_not_paying() ) {
+            $links['go_pro'] = '<a href="' . cc_fs()->get_upgrade_url() . '" style="color:#d63638;font-weight:bold;">Go Pro</a>';
+        }
+        
+        return $links;
+    }
 }
 
-// Global for backwards compatibility.
-$GLOBALS['cirrusly_commerce'] = cirrusly_commerce();
+// Boot
+Cirrusly_Commerce_Main::instance();

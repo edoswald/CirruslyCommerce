@@ -13,11 +13,7 @@ All-in-one suite: GMC Validator, Promotion Manager, Pricing Engine, and Store Fi
 
 == Description ==
 
-Cirrusly Commerce is a comprehensive suite designed to optimize your WooCommerce store's financial health and Google Merchant Center (GMC) compliance. Initially built by us for internal use on cirruslyweather.com, it addresses the disconnect between your store's data and Google's strict requirements while providing clear insight into your proper profit margins.
-
-Key Features:
-
-Pricing Engine: Calculate real-time profit margins right on the product edit screen. Enter your Cost (COGS), MSRP, and MAP to see your net profit after shipping and fees instantly. Includes auto-calculation strategies (e.g., "10% Off MSRP", "Target 20% Margin") and rounding rules (.99, .50).
+Cirrusly Commerce is a comprehensive suite designed to optimize your WooCommerce store's financial health and Google Merchant Center (GMC) compliance. Initially built by us for internal use as a set of code snippets on cirruslyweather.com, Cirrusly Commerce addresses the disconnect between your store's data and Google's strict requirements while providing clear insight into your proper profit margins.
 
 Key Features:
 
@@ -73,9 +69,12 @@ Activate the plugin through the 'Plugins' screen in WordPress.
 
 Navigate to Cirrusly Commerce > Settings to configure your Shipping Revenue Tiers and enable the modules you need.
 
-Important: Ensure the native "Cost of Goods Sold" feature is enabled in WooCommerce > Settings > Advanced.
+**Important:** Ensure the native "Cost of Goods Sold" feature is enabled in WooCommerce > Settings > Advanced.
 
 == Frequently Asked Questions ==
+
+= Why are there so few customization choices? =
+This is by design. Part of the reason is to prevent you from adding things that might work against the compliance features of this plugin, but it's also for speed reasons. The less customization, the smaller our plugin is, and the less code your site needs to load to display its features on the front end. Plus, we've incorporated some of our knowledge of what works and what doesn't into what customization we offer as well. 
 
 = Does this plugin add the MSRP to my Google Feed? =
 The plugin adds the data to your products (saved as _alg_msrp), but you need a feed plugin (like Product Feed PRO) to map this field to the g:price or g:sale_price attributes in your feed. We add our fields to their dropdowns automatically for easy mapping.
@@ -100,18 +99,20 @@ Store Audit: A financial breakdown of every product to spot profit leaks.
 
 = 1.2 =
 
-* **New Feature:** Introduced "Freemium" architecture with advanced Pro capabilities.
-* **New Pro Feature:** **Smart Badges** for Inventory (Low Stock), Performance (Best Sellers), and Scheduling.
-* **New Pro Feature:** **Store Audit Power Tools** including CSV Export, Bulk COGS Import, and Inline Editing.
-* **New Pro Feature:** **GMC Compliance Guard** to auto-strip banned words and block saves on critical errors.
-* **New Pro Feature:** **Promotion Manager API** for one-click submission to Google.
-* **Enhancement:** Added "System Info" tool to the support menu for faster troubleshooting.
-* **Enhancement:** Pricing Engine now supports new strategies (5%, 15%, 25% Off) and "Nearest 5/0" rounding.
+**Note:** Effective from this release, only changes to the free version of the plugin will be listed. For changes to the Pro version of the plugin (which also include the free changes), please refer to the pro version README instead.
+* **New Feature:** Introduced "Freemium" architecture. Pro features are now visible in the interface (grayed out) to showcase advanced capabilities if downloading from Freemius. They are not visible from the WP Plugin Directory version. 
+* **Enhancement:** Added "System Info" tool to the support menu (header) to easily copy environment details for faster troubleshooting.
+* **Enhancement:** Pricing Engine now supports 5%, 15%, and 25% "Off MSRP" strategies.
+* **Enhancement:** Pricing Engine now supports "Nearest 5/0" rounding (e.g., $12.95 -> $15.00, $8.20 -> $10.00).
 * **UI Update:** Reorganized settings into tabbed cards for better usability.
-* **UI Update:** Added "Hide Pro Features" toggle for a cleaner interface for free users not looking to upgrade.
-* **Preparation:** Added placeholders for future Freemius integration and API connectivity.
+* **UI Update:** Added "Hide Pro Features" toggle in General Settings for users who prefer a cleaner, free-only interface.
+* **Fix:** Downloadable/virtual items are now correctly handled (no shipping/cost is likely, so alerts suppressed)
+* **Fix:** Removal/fixing of code that caused instability post-1.0.5 on non-test stores. Some code was still referring to pre-v1.0 architecture (code snippets).
+* **Fix:** Sent emails now are actually useful.
 
 = 1.1 =
+
+**Note:** in-house development release
 * **New Feature:** Payment Processor Fees configuration (Settings > Profit Engine) allows for accurate Net Profit calculations by factoring in gateway percentages and flat fees (e.g., Stripe/PayPal).
 * **New Feature:** "Profit at a Glance" column added to the Products > All Products list, displaying a color-coded margin percentage for every item.
 * **New Feature:** "New Arrival" Badge module. Automatically displays a "New" badge on products created within a configurable number of days.
@@ -124,7 +125,7 @@ Store Audit: A financial breakdown of every product to spot profit leaks.
 
 = 1.0.5 =
 
-Continuing work to address issues found in Plugin Check to ensure smooth approval.
+Continuing work to address issues found in Plugin Check to ensure smooth approval. Sent for approval to WP Plugin Directory.
 
 = 1.0.4 =
 

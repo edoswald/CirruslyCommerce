@@ -3,25 +3,258 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 
 class Cirrusly_Commerce_Audit {
 
+    /**
+     * Registers audit-related hooks used by the admin area.
+     *
+     * Attaches the CSV export handler to the `admin_init` action so exports can be initiated before HTTP headers are sent.
+     */
     public static function init() {
         // Hook for export - must run before headers are sent
         add_action( 'admin_init', array( __CLASS__, 'handle_export' ) );
     }
 
+    /**
+     * Generate or retrieve cached per-product audit data used for the admin audit table and CSV export.
+     *
+     * When not forcing a refresh, returns a cached dataset (stored for one hour). Each entry contains
+     * computed commercial metrics and metadata for a single product or variation.
+     *
+     * @param bool $force_refresh If true, bypass the cache and regenerate the dataset.
+     * @return array[] Array of item arrays. Each item contains the keys:
+     *                 - id: (int) Product ID.
+     *                 - name: (string) Product name.
+     *                 - type: (string) Product type (e.g., 'simple', 'variation').
+     *                 - parent_id: (int) Parent product ID for variations.
+     *                 - cost: (float) Total cost (COGS + shipping).
+     *                 - item_cost: (float) COGS value.
+     *                 - ship_cost: (float) Estimated or class-derived shipping cost.
+     *                 - ship_charge: (float) Shipping revenue charged to customer.
+     *                 - ship_pl: (float) Shipping profit/loss (ship_charge - ship_cost).
+     *                 - price: (float) Product price.
+     *                 - net: (float) Net profit after fees.
+     *                 - margin: (float) Margin percentage relative to price.
+     *                 - alerts: (string[]) Array of HTML alert badges for the product.
+     *                 - is_in_stock: (bool) Stock status.
+     *                 - cats: (string[]) Array of product category slugs.
+     */
+    public static function get_compiled_data( $force_refresh = false ) {
+        $cache_key = 'cw_audit_data';
+        $data = get_transient( $cache_key );
+        
+        if ( false === $data || $force_refresh ) {
+            $core = new Cirrusly_Commerce_Core(); 
+            $config = $core->get_global_config();
+            $revenue_tiers = json_decode( $config['revenue_tiers_json'], true );
+            $class_costs = json_decode( $config['class_costs_json'], true );
+            
+            // Payment Fee Logic (Supports Blended Rate)
+            $mode = isset($config['profile_mode']) ? $config['profile_mode'] : 'single';
+            
+            $pay_pct = isset($config['payment_pct']) ? ($config['payment_pct'] / 100) : 0.029;
+            $pay_flat = isset($config['payment_flat']) ? $config['payment_flat'] : 0.30;
+            
+            $pay_pct_2 = isset($config['payment_pct_2']) ? ($config['payment_pct_2'] / 100) : 0.0349;
+            $pay_flat_2 = isset($config['payment_flat_2']) ? $config['payment_flat_2'] : 0.49;
+            $split = isset($config['profile_split']) ? ($config['profile_split'] / 100) : 1.0;
+
+            // Helper: Get Ship Revenue (Closure)
+            $get_rev = function($p_price) use ($revenue_tiers) { 
+                if($revenue_tiers) {
+                    foreach($revenue_tiers as $t) if($p_price>=$t['min'] && $p_price<=$t['max']) return $t['charge']; 
+                }
+                return 0; 
+            };
+
+            $args = array( 'post_type' => array('product','product_variation'), 'posts_per_page' => -1, 'post_status' => 'publish', 'fields' => 'ids' );
+            $ids = get_posts($args);
+            $data = array();
+            
+            foreach($ids as $pid) {
+                $p = wc_get_product($pid); if(!$p) continue;
+                
+                // --- LOGIC FIX: Downloadable/Virtual are Shipping Exempt ---
+                $is_shipping_exempt = $p->is_virtual() || $p->is_downloadable();
+                
+                $cost = (float)$p->get_meta('_cogs_total_value');
+                $ship_cost = (float)$p->get_meta('_cw_est_shipping');
+                
+                // Fallback Ship Cost Logic
+                if($ship_cost <= 0 && !$is_shipping_exempt) {
+                    $cid = $p->get_shipping_class_id();
+                    $slug = ($cid && ($t=get_term($cid,'product_shipping_class'))) ? $t->slug : 'default';
+                    if ( $class_costs && isset($class_costs[$slug]) ) { $ship_cost = $class_costs[$slug]; } 
+                    elseif ( $class_costs && isset($class_costs['default']) ) { $ship_cost = $class_costs['default']; } else { $ship_cost = 0; }
+                } elseif ( $is_shipping_exempt ) {
+                    $ship_cost = 0;
+                }
+                
+                $price = (float)$p->get_price();
+                
+                // Rev Logic: Exempt products get 0 shipping revenue
+                $rev = $is_shipping_exempt ? 0 : $get_rev($price);
+                
+                $total_inc = $price + $rev;
+                $total_cost = $cost + $ship_cost;
+                $margin = 0; $net = 0;
+                
+                if($price > 0 && $total_cost > 0) {
+                    $gross = $total_inc - $total_cost;
+                    $margin = ($gross/$price)*100;
+                    
+                    // Fee Calculation (Single vs Multi)
+                    if ( $mode === 'multi' ) {
+                        // Weighted average of two gateways
+                        $fee1 = ($total_inc * $pay_pct) + $pay_flat;
+                        $fee2 = ($total_inc * $pay_pct_2) + $pay_flat_2;
+                        $fee = ($fee1 * $split) + ($fee2 * (1 - $split));
+                    } else {
+                        $fee = ($total_inc * $pay_pct) + $pay_flat;
+                    }
+                    
+                    $net = $gross - $fee;
+                }
+                
+                $alerts = array();
+                if($cost <= 0) $alerts[] = '<a href="'.esc_url(get_edit_post_link($pid)).'" target="_blank" class="gmc-badge" style="background:#d63638;color:#fff;text-decoration:none;">Add Cost</a>';
+                
+                // Logic Fix: Only alert on weight if shippable
+                if( !$is_shipping_exempt && (float)$p->get_weight() <= 0) $alerts[] = '<span class="gmc-badge" style="background:#dba617;color:#000;">0 Weight</span>';
+                
+                $ship_pl = $rev - $ship_cost;
+                
+                $data[] = array(
+                    'id' => $pid,
+                    'name' => $p->get_name(),
+                    'type' => $p->get_type(),
+                    'parent_id' => $p->get_parent_id(),
+                    'cost' => $total_cost,
+                    'item_cost' => $cost,
+                    'ship_cost' => $ship_cost,
+                    'ship_charge' => $rev,
+                    'ship_pl' => $ship_pl,
+                    'price' => $price,
+                    'net' => $net,
+                    'margin' => $margin,
+                    'alerts' => $alerts,
+                    'is_in_stock' => $p->is_in_stock(),
+                    'cats' => wp_get_post_terms($pid, 'product_cat', array('fields'=>'slugs'))
+                );
+            }
+            set_transient( $cache_key, $data, 1 * HOUR_IN_SECONDS );
+        }
+        return $data;
+    }
+
+    /**
+     * Compute pricing and profitability metrics for a single product.
+     *
+     * Uses product price, cost, shipping estimates, configured revenue tiers, and payment fees
+     * to calculate net profit, margin, and shipping contribution for the specified product.
+     *
+     * @param int $pid The product ID to evaluate.
+     * @return array|false An associative array with computed values, or `false` if the product does not exist:
+     *                     - `net_val` (float): Net profit value (after fees).
+     *                     - `net_html` (string): Formatted net profit for display (HTML).
+     *                     - `net_style` (string): Inline CSS style for net display (color/weight).
+     *                     - `margin` (string): Margin formatted to one decimal place (percentage string).
+     *                     - `margin_val` (float): Numeric margin percentage.
+     *                     - `ship_pl_html` (string): Formatted shipping profit/loss for display (HTML).
+     *                     - `cost_html` (string): Formatted total cost (cost + shipping) for display (HTML).
+     */
+    public static function get_single_metric( $pid ) {
+        // Force refresh just this item's calculation logic essentially
+        // We reuse the logic by running a partial routine similar to get_compiled_data
+        // but simpler for performance.
+        
+        $p = wc_get_product($pid);
+        if(!$p) return false;
+
+        $core = new Cirrusly_Commerce_Core(); 
+        $config = $core->get_global_config();
+        
+        // Configs
+        $revenue_tiers = json_decode( $config['revenue_tiers_json'], true );
+        $class_costs   = json_decode( $config['class_costs_json'], true );
+        $mode = isset($config['profile_mode']) ? $config['profile_mode'] : 'single';
+        $pay_pct       = isset($config['payment_pct']) ? ($config['payment_pct'] / 100) : 0.029;
+        $pay_flat      = isset($config['payment_flat']) ? $config['payment_flat'] : 0.30;
+        $pay_pct_2     = isset($config['payment_pct_2']) ? ($config['payment_pct_2'] / 100) : 0.0349;
+        $pay_flat_2    = isset($config['payment_flat_2']) ? $config['payment_flat_2'] : 0.49;
+        $split         = isset($config['profile_split']) ? ($config['profile_split'] / 100) : 1.0;
+        
+        $is_shipping_exempt = $p->is_virtual() || $p->is_downloadable();
+        
+        $cost = (float)$p->get_meta('_cogs_total_value');
+        $ship_cost = (float)$p->get_meta('_cw_est_shipping');
+        
+        // Fallback Ship Cost
+        if($ship_cost <= 0 && !$is_shipping_exempt) {
+            $cid = $p->get_shipping_class_id();
+            $slug = ($cid && ($t=get_term($cid,'product_shipping_class'))) ? $t->slug : 'default';
+            if ( $class_costs && isset($class_costs[$slug]) ) { $ship_cost = $class_costs[$slug]; } 
+            elseif ( $class_costs && isset($class_costs['default']) ) { $ship_cost = $class_costs['default']; } else { $ship_cost = 0; }
+        } elseif ( $is_shipping_exempt ) {
+            $ship_cost = 0;
+        }
+
+        $price = (float)$p->get_price();
+        
+        // Get Revenue
+        $rev = 0;
+        if ( !$is_shipping_exempt && $revenue_tiers ) {
+            foreach($revenue_tiers as $t) if($price>=$t['min'] && $price<=$t['max']) { $rev = $t['charge']; break; }
+        }
+
+        $total_inc = $price + $rev;
+        $total_cost = $cost + $ship_cost;
+        $margin = 0; $net = 0;
+        
+        if($price > 0 && $total_cost > 0) {
+            $gross = $total_inc - $total_cost;
+            $margin = ($gross/$price)*100;
+           
+            if ( $mode === 'multi' ) {
+                $fee1 = ($total_inc * $pay_pct) + $pay_flat;
+                $fee2 = ($total_inc * $pay_pct_2) + $pay_flat_2;
+                $fee = ($fee1 * $split) + ($fee2 * (1 - $split));
+            } else {
+                $fee = ($total_inc * $pay_pct) + $pay_flat;
+            }
+            
+            $net = $gross - $fee;
+        }
+        
+        $ship_pl = $rev - $ship_cost;
+
+        // Formatted HTML for JS return
+        $net_style = $net < 0 ? 'color:#d63638;font-weight:bold;' : 'color:#008a20;font-weight:bold;';
+        
+        return array(
+            'net_val' => $net,
+            'net_html' => wc_price($net),
+            'net_style' => $net_style,
+            'margin' => number_format($margin, 1),
+            'margin_val' => $margin,
+            'ship_pl_html' => wc_price($ship_pl), // if needed
+            'cost_html' => wc_price($total_cost) // if needed
+        );
+    }
+
+    /**
+     * Outputs a CSV file of the compiled audit data when the audit admin page requests an export.
+     *
+     * Checks that the current user can edit products and that Pro features are enabled; if Pro is not enabled the request is terminated with wp_die. When invoked via the audit page export action, the method generates or loads the compiled audit data, sends CSV headers and the CSV payload to the client, and terminates execution.
+     */
     public static function handle_export() {
         if ( isset($_GET['page']) && $_GET['page'] === 'cirrusly-audit' && isset($_GET['action']) && $_GET['action'] === 'export_csv' ) {
             if ( ! current_user_can( 'edit_products' ) ) return;
             
-            // Check for PRO
             if ( ! Cirrusly_Commerce_Core::cirrusly_is_pro() ) {
                 wp_die('Export is a Pro feature.');
             }
 
-            $data = get_transient( 'cw_audit_data' );
-            if ( ! $data ) {
-                wp_redirect( admin_url('admin.php?page=cirrusly-audit') );
-                exit;
-            }
+            // Fix: Generate data if transient is missing (don't redirect)
+            $data = self::get_compiled_data();
 
             header('Content-Type: text/csv');
             header('Content-Disposition: attachment; filename="store-audit-' . date('Y-m-d') . '.csv"');
@@ -46,12 +279,28 @@ class Cirrusly_Commerce_Audit {
         }
     }
 
+    /**
+     * Process an uploaded CSV to bulk-import product COGS and refresh cached audit data.
+     *
+     * Reads the uploaded 'csv_import' file (skipping the CSV header) and updates each row's product meta
+     * key `_cogs_total_value` when a valid product ID and positive cost are present. Requires the current
+     * user to have the `edit_products` capability and the plugin's Pro features enabled. Clears the
+     * compiled audit transient after import and registers a settings notice with the count of updated products.
+     *
+     * Notes:
+     * - Handles legacy Mac line endings on PHP versions prior to 8.1.
+     * - Expected CSV export format: ID(0), Name(1), Type(2), Cost(3).
+     */
     public static function handle_import() {
         if ( isset($_FILES['csv_import']) && current_user_can('edit_products') ) {
-            // Check PRO
             if ( ! Cirrusly_Commerce_Core::cirrusly_is_pro() ) {
                 add_settings_error('cirrusly_audit', 'import_fail', 'Import is a Pro feature.', 'error');
                 return;
+            }
+
+            // Fix: Handle Mac line endings in CSVs (deprecated in PHP 8.1+)
+            if ( version_compare( PHP_VERSION, '8.1.0', '<' ) ) {
+                ini_set('auto_detect_line_endings', true);
             }
 
             $file = $_FILES['csv_import']['tmp_name'];
@@ -62,12 +311,17 @@ class Cirrusly_Commerce_Audit {
             fgetcsv($handle);
             
             while (($row = fgetcsv($handle)) !== FALSE) {
-                // Expected CSV: ID, Cost
-                // You can make this smarter to detect columns, but for now lets assume Col 0 is ID
+                // Check if row has data
+                if ( empty($row[0]) ) continue;
+                
                 $pid = intval($row[0]);
-                $cost = floatval($row[3]); // Assuming matches export format (Col 3 is cost)
+                // Fix: Ensure we are grabbing valid data. 
+                // Export format: ID(0), Name(1), Type(2), Cost(3)
+                $cost = isset($row[3]) ? floatval($row[3]) : 0;
                 
                 if ( $pid && $cost > 0 ) {
+                    $product = wc_get_product( $pid );
+                    if ( ! $product ) continue;
                     update_post_meta($pid, '_cogs_total_value', $cost);
                     $count++;
                 }
@@ -78,6 +332,16 @@ class Cirrusly_Commerce_Audit {
         }
     }
 
+    /**
+     * Render the "Store Financial Audit" admin page and handle related import actions.
+     *
+     * Verifies the current user has the `edit_products` capability and aborts if not authorized.
+     * When a POST contains a valid `cc_import_nonce`, processes a bulk COGS CSV import.
+     * Displays an audit dashboard that uses cached compiled audit data (with optional refresh via
+     * the `refresh_audit` query parameter), and renders filters, pagination, a sortable table of
+     * audited SKUs, and top-level summary cards. Pro-only controls (CSV export, bulk import,
+     * and inline COGS editing) are shown or enabled based on the Pro status.
+     */
     public static function render_page() {
         if ( ! current_user_can( 'edit_products' ) ) wp_die( 'No permission' );
         
@@ -92,91 +356,11 @@ class Cirrusly_Commerce_Audit {
         settings_errors('cirrusly_audit');
 
         // 1. Handle Cache & Refresh
-        $cache_key = 'cw_audit_data';
-        $cached_data = get_transient( $cache_key );
-        
-        if ( isset( $_GET['refresh_audit'] ) ) {
-             delete_transient( $cache_key );
-             $cached_data = false;
-        }
+        $refresh = isset( $_GET['refresh_audit'] );
+        if ( $refresh ) delete_transient( 'cw_audit_data' );
 
-        // 2. Get Config for Calculations
-        $core = new Cirrusly_Commerce_Core(); 
-        $config = $core->get_global_config();
-        $revenue_tiers = json_decode( $config['revenue_tiers_json'], true );
-        $class_costs = json_decode( $config['class_costs_json'], true );
-        
-        $pay_pct = isset($config['payment_pct']) ? ($config['payment_pct'] / 100) : 0.029;
-        $pay_flat = isset($config['payment_flat']) ? $config['payment_flat'] : 0.30;
-
-        // Helper: Get Ship Revenue
-        $get_rev = function($p) use ($revenue_tiers) { 
-            if($revenue_tiers) {
-                foreach($revenue_tiers as $t) if($p>=$t['min'] && $p<=$t['max']) return $t['charge']; 
-            }
-            return 0; 
-        };
-
-        // 3. Build Data (if not cached)
-        if ( false === $cached_data ) {
-            $args = array( 'post_type' => array('product','product_variation'), 'posts_per_page' => -1, 'post_status' => 'publish', 'fields' => 'ids' );
-            $ids = get_posts($args);
-            $data = array();
-            
-            foreach($ids as $pid) {
-                $p = wc_get_product($pid); if(!$p) continue;
-                
-                $cost = (float)$p->get_meta('_cogs_total_value');
-                $ship_cost = (float)$p->get_meta('_cw_est_shipping');
-                
-                // Fallback Ship Cost
-                if($ship_cost <= 0 && !$p->is_virtual()) {
-                    $cid = $p->get_shipping_class_id();
-                    $slug = ($cid && ($t=get_term($cid,'product_shipping_class'))) ? $t->slug : 'default';
-                    if ( $class_costs && isset($class_costs[$slug]) ) { $ship_cost = $class_costs[$slug]; } 
-                    elseif ( $class_costs && isset($class_costs['default']) ) { $ship_cost = $class_costs['default']; } else { $ship_cost = 0; }
-                }
-                
-                $price = (float)$p->get_price();
-                $rev = $get_rev($price);
-                $total_inc = $price + $rev;
-                $total_cost = $cost + $ship_cost;
-                $margin = 0; $net = 0;
-                
-                if($price > 0 && $total_cost > 0) {
-                    $gross = $total_inc - $total_cost;
-                    $margin = ($gross/$price)*100;
-                    $fee = ($total_inc * $pay_pct) + $pay_flat;
-                    $net = $gross - $fee;
-                }
-                
-                $alerts = array();
-                if($cost <= 0) $alerts[] = '<a href="'.esc_url(get_edit_post_link($pid)).'" target="_blank" class="gmc-badge" style="background:#d63638;color:#fff;text-decoration:none;">Add Cost</a>';
-                if(!$p->is_virtual() && (float)$p->get_weight() <= 0) $alerts[] = '<span class="gmc-badge" style="background:#dba617;color:#000;">0 Weight</span>';
-                
-                $ship_pl = $rev - $ship_cost;
-                
-                $data[] = array(
-                    'id' => $pid,
-                    'name' => $p->get_name(),
-                    'type' => $p->get_type(),
-                    'parent_id' => $p->get_parent_id(),
-                    'cost' => $total_cost,
-                    'item_cost' => $cost,
-                    'ship_cost' => $ship_cost,
-                    'ship_charge' => $rev,
-                    'ship_pl' => $ship_pl,
-                    'price' => $price,
-                    'net' => $net,
-                    'margin' => $margin,
-                    'alerts' => $alerts,
-                    'is_in_stock' => $p->is_in_stock(),
-                    'cats' => wp_get_post_terms($pid, 'product_cat', array('fields'=>'slugs'))
-                );
-            }
-            set_transient( $cache_key, $data, 1 * HOUR_IN_SECONDS );
-            $cached_data = $data;
-        }
+        // 2. Get Data via Helper
+        $cached_data = self::get_compiled_data( $refresh );
 
         // --- Calculate Audit Aggregates ---
         $total_skus = count($cached_data);
@@ -216,7 +400,6 @@ class Cirrusly_Commerce_Audit {
                     <span class="cc-label">Low Margin (&lt; 15%)</span>
                 </div>
                 
-                <!-- PRO Upsell Area -->
                 <div style="flex:2; display:flex; gap:10px; justify-content:center; align-items:center; border-left:1px solid #eee; padding-left:20px; position:relative;">
                     
                     <div class="<?php echo esc_attr($pro_class); ?>">
@@ -247,7 +430,7 @@ class Cirrusly_Commerce_Audit {
         </div>
         <?php
 
-        // 4. Process Filters & Pagination
+        // 3. Process Filters & Pagination
         // phpcs:ignore WordPress.Security.NonceVerification.Recommended
         $f_margin = isset($_GET['margin']) ? floatval($_GET['margin']) : 25;
         // phpcs:ignore WordPress.Security.NonceVerification.Recommended
@@ -282,34 +465,50 @@ class Cirrusly_Commerce_Audit {
         });
 
         $total = count($filtered_data);
+        $pages = ceil($total/$per_page);
         $slice = array_slice($filtered_data, ($paged-1)*$per_page, $per_page);
 
-        // 5. Render View
+        // 4. Render View
+        $allowed_form_tags = array( 'select' => array('name' => true, 'id' => true, 'class' => true), 'option' => array('value' => true, 'selected' => true) );
         
-        // Define allowed HTML for dropdowns
-        $allowed_form_tags = array(
-            'select' => array('name' => true, 'id' => true, 'class' => true),
-            'option' => array('value' => true, 'selected' => true),
-        );
+        // Helper to generate pagination HTML
+        $pagination_html = '';
+        if($pages>1) {
+            $pagination_html .= '<div class="tablenav-pages"><span class="displaying-num">'.esc_html($total).' items</span>';
+            $pagination_html .= '<span class="pagination-links">';
+            for($i=1; $i<=$pages; $i++) {
+                if($i==1 || $i==$pages || abs($i-$paged)<2) {
+                    $cls = $i==$paged ? 'current' : '';
+                    $pagination_html .= '<a class="button '.esc_attr($cls).'" href="'.esc_url(add_query_arg('paged',$i)).'">'.esc_html($i).'</a> ';
+                } elseif($i==2 || $i==$pages-1) $pagination_html .= '<span class="tablenav-pages-navspan button disabled">...</span> ';
+            }
+            $pagination_html .= '</span></div>';
+        }
 
-        echo '<div class="card" style="background:#fff; padding:15px; margin-bottom:20px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
-            <form method="get" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-                <input type="hidden" name="page" value="cirrusly-audit">
-                <input type="text" name="s" value="'.esc_attr($search).'" placeholder="Search products...">
-                <select name="margin">
-                    <option value="5" '.selected($f_margin,5,false).'>Margin < 5%</option>
-                    <option value="15" '.selected($f_margin,15,false).'>Margin < 15%</option>
-                    <option value="25" '.selected($f_margin,25,false).'>Margin < 25%</option>
-                    <option value="100" '.selected($f_margin,100,false).'>Show All (No Filter)</option>
-                </select> 
-                '.wp_kses( wc_product_dropdown_categories(array('option_none_text'=>'All Categories','name'=>'cat','selected'=>$f_cat,'value_field'=>'slug','echo'=>0)), $allowed_form_tags ).'
-                <label><input type="checkbox" name="hide_oos" value="1" '.checked($f_oos,true,false).'> Hide OOS</label>
-                <button class="button button-primary">Filter</button>
-                <a href="?page=cirrusly-audit&refresh_audit=1" class="button" title="Refresh Data from DB">Refresh Data</a>
-            </form>
-            <div style="text-align:right;"><strong>'.esc_html($total).'</strong> Issues Found</div>
-        </div>';
+        // Updated Filter Bar styling
+        ?>
+        <div class="tablenav top">
+            <div class="alignleft actions">
+                <form method="get" style="display:inline-flex; gap:5px; align-items:center;">
+                    <input type="hidden" name="page" value="cirrusly-audit">
+                    <input type="text" name="s" value="<?php echo esc_attr($search); ?>" placeholder="Search products...">
+                    <select name="margin">
+                        <option value="5" <?php selected($f_margin,5); ?>>Margin < 5%</option>
+                        <option value="15" <?php selected($f_margin,15); ?>>Margin < 15%</option>
+                        <option value="25" <?php selected($f_margin,25); ?>>Margin < 25%</option>
+                        <option value="100" <?php selected($f_margin,100); ?>>Show All</option>
+                    </select> 
+                    <?php echo wp_kses( wc_product_dropdown_categories(array('option_none_text'=>'All Categories','name'=>'cat','selected'=>$f_cat,'value_field'=>'slug','echo'=>0)), $allowed_form_tags ); ?>
+                    <label style="margin-left:5px;"><input type="checkbox" name="hide_oos" value="1" <?php checked($f_oos,true); ?>> Hide OOS</label>
+                    <button class="button button-primary">Filter</button>
+                    <a href="?page=cirrusly-audit&refresh_audit=1" class="button" title="Refresh Data from DB">Refresh Data</a>
+                </form>
+            </div>
+            <?php echo wp_kses_post( $pagination_html ); ?>
+
+        </div>
         
+        <?php
         // Helper for Sort Links
         $sort_link = function($col, $label) use ($orderby, $order) {
             $new_order = ($orderby === $col && $order === 'asc') ? 'desc' : 'asc';
@@ -352,14 +551,15 @@ class Cirrusly_Commerce_Audit {
                      $cost_cell = '<span class="cc-inline-edit" data-pid="'.esc_attr($row['id']).'" data-field="_cogs_total_value" contenteditable="true" style="border-bottom:1px dashed #999; cursor:pointer;">'.number_format($row['item_cost'], 2).'</span> <small style="color:#999;">+ Ship '.number_format($row['ship_cost'], 2).'</small>';
                 }
 
+                // Add classes (col-net, col-margin) for AJAX targeting
                 echo '<tr>
                     <td>'.esc_html($row['id']).'</td>
                     <td><a href="'.esc_url(get_edit_post_link($row['id'])).'">'.wp_kses_post($name_html).'</a></td>
                     <td>'.$cost_cell.'</td>
                     <td>'.wp_kses_post(wc_price($row['price'])).'</td>
                     <td style="'.esc_attr($ship_style).'">'.$ship_cell.'</td>
-                    <td style="'.esc_attr($net_style).'">'.wp_kses_post(wc_price($row['net'])).'</td>
-                    <td>'.esc_html(number_format($row['margin'],1)).'%</td>
+                    <td class="col-net" style="'.esc_attr($net_style).'">'.wp_kses_post(wc_price($row['net'])).'</td>
+                    <td class="col-margin">'.esc_html(number_format($row['margin'],1)).'%</td>
                     <td>'.wp_kses_post(implode(' ',$row['alerts'])).'</td>
                     <td><a href="'.esc_url(get_edit_post_link($row['id'])).'" target="_blank" class="button button-small">Edit</a></td>
                 </tr>';
@@ -367,16 +567,25 @@ class Cirrusly_Commerce_Audit {
         }
         echo '</tbody></table>';
 
+        // Pagination Bottom
+        echo '<div class="tablenav bottom">' . wp_kses_post( $pagination_html ) . '</div>';
+
+
         // Inline Edit Script (Pro)
         if($is_pro) {
             ?>
             <script>
             jQuery(document).ready(function($){
                 $('.cc-inline-edit').on('blur', function(){
-                    var pid = $(this).data('pid');
-                    var field = $(this).data('field');
-                    var val = $(this).text();
+                    var $el = $(this);
+                    var $row = $el.closest('tr');
+                    var pid = $el.data('pid');
+                    var field = $el.data('field');
+                    var val = $el.text();
                     
+                    // Show loading state (opacity)
+                    $el.css('opacity', '0.5');
+
                     $.post(ajaxurl, {
                         action: 'cc_audit_save',
                         pid: pid,
@@ -384,27 +593,38 @@ class Cirrusly_Commerce_Audit {
                         value: val,
                         _nonce: '<?php echo wp_create_nonce("cc_audit_save"); ?>'
                     }, function(res){
+                        $el.css('opacity', '1');
+                        
                         if(res.success) {
-                            // Optional: Show success toast
-                            $(this).css('background', '#e7f6e7');
+                            // 1. Visual Confirmation (Green Flash)
+                            $el.css('background-color', '#e7f6e7');
+                            setTimeout(function(){ $el.css('background-color', 'transparent'); }, 1500);
+
+                            // 2. Update Row Data (if returned)
+                            if(res.data) {
+                                if(res.data.net_html) $row.find('.col-net').html(res.data.net_html);
+                                if(res.data.net_style) $row.find('.col-net').attr('style', res.data.net_style);
+                                if(res.data.margin) $row.find('.col-margin').text(res.data.margin + '%');
+                            }
+                        } else {
+                            // Error Flash
+                            $el.css('background-color', '#f8d7da');
+                            alert('Save Failed: ' + (res.data || 'Unknown error'));
                         }
                     });
+                });
+                
+                // UX: Select text on click
+                $('.cc-inline-edit').on('focus', function() {
+                    var range = document.createRange();
+                    range.selectNodeContents(this);
+                    var sel = window.getSelection();
+                    sel.removeAllRanges();
+                    sel.addRange(range);
                 });
             });
             </script>
             <?php
-        }
-
-        $pages = ceil($total/$per_page);
-        if($pages>1) {
-            echo '<div class="tablenav bottom"><div class="tablenav-pages"><span class="displaying-num">'.esc_html($total).' items</span>';
-            for($i=1; $i<=$pages; $i++) {
-                if($i==1 || $i==$pages || abs($i-$paged)<2) {
-                    $cls = $i==$paged ? 'current' : '';
-                    echo '<a class="button '.esc_attr($cls).'" href="'.esc_url(add_query_arg('paged',$i)).'">'.esc_html($i).'</a> ';
-                } elseif($i==2 || $i==$pages-1) echo '... ';
-            }
-            echo '</div></div>';
         }
 
         echo '</div>'; 

@@ -123,6 +123,18 @@ class Cirrusly_Commerce_Badges {
         <?php
     }
 
+    /**
+     * Builds HTML for product badges based on site configuration and the product's state.
+     *
+     * Generates zero or more badge elements for:
+     * - premium "SMART" badges (Inventory, Performance, Scheduler) when the site is PRO and corresponding features are enabled,
+     * - sale-based discount badges calculated from MSRP or regular price,
+     * - "New" arrival badges based on product age,
+     * - custom tag-based image badges configured via JSON.
+     *
+     * @param \WC_Product|null $product The product to evaluate. If null or invalid, an empty string is returned.
+     * @return string HTML containing the concatenated badge elements (may be an empty string).
+     */
     private function get_badge_html( $product ) {
         if ( ! $product ) return '';
         
@@ -133,6 +145,44 @@ class Cirrusly_Commerce_Badges {
 
         $output = '';
         $min_threshold = 5; 
+
+    /* --------------------------------------------------------- */ 
+    /* fs_premium_only start                                     */
+    /* --------------------------------------------------------- */
+    
+    // Only render SMART badges for PRO users
+    $is_pro = Cirrusly_Commerce_Core::cirrusly_is_pro();
+    
+    // 1. SMART: INVENTORY (Low Stock)
+    if ( $is_pro && ! empty($badge_cfg['smart_inventory']) && $badge_cfg['smart_inventory'] === 'yes' ) {
+        if ( $product->managing_stock() && $product->get_stock_quantity() > 0 && $product->get_stock_quantity() < 5 ) {
+            $output .= '<span class="cw-badge-pill" style="background-color:#dba617;">Low Stock</span>';
+        }
+    }
+
+    // 2. SMART: PERFORMANCE (Best Seller)
+    // Check if total sales > 50 (Simple threshold) or use transient for Top 10
+    if ( $is_pro && ! empty($badge_cfg['smart_performance']) && $badge_cfg['smart_performance'] === 'yes' ) {
+        // Optimization: Check simple sales count to avoid heavy queries on every load
+        if ( $product->get_total_sales() > 50 ) {
+            $output .= '<span class="cw-badge-pill" style="background-color:#00a32a;">Best Seller</span>';
+        }
+    }
+
+    // 3. SMART: SCHEDULER (Date Range)
+    if ( $is_pro && ! empty($badge_cfg['smart_scheduler']) && $badge_cfg['smart_scheduler'] === 'yes' ) {
+        $start = !empty($badge_cfg['scheduler_start']) ? strtotime($badge_cfg['scheduler_start']) : 0;
+        $end   = !empty($badge_cfg['scheduler_end']) ? strtotime($badge_cfg['scheduler_end']) : 0;
+        $now   = current_time('timestamp');
+
+        if ( $start && $end && $now >= $start && $now <= $end ) {
+            $output .= '<span class="cw-badge-pill" style="background-color:#826eb4;">Event</span>';
+        }
+    }
+    
+    /* --------------------------------------------------------- */
+    /* fs_premium_only end                                       */
+    /* --------------------------------------------------------- */
 
         // 1. SALE MATH
         if ( $product->is_on_sale() ) {
