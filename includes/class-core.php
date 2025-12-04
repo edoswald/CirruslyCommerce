@@ -991,7 +991,8 @@ class Cirrusly_Commerce_Core {
                 $edit_url = admin_url( 'post.php?post=' . $row['product_id'] . '&action=edit' );
                 
                 $message .= '<tr>';
-                $message .= '<td><a href="' . $edit_url . '">' . $product->get_name() . '</a></td>';
+                // FIX: Escape the product name to prevent XSS in email
+                $message .= '<td><a href="' . $edit_url . '">' . esc_html( $product->get_name() ) . '</a></td>';
                 $message .= '<td>' . $issues_html . '</td>';
                 $message .= '<td>See severity details above</td>';
                 $message .= '<td><a href="' . $edit_url . '" style="text-decoration:none; background:#2271b1; color:#fff; padding:5px 10px; border-radius:3px;">Fix Now</a></td>';
