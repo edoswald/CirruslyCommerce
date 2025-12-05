@@ -130,12 +130,20 @@ class Cirrusly_Commerce_Automated_Discounts {
     /**
      * Frontend Logic: Override the displayed price string (e.g. "<del>$20</del> $18")
      */
+
     public function override_price_display( $price_html, $product ) {
         $discount = $this->get_active_discount( $product->get_id() );
         if ( ! $discount ) return $price_html;
 
+        // Handle Variable Products: get_regular_price() returns a range string, which breaks wc_format_sale_price
+        if ( $product->is_type( 'variable' ) ) {
+            $regular_price = $product->get_variation_regular_price( 'min', true );
+        } else {
+            $regular_price = $product->get_regular_price();
+        }
+
         // If we have a discount, show it as a Sale Price
-        return wc_format_sale_price( $product->get_regular_price(), $discount['price'] );
+        return wc_format_sale_price( $regular_price, $discount['price'] );
     }
 
     /**
