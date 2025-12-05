@@ -127,7 +127,7 @@ class Cirrusly_Commerce_Badges {
      * Builds HTML for product badges based on site configuration and the product's state.
      *
      * Generates zero or more badge elements for:
-     * - premium "SMART" badges (Inventory, Performance, Scheduler) when the site is PRO and corresponding features are enabled,
+     * - premium "SMART" badges (Inventory, Performance, Scheduler, Sentiment) when the site is PRO and corresponding features are enabled,
      * - sale-based discount badges calculated from MSRP or regular price,
      * - "New" arrival badges based on product age,
      * - custom tag-based image badges configured via JSON.
@@ -179,7 +179,18 @@ class Cirrusly_Commerce_Badges {
             $output .= '<span class="cw-badge-pill" style="background-color:#826eb4;">Event</span>';
         }
     }
-    
+
+    // 4. SMART BADGE: SENTIMENT (Customer Love)
+    if ( $is_pro ) {
+        $client = Cirrusly_Commerce_GMC::get_google_client();
+        
+        if ( ! is_wp_error( $client ) ) {
+            $sentiment_badge = $this->get_sentiment_badge( $product, $client );
+            if ( $sentiment_badge ) $output .= $sentiment_badge;
+
+        }
+    } 
+
     /* --------------------------------------------------------- */
     /* fs_premium_only end                                       */
     /* --------------------------------------------------------- */
@@ -263,5 +274,68 @@ class Cirrusly_Commerce_Badges {
         }
 
         return $output;
+    }
+
+    /**
+     * Determine whether recent approved reviews exhibit strong positive sentiment and return a "Customer Fave" badge HTML when they do.
+     *
+     * Uses the Google Cloud Natural Language API to analyze up to 5 approved comments for the given product, computes the average sentiment score, and returns a small HTML badge when the average score exceeds 0.6. Results are cached in a transient: a positive badge is cached for 7 days; an empty result is cached for 1 day. On any error or if there are no comments, an empty string is returned (and cached for 1 day).
+     *
+     * @param \WC_Product $product The product to analyze.
+     * @param \Google\Client $client An authenticated Google API client configured for Cloud Natural Language.
+     * @return string The badge HTML ("Customer Fave ❤️") when sentiment is highly positive, or an empty string otherwise.
+     */
+    private function get_sentiment_badge( $product, $client ) {
+        // Simple caching to avoid API costs/latency on every page load
+        $cache_key = 'cc_sentiment_' . $product->get_id();
+        $cached = get_transient( $cache_key );
+        if ( false !== $cached ) return $cached;
+
+        $comments = get_comments( array(
+            'post_id' => $product->get_id(),
+            'number'  => 5,
+            'status'  => 'approve',
+            'type'    => 'review', // Only product reviews
+        ) ); 
+        
+        if ( empty( $comments ) ) {
+            set_transient( $cache_key, '', DAY_IN_SECONDS );
+            return '';
+        }
+
+        try {
+            $service = new Google\Service\CloudNaturalLanguage( $client );
+            
+            // Combine reviews into single document to minimize API calls
+            $combined_text = implode( "\n\n", array_map( function( $c ) {
+                return $c->comment_content;
+            }, $comments ) );
+            
+            $doc = new Google\Service\CloudNaturalLanguage\Document();
+            $doc->setContent( $combined_text );
+            $doc->setType( 'PLAIN_TEXT' );
+            
+            $request = new Google\Service\CloudNaturalLanguage\AnalyzeSentimentRequest();
+            $request->setDocument( $doc );
+            
+            $resp = $service->documents->analyzeSentiment( $request );
+            $score = $resp->getDocumentSentiment()->getScore();
+
+            // If average sentiment is > 0.6 (Highly Positive)
+            if ( $score > 0.6 ) {
+                $html = '<span class="cw-badge-pill" style="background-color:#e0115f;">Customer Fave ❤️</span>';
+                set_transient( $cache_key, $html, 7 * DAY_IN_SECONDS );
+                return $html;
+            }
+
+        } catch ( Exception $e ) {
+            // Log error for debugging, do not crash frontend
+            if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+                error_log( 'Cirrusly Sentiment Analysis Error: ' . $e->getMessage() );
+            }
+        }
+        
+        set_transient( $cache_key, '', DAY_IN_SECONDS );
+        return '';
     }
 }

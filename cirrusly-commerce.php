@@ -14,6 +14,14 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+// -------------------------------------------------------------------------
+// COMPOSER AUTOLOADER
+// -------------------------------------------------------------------------
+// This loads Google (and any future libraries) automatically
+if ( file_exists( plugin_dir_path( __FILE__ ) . 'vendor/autoload.php' ) ) {
+    require_once plugin_dir_path( __FILE__ ) . 'vendor/autoload.php';
+}
+
 // Define Constants
 define( 'CIRRUSLY_COMMERCE_VERSION', '1.2.0' );
 define( 'CIRRUSLY_COMMERCE_PATH', plugin_dir_path( __FILE__ ) );
@@ -56,7 +64,7 @@ if ( ! function_exists( 'cc_fs' ) ) {
                     'is_require_payment' => false,
                 ),
                 'menu'                => array(
-                    'slug'           => 'cirrusly-settings',
+                    'slug'           => 'cirrusly-commerce',
                     'support'        => false,
                 ),
             ) );
@@ -67,6 +75,20 @@ if ( ! function_exists( 'cc_fs' ) ) {
 
     // Init Freemius.
     cc_fs();
+
+    // Override Freemius strings for a professional tone
+    cc_fs()->override_i18n( array(
+        'yee-haw' => 'Success',
+        'woot'    => 'Success',
+        'oops'    => 'Notice',
+        'hmm'     => 'Notice',
+        'hey'     => 'Hello',
+        'right-on'=> 'Success',
+        'license-activated-message' => 'Your license has been successfully activated.',
+        'plan-upgraded-message'     => 'Your plan was successfully upgraded.',
+        'plan-activated-message'    => 'Your plan was successfully activated.',
+    ) );
+
     // Signal that SDK was initiated.
     do_action( 'cc_fs_loaded' );
 }
@@ -120,6 +142,8 @@ class Cirrusly_Commerce_Main {
         require_once $includes_path . 'class-compatibility.php';
         require_once $includes_path . 'class-badges.php';
         require_once $includes_path . 'class-manual.php';
+        require_once $includes_path . 'class-countdown.php';
+        require_once $includes_path . 'class-automated-discounts.php';
 
         // Initialize Modules
         new Cirrusly_Commerce_Core();
@@ -130,6 +154,8 @@ class Cirrusly_Commerce_Main {
         new Cirrusly_Commerce_Blocks();
         new Cirrusly_Commerce_Compatibility();
         new Cirrusly_Commerce_Badges();
+        new Cirrusly_Commerce_Countdown();
+        new Cirrusly_Commerce_Automated_Discounts();
 
         // Register Hooks
         register_activation_hook( __FILE__, array( $this, 'activate' ) );

@@ -16,6 +16,12 @@ class Cirrusly_Commerce_Pricing {
         add_filter( 'manage_edit-product_columns', array( $this, 'add_margin_column' ) );
         add_action( 'manage_product_posts_custom_column', array( $this, 'render_margin_column' ), 10, 2 );
 
+        // Admin Notice for repeated sync failures
+        add_action( 'admin_notices', array( $this, 'render_sync_error_notice' ) );
+
+        // NEW: Register the asynchronous GMC Sync handler.
+        add_action( 'cirrusly_commerce_gmc_sync', array( $this, 'handle_gmc_sync_event' ), 10, 1 );
+
         $this->init_frontend_msrp();
     }
 
@@ -140,6 +146,18 @@ class Cirrusly_Commerce_Pricing {
         return $price_html;
     }
 
+    /**
+     * Render the admin UI fields for simple product pricing and the pricing toolbar.
+     *
+     * Outputs HTML inputs for Google minimum price, MAP, MSRP, base shipping, and sale timer end, populating each field from the product's post meta and then renders the pricing engine toolbar.
+     *
+     * The following meta keys are used to populate fields:
+     * - _auto_pricing_min_price (Google Min)
+     * - _cirrusly_map_price (MAP)
+     * - _alg_msrp (MSRP)
+     * - _cw_est_shipping (Base Ship)
+     * - _cw_sale_end (Sale Timer End)
+     */
     public function pe_render_simple_fields() {
         global $product_object;
         $ship = $product_object->get_meta( '_cw_est_shipping' );
@@ -169,6 +187,8 @@ class Cirrusly_Commerce_Pricing {
         
         woocommerce_wp_text_input( array( 'id' => '_alg_msrp', 'label' => 'MSRP ($)', 'class' => 'wc_input_price short cw-msrp-input', 'value' => $msrp, 'data_type' => 'price', 'wrapper_class' => 'cw-flex-field' ));
         woocommerce_wp_text_input( array( 'id' => '_cw_est_shipping', 'label' => 'Base Ship ($)', 'class' => 'wc_input_price short cw-ship-input', 'value' => $ship, 'data_type' => 'price', 'description' => 'Auto-fills', 'wrapper_class' => 'cw-flex-field' ));
+        $sale_end = $product_object->get_meta( '_cw_sale_end' );
+        woocommerce_wp_text_input( array( 'id' => '_cw_sale_end', 'label' => 'Sale Timer End', 'placeholder' => 'YYYY-MM-DD HH:MM', 'class' => 'short cw-date-input', 'value' => $sale_end, 'wrapper_class' => 'cw-flex-field', 'description' => 'Enter date to show countdown.' ));
         echo '</div>';
         $this->pe_render_toolbar();
         echo '</div>';
@@ -236,7 +256,6 @@ class Cirrusly_Commerce_Pricing {
                         <option value="margin_30">Target 30% Margin</option>
                     </optgroup>
                 </select>
-                <!-- PRO Upsell Link -->
                 <a href="#upgrade-to-pro" class="cc-upgrade-btn" style="padding:2px 6px; font-size:10px; margin-left:10px;" title="Unlock Global Pricing Rules & Psychological Pricing">
                     <span class="dashicons dashicons-lock" style="font-size:12px;vertical-align:middle;"></span> Unlock Automation
                 </a>
@@ -249,6 +268,15 @@ class Cirrusly_Commerce_Pricing {
         <?php
     }
 
+    /**
+     * Persist simple product pricing fields to post meta and schedule an asynchronous GMC update.
+     *
+     * Saves submitted pricing-related fields for a simple product into post meta:
+     * `_cw_est_shipping`, `_cirrusly_map_price`, `_alg_msrp`, `_auto_pricing_min_price`, and `_cw_sale_end`.
+     * After saving, schedules a background Google Merchant Center inventory/price update for the product.
+     *
+     * @param int $post_id The product post ID to save meta for.
+     */
     public function pe_save_simple( $post_id ) {
         // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Woo Core Context
         if ( isset( $_POST['_cw_est_shipping'] ) ) update_post_meta( $post_id, '_cw_est_shipping', wc_format_decimal( sanitize_text_field( wp_unslash( $_POST['_cw_est_shipping'] ) ) ) );
@@ -258,8 +286,21 @@ class Cirrusly_Commerce_Pricing {
         if ( isset( $_POST['_alg_msrp'] ) ) update_post_meta( $post_id, '_alg_msrp', wc_format_decimal( sanitize_text_field( wp_unslash( $_POST['_alg_msrp'] ) ) ) );
         // phpcs:ignore WordPress.Security.NonceVerification.Missing
         if ( isset( $_POST['_auto_pricing_min_price'] ) ) update_post_meta( $post_id, '_auto_pricing_min_price', wc_format_decimal( sanitize_text_field( wp_unslash( $_POST['_auto_pricing_min_price'] ) ) ) );
+        if ( isset( $_POST['_cw_sale_end'] ) ) update_post_meta( $post_id, '_cw_sale_end', sanitize_text_field( wp_unslash( $_POST['_cw_sale_end'] ) ) );
+        // REFACTORED: Schedule a background task for Google Sync to prevent slowing down bulk save operations.
+        $this->schedule_gmc_sync( $post_id );
     }
 
+    /**
+     * Save pricing-related meta for a product variation and schedule an asynchronous GMC update.
+     *
+     * Reads variation-scoped pricing fields from the current POST (shipping estimate, MAP price,
+     * MSRP, and auto-pricing minimum), sanitizes and formats them, updates the variation's post meta,
+     * and then requests a push of the updated price/stock to Google Merchant Center asynchronously.
+     *
+     * @param int $vid Variation post ID to update.
+     * @param int $i   Index of the variation in the submitted variation loop (used to read the POST arrays).
+     */
     public function pe_save_variable( $vid, $i ) {
         // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Woo Core Context
         if ( isset( $_POST['_cw_est_shipping'][$i] ) ) update_post_meta( $vid, '_cw_est_shipping', wc_format_decimal( sanitize_text_field( wp_unslash( $_POST['_cw_est_shipping'][$i] ) ) ) );
@@ -269,5 +310,171 @@ class Cirrusly_Commerce_Pricing {
         if ( isset( $_POST['_alg_msrp'][$i] ) ) update_post_meta( $vid, '_alg_msrp', wc_format_decimal( sanitize_text_field( wp_unslash( $_POST['_alg_msrp'][$i] ) ) ) );
         // phpcs:ignore WordPress.Security.NonceVerification.Missing
         if ( isset( $_POST['_auto_pricing_min_price'][$i] ) ) update_post_meta( $vid, '_auto_pricing_min_price', wc_format_decimal( sanitize_text_field( wp_unslash( $_POST['_auto_pricing_min_price'][$i] ) ) ) );
+        // REFACTORED: Schedule a background task for Google Sync.
+        $this->schedule_gmc_sync( $vid );
     }
+
+    /**
+     * Helper to schedule an asynchronous Google Merchant Center inventory update.
+     *
+     * Uses wp_schedule_single_event to defer the API call, improving performance 
+     * during product saves, especially bulk operations.
+     *
+     * @param int $product_id The WooCommerce product post ID to synchronize.
+     * @return void
+     */
+    private function schedule_gmc_sync( $product_id ) {
+        // Clear any existing pending events for this product to prevent duplicates 
+        // if the product is saved multiple times in a short span (e.g., during bulk saves).
+        wp_clear_scheduled_hook( 'cirrusly_commerce_gmc_sync', array( $product_id ) );
+        
+        // Schedule the event to run in 60 seconds to allow time for product meta to fully save.
+        wp_schedule_single_event( time() + 60, 'cirrusly_commerce_gmc_sync', array( $product_id ) );
+    }
+
+    /**
+     * Handler for the scheduled 'cirrusly_commerce_gmc_sync' event.
+     *
+     * @param int $product_id The WooCommerce product post ID to synchronize.
+     * @return void
+     */
+    public function handle_gmc_sync_event( $product_id ) {
+        $this->_gmc_api_worker( $product_id );
+    }
+
+    /**
+     * Helper to log a global GMC sync API failure for admin notification.
+     *
+     * Stores the error message and time in a global option.
+     *
+     * @param string $message The error message to log.
+     * @return void
+     */
+    private function log_global_sync_failure( $message ) {
+        update_option( 'cirrusly_gmc_global_sync_error', array(
+            'time'    => time(),
+            'message' => $message,
+        ), false );
+        // Ensure the dismissal is cleared so the notice reappears.
+        delete_transient( 'cirrusly_gmc_sync_notice_dismissed' );
+    }
+
+    /**
+     * Helper to clear the global GMC sync API failure status.
+     *
+     * @return void
+     */
+    private function log_global_sync_success() {
+        delete_option( 'cirrusly_gmc_global_sync_error' );
+    }
+
+    /**
+     * Renders a dismissible admin notice if a global GMC sync failure is recorded.
+     *
+     * Only runs for users with manage_options capability and if the notice hasn't been dismissed.
+     * @return void
+     */
+    public function render_sync_error_notice() {
+        if ( ! current_user_can( 'manage_options' ) ) return;
+        if ( get_transient( 'cirrusly_gmc_sync_notice_dismissed' ) ) return;
+
+        $error_data = get_option( 'cirrusly_gmc_global_sync_error' );
+
+        if ( ! empty( $error_data ) && is_array( $error_data ) ) {
+            $time_diff = human_time_diff( $error_data['time'], current_time( 'timestamp' ) );
+            $message = sprintf( 
+                '<strong>Cirrusly Commerce Warning:</strong> Google Merchant Center sync failed %s ago. This is often due to missing credentials or API connection issues. <a href="%s">Review GMC Hub Settings</a>. Last Error: <code>%s</code>',
+                esc_html( $time_diff ),
+                esc_url( admin_url( 'admin.php?page=cirrusly-gmc' ) ),
+                esc_html( $error_data['message'] )
+            );
+            
+            // Note: Full dismissal logic (handling the query param) must be implemented separately, 
+            // but this provides the visible, dismissible notice structure.
+            echo '<div class="notice notice-error is-dismissible"><p>' . wp_kses_post( $message ) . '</p></div>';
+        }
+    }
+
+    /**
+     * Worker method to perform the Google Merchant Center inventory update.
+     *
+     * Migrated from the deprecated inventory->set() to use Google Content API v2.1's 
+     * products->update (PATCH) method.
+     *
+     * @param int $product_id The WooCommerce product post ID to synchronize.
+     * @return void
+     */
+    private function _gmc_api_worker( $product_id ) {
+        // Ensure the necessary class for the Google Client is available (assuming it's loaded elsewhere, e.g., in class-gmc.php)
+        if ( ! class_exists( 'Cirrusly_Commerce_GMC' ) ) {
+            error_log( 'GMC Sync Failed: Cirrusly_Commerce_GMC class not found. Product ID: ' . $product_id );
+            $this->log_global_sync_failure( 'Cirrusly_Commerce_GMC class not found.' );
+            return;
+        }
+
+        $client = Cirrusly_Commerce_GMC::get_google_client();
+        if ( is_wp_error( $client ) ) {
+            $error_message = $client->get_error_message();
+            error_log( 'GMC Sync Failed: GMC Client Error: ' . $error_message . ' Product ID: ' . $product_id );
+            $this->log_global_sync_failure( 'GMC Client Error: ' . $error_message );
+            return; // No connection = No sync
+        }
+        
+        $product = wc_get_product( $product_id );
+        if ( ! $product ) return;
+
+        $merchant_id = get_option( 'cirrusly_gmc_merchant_id' );
+        if ( empty( $merchant_id ) ) return; // Not configured
+
+        // The following classes are assumed to be loaded via Composer/Autoloader with Google API Client.
+        if ( ! class_exists( 'Google\Service\ShoppingContent' ) || ! class_exists( 'Google\Service\ShoppingContent\Product' ) ) {
+            error_log( 'GMC Sync Failed: Google ShoppingContent classes not found. Product ID: ' . $product_id );
+            $this->log_global_sync_failure( 'Google ShoppingContent classes not found.' );
+            return;
+        }
+
+        $service = new Google\Service\ShoppingContent( $client );
+
+        // Construct the product's offer ID (SKU or ID).
+        $offer_id = $product->get_sku() ?: $product->get_id();
+        
+        try {
+            // Build the minimal Product object for a PATCH request (update).
+            $gmc_product = new Google\Service\ShoppingContent\Product();
+            
+            // Required identifying fields for a PATCH/Update.
+            // These must match the identifiers used when the product was inserted/created in GMC.
+            $gmc_product->setOfferId( (string) $offer_id );
+            // Assuming 'en' and 'US' are the correct content language and target country.
+            $gmc_product->setContentLanguage( 'en' ); 
+            $gmc_product->setTargetCountry( 'US' );
+            $gmc_product->setChannel( 'online' );
+            
+            // 1. Set Availability (Field to update)
+            $gmc_product->setAvailability( $product->is_in_stock() ? 'in stock' : 'out of stock' );
+
+            // 2. Set Price (Field to update)
+            $price_obj = new Google\Service\ShoppingContent\Price();
+            $price_obj->setValue( $product->get_price() );
+            $price_obj->setCurrency( get_woocommerce_currency() );
+            $gmc_product->setPrice( $price_obj );
+            
+            // The full product ID to update (e.g., online:en:US:offerId).
+            $product_rest_id = sprintf( 'online:en:US:%s', $offer_id );
+
+            // Call the products->update method (which performs a PATCH for partial updates).
+            $service->products->update( 
+                $merchant_id, 
+                $product_rest_id, 
+                $gmc_product
+            );
+            
+            $this->log_global_sync_success();
+            
+        } catch ( Exception $e ) {
+            error_log( 'GMC Sync Failed: ' . $e->getMessage() . ' Product ID: ' . $product_id );
+            $this->log_global_sync_failure( 'API Exception: ' . $e->getMessage() );
+        }
+    }
+
 }

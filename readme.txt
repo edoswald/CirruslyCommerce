@@ -3,7 +3,7 @@
 Contributors: edoswald
 Tags: Google Merchant Center, WooCommerce, pricing, MSRP, profit margin
 Requires at least: 5.8 
-Tested up to: 6.8 
+Tested up to: 6.9 
 Stable tag: 1.2 
 Requires PHP: 8.0 
 License: GPLv2 or later 
@@ -13,53 +13,45 @@ All-in-one suite: GMC Validator, Promotion Manager, Pricing Engine, and Store Fi
 
 == Description ==
 
-Cirrusly Commerce is a comprehensive suite designed to optimize your WooCommerce store's financial health and Google Merchant Center (GMC) compliance. Initially built by us for internal use as a set of code snippets on cirruslyweather.com, Cirrusly Commerce addresses the disconnect between your store's data and Google's strict requirements while providing clear insight into your proper profit margins.
+Cirrusly Commerce is the "Financial Operating System" for WooCommerce stores running Google Shopping ads. It is the only plugin that combines **Google Merchant Center compliance**, **Financial Auditing**, and **Profit Optimization** into a single suite.
 
-Key Features:
+Stop guessing if you are profitable. Stop worrying about Merchant Center suspensions.
 
-Pricing Engine: Calculate real-time profit margins right on the product edit screen. Enter your Cost (COGS), MSRP, and MAP to see your net profit after shipping and fees instantly. Includes auto-calculation strategies (e.g., "10% Off MSRP", "Target 20% Margin") and rounding rules (.99, .50).
+### 1. GMC Health & Compliance (The "Safety Net")
+Your product feed is your business's lifeline. We protect it.
+* **Diagnostics Scan:** Instantly check your entire catalog for critical issues like missing GTINs, prohibited words (e.g., "cure", "free shipping" in titles), and policy violations.
+* **Suspension Prevention:** We actively block you from saving products with critical data errors that could get your Merchant Center account banned. (Free)
+* **Auto-Fix & Clean:** Automatically strip banned words and fix formatting issues the moment you click save. (Pro)
+* **Real-Time API Sync:** Bypass the 24-hour feed fetch delay. Push price, stock, and status changes to Google instantly via the Content API. (Agency)
 
-GMC Health Check: Scan your entire catalog for critical issues that cause Google Merchant Center disapprovals, such as missing GTINs, prohibited words in titles (e.g., "Free Shipping"), and missing attributes.
+### 2. Profit Engine & Pricing
+Revenue is vanity; profit is sanity.
+* **Real-Time Margin Calculator:** See your exact Net Profit and Margin % right on the product edit screen. We account for Cost of Goods (COGS), Shipping Costs, and Payment Processor fees (Stripe/PayPal).
+* **MSRP Display:** Automatically display "List Price" (MSRP) comparisons on your product pages to increase conversion.
+* **Automated Discounts:** Full support for Google's AI-driven "Automated Discounts" program. The plugin validates Google's secure pricing tokens (JWT) and dynamically updates the customer's cart to match the ad price. (Agency)
+* **Psychological Pricing:** Automatically round calculated prices to .99, .50, or the nearest 5 to maximize sales psychology. (Pro)
 
-MSRP Display: Display MSRP/List Price on your frontend (Product Pages and Shop Grids) to show value. Includes a Gutenberg Block for complete control over placement and styling.
+### 3. Financial Audit Dashboard
+* **Store Health at a Glance:** A dedicated dashboard identifying "Loss Makers" (products losing money) and "Low Margin" items.
+* **Bulk Data Management:** Quickly identify products missing COGS data.
+* **Inline Editing:** Fix cost and pricing data directly from the audit table via AJAX without opening hundreds of tabs. (Pro)
 
-Badge Manager: Automatically replace default WooCommerce sale badges with smart, percentage-based pills (e.g., "Save 20%"). Includes custom image support for product tags (e.g., USA Flag for "Made in USA" items).
+### 4. Badge Manager
+* **Custom Badges:** Upload custom icons (e.g., "Made in USA") based on product tags.
+* **Smart Badges:** Replace default "Sale" badges with dynamic triggers like "Low Stock" (Inventory), "Best Seller" (Performance), or "New Arrival". (Pro)
+* **Event Scheduler:** Schedule "Black Friday" or "Cyber Monday" badges to appear automatically during specific date ranges. (Agency)
 
-Store Financial Audit: A dedicated dashboard view that lists every product with its Cost, Price, Shipping P/L, and Net Margin. Quickly identify products that are losing money or have missing cost data.
+### 5. Growth Tools
+* **Google Customer Reviews:** One-click integration for the Google Customer Reviews survey on your checkout "Thank You" page.
+* **Promotion Manager:** Generate valid promotion IDs and snippets for Google's Promotion Feed.
+* **Direct API Submit:** Create and push promotions to Google Merchant Center with a single click. (Agency)
 
-Promotions Manager: Easily manage Promotion IDs and generate valid CSV code snippets for Google's Promotion Feed.
-
-Google Customer Reviews: One-click integration for the Google Customer Reviews survey on your checkout "Thank You" page.
-
-Site Content Audit: Scans your pages and posts for restricted terms (medical claims, guarantees) and checks for required policy pages (Refund Policy, TOS) to prevent account-level suspensions.
-
-Compatibility:
-
-Cirrusly Commerce is designed to work seamlessly with:
-
-Product Feed PRO (AdTribes)
-
-Rank Math SEO & Yoast SEO
-
-WooCommerce Subscriptions
-
-Flexible Shipping (Octolize)
-
-WPFactory MSRP (Shared data keys)
-
-Compatibility:
-
-Cirrusly Commerce is designed to work seamlessly with:
-
-Product Feed PRO (AdTribes)
-
-Rank Math SEO & Yoast SEO
-
-WooCommerce Subscriptions
-
-Flexible Shipping (Octolize)
-
-WPFactory MSRP (Shared data keys)
+### Compatibility
+Cirrusly Commerce is designed to work seamlessly alongside your favorite tools:
+* Product Feed PRO (AdTribes)
+* Google Product Feed (Ademti)
+* Rank Math SEO, Yoast SEO, All in One SEO (AIOSEO), & SEOPress (Schema Injection included)
+* WooCommerce Cost of Goods (SkyVerge) & WPFactory
 
 == Installation ==
 

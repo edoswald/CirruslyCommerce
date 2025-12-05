@@ -15,7 +15,14 @@ class Cirrusly_Commerce_Manual {
                 .cc-manual-section h4 { font-size: 1.1em; margin-top: 20px; margin-bottom: 10px; color: #23282d; }
                 .cc-manual-list li { margin-bottom: 8px; line-height: 1.5; }
                 .cc-callout { background: #f0f6fc; border-left: 4px solid #72aee6; padding: 15px; margin: 15px 0; }
+                .cc-alert { background: #fcf0f1; border-left: 4px solid #d63638; padding: 15px; margin: 15px 0; }
+                .cc-notice-top { background: #fff; border-left: 4px solid #00a32a; box-shadow: 0 1px 1px rgba(0,0,0,.04); padding: 12px; margin-bottom: 20px; }
+                code { background: #f0f0f1; padding: 2px 5px; border-radius: 3px; }
             </style>
+
+            <div class="cc-notice-top">
+                <p style="margin:0;"><strong>🚧 Work in Progress:</strong> We are currently working on a comprehensive version of this manual. In the meantime, please feel free to email us directly at <a href="mailto:support@cirruslyweather.com">support@cirruslyweather.com</a> with any questions.</p>
+            </div>
 
             <div class="card" style="max-width: 1000px; padding: 40px; margin-top: 20px;">
                 <h2 style="margin-top:0;">Cirrusly Commerce User Manual</h2>
@@ -26,13 +33,13 @@ class Cirrusly_Commerce_Manual {
                     <a href="#intro">Introduction</a>
                     <a href="#dashboard">Dashboard</a>
                     <a href="#gmc">GMC Hub</a>
+                    <a href="#api-setup">Google API Setup</a>
                     <a href="#audit">Financial Audit</a>
                     <a href="#profit">Profit Engine</a>
                     <a href="#pricing">Pricing Engine</a>
+                    <a href="#countdown">Countdown Timer</a>
                     <a href="#badges">Badge Manager</a>
-                    <a href="#reports">Reports &amp; Automation</a>
-                    <a href="#compat">Compatibility</a>
-                    <a href="#keys">Meta Keys</a>
+                    <a href="#troubleshoot">Troubleshooting</a>
                 </nav>
 
                 <div class="cc-manual-section" id="intro">
@@ -67,11 +74,61 @@ class Cirrusly_Commerce_Manual {
                     <p>Easily manage "Merchant Promotions" (coupon codes displayed on Google Shopping ads).</p>
                     <ul class="cc-manual-list">
                         <li><strong>ID Generation:</strong> Automatically generates valid <code>promotion_id</code> strings for your feeds based on WooCommerce coupons.</li>
-                        <li><strong>One-Click Submit:</strong> <span class="cc-manual-pro">PRO</span> Sends promotion data directly to Google via the Content API, bypassing the need for manual CSV uploads in Merchant Center.</li>
+                        <li><strong>One-Click Submit:</strong> <span class="cc-manual-pro">PRO</span> Sends promotion data directly to Google via the Content API, bypassing the need for manual CSV uploads in Merchant Center. <strong>Requires Service Account.</strong></li>
                     </ul>
 
                     <h4>3. Site Content Scan</h4>
                     <p>Scans your WordPress Pages (Refund Policy, Terms of Service, Contact) to ensure you meet Google's "Misrepresentation" policy requirements. It checks for required legal text and secure checkout indicators.</p>
+                </div>
+
+                <div class="cc-manual-section" id="api-setup">
+                    <h3>Google Service Account Setup <span class="cc-manual-pro">PRO</span></h3>
+                    <p>To use advanced features like <strong>One-Click Promotions</strong> and <strong>AI Content Scanning</strong>, you must connect Cirrusly Commerce to your Google Merchant Center via a Service Account.</p>
+                    
+                    <div class="cc-callout">
+                        <strong>What is a Service Account?</strong><br>
+                        It is a "Robot User" that you create in the Google Cloud Console. You give this robot permission to talk to your Merchant Center so it can upload promotions and scan data automatically.
+                    </div>
+
+                    <h4>Step 1: Create Project & Enable API</h4>
+                    <ol class="cc-manual-list">
+                        <li>Go to the <a href="https://console.cloud.google.com/" target="_blank">Google Cloud Console</a>.</li>
+                        <li>Create a <strong>New Project</strong> (name it something like "Cirrusly Commerce Connector").</li>
+                        <li>Using the search bar at the top, search for <strong>"Content API for Shopping"</strong> and click <strong>Enable</strong>.</li>
+                        <li>(Optional) Search for <strong>"Cloud Natural Language API"</strong> and click <strong>Enable</strong> (required for Medical Term AI detection).</li>
+                    </ol>
+
+                    <h4>Step 2: Create Credentials (JSON Key)</h4>
+                    <ol class="cc-manual-list">
+                        <li>In the Google Cloud sidebar, go to <strong>IAM & Admin > Service Accounts</strong>.</li>
+                        <li>Click <strong>Create Service Account</strong>. Give it a name (e.g., "shop-manager") and click "Done".</li>
+                        <li>You will see the new account in the list. Copy the <strong>Email Address</strong> (e.g., <code>shop-manager@project-id.iam.gserviceaccount.com</code>). <em>You will need this for Step 3.</em></li>
+                        <li>Click on the email address to open details. Go to the <strong>Keys</strong> tab.</li>
+                        <li>Click <strong>Add Key > Create New Key</strong>. Select <strong>JSON</strong> and click Create.</li>
+                        <li>A file will download to your computer. Open this file with Notepad or a Text Editor.</li>
+                    </ol>
+
+                    <h4>Step 3: Grant Access in Merchant Center (Crucial!)</h4>
+                    <div class="cc-alert">
+                        <strong>STOP! Do not skip this step.</strong><br>
+                        Creating the key is not enough. You must tell Google Merchant Center that this specific "Robot User" is allowed to access your store.
+                    </div>
+                    <ol class="cc-manual-list">
+                        <li>Log into your <a href="https://merchants.google.com/" target="_blank">Google Merchant Center</a>.</li>
+                        <li>Click the <strong>Settings (Gear Icon)</strong> > <strong>People & Access</strong>.</li>
+                        <li>Click <strong>Add User</strong>.</li>
+                        <li>Paste the <strong>Service Account Email</strong> you copied in Step 2.</li>
+                        <li>Grant it <strong>Standard</strong> or <strong>Admin</strong> access.</li>
+                    </ol>
+
+                    <h4>Step 4: Save in Plugin</h4>
+                    <ol class="cc-manual-list">
+                        <li>Go to your WordPress Admin > <em>Cirrusly Commerce > Settings</em>.</li>
+                        <li>Paste the <strong>Merchant Center ID</strong> (found in the top right of your Google Merchant Center).</li>
+                        <li>Copy the <strong>entire contents</strong> of the JSON file you downloaded in Step 2.</li>
+                        <li>Paste it into the <strong>Service Account JSON</strong> field in the settings.</li>
+                        <li>Click Save.</li>
+                    </ol>
                 </div>
 
                 <div class="cc-manual-section" id="audit">
@@ -125,9 +182,33 @@ class Cirrusly_Commerce_Manual {
                     <ul class="cc-manual-list">
                         <li><strong>Financial Inputs:</strong> Enter <strong>MSRP</strong> (Retail Price), <strong>MAP</strong> (Min Advertised Price), and <strong>Google Min</strong> (lowest auto-price).</li>
                         <li><strong>Real-Time Calculator:</strong> As you type a price, the "Net Margin" bar updates instantly. It accounts for the COGS, Payment Fees (from settings), and Shipping Costs (from settings).</li>
-                        <li><strong>Apply Strategy:</strong> Use the dropdown to auto-calculate a price. Example: "Undercut Competitor" might set the price to <em>Competitor - 1%</em>, provided it stays above your floor margin.</li>
-                        <li><strong>GMC Attributes:</strong> Use the sidebar to assign <strong>Promotion IDs</strong> or <strong>Custom Labels</strong> (e.g., "clearance", "summer") specifically for this product.</li>
+                        <li><strong>Pricing Toolbar:</strong> Use the dropdown to auto-calculate a price based on common strategies.
+                            <ul>
+                                <li><em>Strategies:</em> 5-40% Off MSRP, Target 20% Margin, Match Competitor.</li>
+                                <li><em>Psychological Rounding:</em> Automatically round calculated prices to <strong>.99</strong>, <strong>.50</strong>, or the <strong>Nearest 5</strong> (e.g., 12.43 becomes 15.00).</li>
+                            </ul>
+                        </li>
                     </ul>
+                </div>
+
+                <div class="cc-manual-section" id="countdown">
+                    <h3>Countdown Timer</h3>
+                    <p>Create urgency with lightweight, CLS-free countdown timers on your product pages.</p>
+                    
+                    <h4>Method 1: Manual (Per Product)</h4>
+                    <p>Go to the <strong>Product Data > General</strong> tab. Enter a date and time in the <strong>"Sale Timer End"</strong> field (Format: YYYY-MM-DD HH:MM). A countdown will appear above the price until that time is reached.</p>
+
+                    <h4>Method 2: Smart Rules <span class="cc-manual-pro">PRO</span></h4>
+                    <p>Go to <em>Cirrusly Commerce > Settings > General</em> (bottom of page). You can create rules to auto-inject timers based on taxonomy.</p>
+                    <ul>
+                        <li><strong>Taxonomy:</strong> e.g., <code>product_cat</code> (Category) or <code>product_tag</code> (Tag).</li>
+                        <li><strong>Term:</strong> The slug of the category (e.g., <code>summer-sale</code>).</li>
+                        <li><strong>End Date:</strong> The expiry date for the entire group.</li>
+                    </ul>
+
+                    <h4>Method 3: Shortcode</h4>
+                    <p>Place a timer anywhere (Descriptions, Blog Posts) using the shortcode, using the format below:</p>
+                    <code>[cw_countdown end="20XX-12-31 23:59" label="Sale Ends:" align="center"]</code>
                 </div>
 
                 <div class="cc-manual-section" id="badges">
@@ -139,42 +220,54 @@ class Cirrusly_Commerce_Manual {
                         <li><strong>"New" Badge:</strong> Auto-labels products added within the last X days.</li>
                         <li><strong>Custom Tag Badges:</strong> Upload custom icons (e.g., "Vegan", "Made in USA") that appear automatically on products tagged with specific WooCommerce tags.</li>
                     </ul>
-                    <p><strong>Smart Badges:</strong> <span class="cc-manual-pro">PRO</span></p>
-                    <ul class="cc-manual-list">
-                        <li><strong>Inventory Trigger:</strong> Shows "Low Stock" when quantity drops below 5 (fixed threshold).</li>
-                        <li><strong>Performance Trigger:</strong> Shows "Best Seller" for top-performing products based on sales velocity.</li>
-                        <li><strong>Scheduler:</strong> Schedule event badges (e.g., "Black Friday Deal") to appear only during specific date ranges.</li>
-                    </ul>
                 </div>
 
-                <div class="cc-manual-section" id="reports">
-                    <h3>Reports &amp; Automation</h3>
-                    <p>Configure these features under <em>Cirrusly Commerce > Settings > General</em>.</p>
-                    
-                    <h4>Daily Health Scan</h4>
-                    <p>Runs automatically in the background every 24 hours. Checks for missing GTINs, empty descriptions, and banned words. Enable "Email Reports" to get a summary sent to your admin email.</p>
+                <div class="cc-manual-section" id="troubleshoot">
+                    <h3>Troubleshooting & Setup Issues</h3>
+                    <p>Common configuration pitfalls and how to solve them.</p>
 
-                    <h4>Weekly Profit Report <span class="cc-manual-pro">PRO</span></h4>
-                    <p>Delivered every Monday. This email digest includes:</p>
-                    <ul>
-                        <li>Total Sales &amp; Net Profit for the week.</li>
-                        <li>Top 5 Performing Products (by margin).</li>
-                        <li>Inventory value summary.</li>
+                    <h4>1. API Error: "User cannot access account"</h4>
+                    <p>This is the most common error when submitting Promotions.</p>
+                    <ul class="cc-manual-list">
+                        <li><strong>Cause:</strong> The Service Account (Step 2 above) was created, but not added to your Merchant Center users.</li>
+                        <li><strong>Solution:</strong> Review Step 3 in the <a href="#api-setup">Service Account Setup</a> section. You must add the <code>.iam.gserviceaccount.com</code> email as a user in Merchant Center.</li>
                     </ul>
 
-                    <h4>Google Reviews Integration</h4>
-                    <p>Enable the "Google Customer Reviews" module to automatically inject the survey opt-in code on your Order Received page. Requires your Google Merchant ID.</p>
-                    
-                    <h4>Security &amp; API <span class="cc-manual-pro">PRO</span></h4>
-                    <p>The Service Account JSON used for the Content API is <strong>encrypted</strong> before storage in the database to ensure it is encrypted at rest. You do not need to manage keys manually; the system handles encryption automatically.</p>
+                    <h4>2. GMC Updates Not Appearing Immediately</h4>
+                    <p>When you save a product, Cirrusly Commerce pushes the update to Google in the background.</p>
+                    <div class="cc-callout">
+                        <strong>Note:</strong> There is a built-in <strong>60-second delay</strong> after you click save. This ensures that all data (including variations) is fully saved in WooCommerce before we send it to Google to prevent sync errors. Please wait 1-2 minutes before checking Merchant Center.
+                    </div>
+
+                    <h4>3. MSRP Not Appearing on Frontend</h4>
+                    <p>If you have entered an MSRP but it is not showing on your product page:</p>
+                    <ul class="cc-manual-list">
+                        <li><strong>Check Settings:</strong> Go to <em>Cirrusly Commerce > Settings > Pricing</em> and ensure "Enable Frontend Display" is checked.</li>
+                        <li><strong>Block Themes (FSE):</strong> If you are using a modern Block Theme (like Twenty Twenty-Four), the standard WooCommerce hooks may not run. You must use the <strong>"MSRP Display" Block</strong> in the Site Editor to place the price manually.</li>
+                    </ul>
+
+                    <h4>4. Data Not Showing in Google Merchant Center</h4>
+                    <p>Cirrusly Commerce creates the data, but it does not generate the XML feed itself.</p>
+                    <div class="cc-callout">
+                        <strong>Solution:</strong> You must map the fields in your feed plugin (e.g., Product Feed PRO or CTX Feed).<br>
+                        <em>Example:</em> Map <code>g:price</code> to the standard Price, and map <code>g:sale_price</code> to our <strong>MSRP</strong> (<code>_alg_msrp</code>) if you want to show strike-through pricing on Google.
+                    </div>
+
+                    <h4>5. Profit Margin Seems Incorrect</h4>
+                    <p>If the "Net Profit" calculated on the product page looks too low or too high:</p>
+                    <ul class="cc-manual-list">
+                        <li><strong>Check Shipping Classes:</strong> Ensure the product is assigned a Shipping Class, and that you have defined a "Label Cost" for that class in <em>Settings > Profit Engine</em>.</li>
+                        <li><strong>Check Payment Fees:</strong> Verify your Payment Processor Fee settings. A default of 0% will make your profit look higher than it actually is.</li>
+                        <li><strong>Verify COGS:</strong> Ensure the "Cost of Goods" field is not empty or zero.</li>
+                    </ul>
                 </div>
 
                 <div class="cc-manual-section" id="compat">
                     <h3>Plugin Compatibility</h3>
                     <p>Cirrusly Commerce integrates with the following plugins:</p>
                     <ul class="cc-manual-list">
-                        <li><strong>Product Feed PRO (AdTribes):</strong> Custom fields (MSRP, MAP) appear in attribute mapping.</li>
-                        <li><strong>Rank Math &amp; Yoast SEO:</strong> MSRP/GTIN fields are registered for schema markup.</li>
+                        <li><strong>Product Feed PRO (AdTribes):</strong> Custom fields (MSRP, MAP) appear in attribute mapping dropdowns automatically.</li>
+                        <li><strong>Rank Math &amp; Yoast SEO:</strong> MSRP/GTIN fields are registered for schema markup automatically.</li>
                         <li><strong>WooCommerce Subscriptions:</strong> Pricing Engine supports recurring pricing fields.</li>
                         <li><strong>Flexible Shipping:</strong> Detects shipping classes for cost calculation.</li>
                         <li><strong>WPFactory MSRP:</strong> Shares the <code>_alg_msrp</code> key for seamless migration.</li>
@@ -183,7 +276,7 @@ class Cirrusly_Commerce_Manual {
                 
                 <div class="cc-manual-section" id="keys" style="border-bottom:0;">
                     <h3>Database Key Reference</h3>
-                    <p>For developers or custom feed configurations:</p>
+                    <p>For developers or custom feed configurations. Use these keys when mapping fields in your Feed plugin:</p>
                     <table class="widefat striped" style="max-width:600px;">
                         <thead><tr><th>Field</th><th>Meta Key</th></tr></thead>
                         <tbody>
@@ -195,6 +288,7 @@ class Cirrusly_Commerce_Manual {
                             <tr><td>Promotion ID</td><td><code>_gmc_promotion_id</code></td></tr>
                             <tr><td>Custom Label 0</td><td><code>_gmc_custom_label_0</code></td></tr>
                             <tr><td>Identifier Exists</td><td><code>_gla_identifier_exists</code></td></tr>
+                            <tr><td>Sale Timer End</td><td><code>_cw_sale_end</code></td></tr>
                         </tbody>
                     </table>
                 </div>

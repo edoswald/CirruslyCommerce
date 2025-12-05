@@ -104,18 +104,11 @@ class Cirrusly_Commerce_Core {
     }
 
     /**
-     * Create an OAuth2 access token using the stored Google service account JSON.
+     * Obtain an OAuth2 access token from the stored Google service account JSON.
      *
-     * Builds and signs a JWT from the saved service account credentials and exchanges it
-     * with Google's OAuth2 token endpoint to obtain an access token for the Content API.
+     * Builds and signs a JWT using the stored service account credentials and exchanges it for an OAuth2 access token.
      *
-     * @return string|WP_Error The access token on success.
-     * Returns a WP_Error with codes:
-     * - 'no_creds' when no service account JSON is stored.
-     * - 'invalid_creds' when required keys (client_email/private_key) are missing.
-     * - 'signing_failed' when the JWT could not be signed with the private key.
-     * - 'auth_failed' when Google returns an error response.
-     * Or a transport `WP_Error` produced by `wp_remote_post`.
+     * @return string|WP_Error Access token string on success, or a WP_Error describing the failure.
      */
     public static function get_google_access_token() {
         $stored_data = get_option( 'cirrusly_service_account_json' );
@@ -183,12 +176,14 @@ class Cirrusly_Commerce_Core {
     }
 
     /**
-     * Handle an AJAX inline save for audit fields on a product.
+     * Handle an AJAX request to save an inline audit field for a product.
      *
-     * Validates user capabilities and AJAX nonce, requires PRO access, and accepts POST fields `pid` (product ID),
-     * `value` (numeric), and `field` (meta key). If `field` is one of `_cogs_total_value` or `_cw_est_shipping`
-     * and `pid` is a positive integer, updates the product meta, clears the `cw_audit_data` transient, and returns
-     * a JSON success response. On failure, returns a JSON error response describing the reason.
+     * Validates user capability and request nonce, enforces PRO feature gating, and processes
+     * POST parameters `pid` (product ID), `value`, and `field`. If `pid` is greater than zero
+     * and `field` is one of `_cogs_total_value` or `_cw_est_shipping`, updates the post meta
+     * and clears the `cw_audit_data` transient. Sends a JSON success response on successful
+     * update or a JSON error with one of the messages: "Permission denied", "Pro feature required",
+     * or "Invalid data".
      */
     public function handle_audit_inline_save() {
         // Security & Permission Check
@@ -215,8 +210,11 @@ class Cirrusly_Commerce_Core {
     }
 
     /**
-     * Check if PRO features are active.
-     * Relies strictly on Freemius license validation.
+     * Determine whether PRO features are enabled for the current context.
+     *
+     * Checks a developer override (when WP_DEBUG is true and the current user can manage options, via the `cc_dev_mode` query parameter) and the Freemius license state.
+     *
+     * @return bool `true` if PRO features are active, `false` otherwise.
      */
     public static function cirrusly_is_pro() {
         // 1. Secure Developer Override
@@ -238,29 +236,39 @@ class Cirrusly_Commerce_Core {
         return false; 
     }
 
+    /**
+     * Outputs admin CSS to hide PRO/upsell UI on Cirrusly admin pages when configured.
+     *
+     * Checks the Cirrusly scan settings and, if the 'hide_upsells' option is set to 'yes',
+     * injects a small style block that hides elements with the `.cc-pro-feature` class.
+     */
     public function cirrusly_hide_upsells_css() {
         // Only run on plugin pages
         if ( ! isset( $_GET['page'] ) || strpos( $_GET['page'], 'cirrusly-' ) === false ) return;
 
-        $general = get_option( 'cirrusly_scan_config', array() ); // We store the toggle here for simplicity
+        $general = get_option( 'cirrusly_scan_config', array() ); 
         if ( ! empty( $general['hide_upsells'] ) && $general['hide_upsells'] === 'yes' ) {
             echo '<style>.cc-pro-feature { display: none !important; }</style>';
         }
     }
 
     public function force_enable_cogs() { return 'yes'; }
-    public function clear_metrics_cache() { delete_transient( 'cirrusly_dashboard_metrics' ); }
+    /**
+ * Clears the cached dashboard metrics.
+ *
+ * Removes the `cirrusly_dashboard_metrics` transient so metrics are recalculated on the next request.
+ */
+public function clear_metrics_cache() { delete_transient( 'cirrusly_dashboard_metrics' ); }
 
     /**
-     * Enqueues and localizes admin scripts and styles used by Cirrusly on plugin pages and product edit screens.
+     * Enqueue and localize admin scripts and styles for Cirrusly plugin pages and product edit screens.
      *
-     * When the current admin page is a Cirrusly plugin page or a WooCommerce product edit screen, this method:
-     * - Enqueues media and the Cirrusly admin stylesheet.
-     * - On the Financial Audit page, enqueues and localizes the audit script with an AJAX URL and save nonce.
-     * - On product edit screens, enqueues and localizes the pricing script with a full pricing/shipping configuration (revenue tiers, matrix rules, shipping class costs, payment rates, profile mode/split, and a shipping class ID→slug map) for real-time calculations.
-     * - Adds inline JavaScript used by the settings UI (image upload, adding/removing dynamic rows, system info toggle).
+     * Loads media and the plugin admin stylesheet on Cirrusly admin pages and product edit pages.
+     * - On the Financial Audit page it enqueues the audit script and localizes AJAX URL and nonce.
+     * - On product edit screens it enqueues the pricing script and localizes shipping, pricing, matrix, class-cost, and payment configuration (as `cw_vars`) plus a shipping-class ID->slug map.
+     * Also injects a small inline script that provides UI helpers (image uploader, row add/remove, and system info toggle).
      *
-     * @param string $hook The current admin page hook suffix (e.g., 'post.php', 'post-new.php', or the plugin page hook).
+     * @param string $hook The current admin page hook (e.g., 'post.php', 'post-new.php', or the plugin page hook).
      */
     public function enqueue_assets( $hook ) {
         $page = isset( $_GET['page'] ) ? sanitize_text_field( wp_unslash( $_GET['page'] ) ) : '';
@@ -342,6 +350,11 @@ class Cirrusly_Commerce_Core {
                     var row = "<tr><td><input type=\'text\' name=\'cirrusly_shipping_config[matrix_rules]["+idx+"][key]\'></td><td><input type=\'text\' name=\'cirrusly_shipping_config[matrix_rules]["+idx+"][label]\'></td><td>x <input type=\'number\' step=\'0.1\' name=\'cirrusly_shipping_config[matrix_rules]["+idx+"][cost_mult]\' value=\'1.0\'></td><td><button type=\'button\' class=\'button cc-remove-row\'><span class=\'dashicons dashicons-trash\'></span></button></td></tr>";
                     $("#cc-matrix-rows").append(row);
                 });
+                $("#cc-add-countdown-row").click(function(){
+                    var idx = $("#cc-countdown-rows tr").length + 1000;
+                    var row = "<tr><td><input type=\'text\' name=\'cirrusly_countdown_rules["+idx+"][taxonomy]\'></td><td><input type=\'text\' name=\'cirrusly_countdown_rules["+idx+"][term]\'></td><td><input type=\'text\' name=\'cirrusly_countdown_rules["+idx+"][end]\'></td><td><input type=\'text\' name=\'cirrusly_countdown_rules["+idx+"][label]\'></td><td><select name=\'cirrusly_countdown_rules["+idx+"][align]\'><option value=\'left\'>Left</option><option value=\'right\'>Right</option><option value=\'center\'>Center</option></select></td><td><button type=\'button\' class=\'button cc-remove-row\'><span class=\'dashicons dashicons-trash\'></span></button></td></tr>";
+                    $("#cc-countdown-rows").append(row);
+                });
                 $(document).on("click", ".cc-remove-row", function(){ $(this).closest("tr").remove(); });
                 
                 // System Info Toggle
@@ -353,15 +366,18 @@ class Cirrusly_Commerce_Core {
         }
     }
 
-    /**
-     * Render the admin page header for Cirrusly Commerce, including logo, title, controls, and global navigation.
+    /****
+     * Render the Cirrusly Commerce admin page header including branding, status badges,
+     * system information panel, and top navigation links.
      *
-     * Renders the plugin logo and provided title, a PRO badge when the site is in PRO mode, a System Info toggle,
-     * a support mailto link, a version badge, a hidden system information panel with copy capability, and the
-     * global navigation links for the Cirrusly Commerce admin pages.
+     * Outputs the page title with logo, a PRO badge when the site is licensed,
+     * a System Info button and hidden system information panel (containing a copyable
+     * textarea), a Get Support mailto link, a version badge, and links to Dashboard,
+     * GMC Hub, Financial Audit, and Settings.
      *
-     * @param string $title The page title to display in the header.
+     * @param string $title The title to display in the header.
      */
+    
     public static function render_page_header( $title ) {
         $mailto = 'mailto:help@cirruslyweather.com?subject=Support%20Request';
         $is_pro = self::cirrusly_is_pro(); // Check PRO status
@@ -388,12 +404,22 @@ class Cirrusly_Commerce_Core {
         self::render_system_info();
         echo '</textarea></div>';
         
+        // Active Page Logic
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+        $current_page = isset( $_GET['page'] ) ? sanitize_text_field( wp_unslash( $_GET['page'] ) ) : '';
+        
+        $nav_items = array(
+            'cirrusly-commerce' => 'Dashboard',
+            'cirrusly-gmc'      => 'GMC Hub',
+            'cirrusly-audit'    => 'Financial Audit',
+            'cirrusly-settings' => 'Settings',
+        );
+
         echo '<div class="cc-global-nav">';
-        echo '<a href="' . esc_url( admin_url( 'admin.php?page=cirrusly-commerce' ) ) . '">Dashboard</a>';
-        echo '<a href="' . esc_url( admin_url( 'admin.php?page=cirrusly-gmc' ) ) . '">GMC Hub</a>';
-        // Updated Link Text
-        echo '<a href="' . esc_url( admin_url( 'admin.php?page=cirrusly-audit' ) ) . '">Financial Audit</a>';
-        echo '<a href="' . esc_url( admin_url( 'admin.php?page=cirrusly-settings' ) ) . '">Settings</a>';
+        foreach ( $nav_items as $slug => $label ) {
+            $active_class = ( $current_page === $slug ) ? 'cc-nav-active' : '';
+            echo '<a href="' . esc_url( admin_url( 'admin.php?page=' . $slug ) ) . '" class="' . esc_attr( $active_class ) . '">' . esc_html( $label ) . '</a>';
+        }
         echo '</div>';
     }
 
@@ -412,26 +438,43 @@ class Cirrusly_Commerce_Core {
 
     }
 
+    /**
+     * Render the global Cirrusly Commerce admin page header for the given page title.
+     *
+     * @param string $title The page title to display in the header.
+     */
     public static function render_global_header( $title ) {
         self::render_page_header( $title );
     }
 
     /**
-     * Register Cirrusly Commerce top-level admin menu and its submenus in the WordPress admin.
-     *
-     * Adds the main "Cirrusly Commerce" menu and these submenus: Dashboard, GMC Hub, Financial Audit,
-     * Settings, and User Manual, wiring each item to the appropriate capability and render callback.
+     * Register Cirrusly Commerce top-level admin menu and its submenus.
      */
-    public function register_admin_menus() {
+public function register_admin_menus() {
         add_menu_page( 'Cirrusly Commerce', 'Cirrusly Commerce', 'edit_products', 'cirrusly-commerce', array( $this, 'render_main_dashboard' ), 'dashicons-analytics', 56 );
         add_submenu_page( 'cirrusly-commerce', 'Dashboard', 'Dashboard', 'edit_products', 'cirrusly-commerce', array( $this, 'render_main_dashboard' ) );
         add_submenu_page( 'cirrusly-commerce', 'GMC Hub', 'GMC Hub', 'edit_products', 'cirrusly-gmc', array( 'Cirrusly_Commerce_GMC', 'render_page' ) );
-        // Updated Menu Item Title
         add_submenu_page( 'cirrusly-commerce', 'Financial Audit', 'Financial Audit', 'edit_products', 'cirrusly-audit', array( 'Cirrusly_Commerce_Audit', 'render_page' ) );
         add_submenu_page( 'cirrusly-commerce', 'Settings', 'Settings', 'manage_options', 'cirrusly-settings', array( $this, 'render_settings_page' ) );
         add_submenu_page( 'cirrusly-commerce', 'User Manual', 'User Manual', 'edit_products', 'cirrusly-manual', array( 'Cirrusly_Commerce_Manual', 'render_page' ) );
     }
 
+    /**
+     * Register plugin settings and associate their sanitization handlers with WordPress.
+     *
+     * Registers settings for the General, Shipping (Profit Engine), Badges, and Countdown groups
+     * and maps each option to its respective sanitize callback.
+     *
+     * Registered options and their sanitize callbacks:
+     * - cirrusly_scan_config => handle_scan_schedule
+     * - cirrusly_msrp_config => sanitize_options_array
+     * - cirrusly_google_reviews_config => sanitize_options_array
+     * - cirrusly_shipping_config => sanitize_settings
+     * - cirrusly_badge_config => sanitize_settings
+     * - cirrusly_countdown_rules => sanitize_countdown_rules
+     *
+     * @return void
+     */
     public function register_settings() {
         // Consolidated Group: General
         register_setting( 'cirrusly_general_group', 'cirrusly_scan_config', array( 'sanitize_callback' => array( $this, 'handle_scan_schedule' ) ) );
@@ -443,8 +486,21 @@ class Cirrusly_Commerce_Core {
 
         // Group: Badges
         register_setting( 'cirrusly_badge_group', 'cirrusly_badge_config', array( 'sanitize_callback' => array( $this, 'sanitize_settings' ) ) );
+
+        // Countdown
+        register_setting( 'cirrusly_general_group', 'cirrusly_countdown_rules', array( 'sanitize_callback' => array( $this, 'sanitize_countdown_rules' ) ) );
     }
 
+    /**
+     * Sanitizes an associative array's keys and values using sanitize_text_field.
+     *
+     * Applies sanitize_text_field to each key and value in the provided array and
+     * returns a new array containing the cleaned entries. If the input is not an
+     * array, an empty array is returned.
+     *
+     * @param array|null $input Associative array to sanitize.
+     * @return array The sanitized associative array with cleaned keys and values.
+     */
     public function sanitize_options_array( $input ) {
         $clean = array();
         if ( is_array( $input ) ) {
@@ -456,17 +512,52 @@ class Cirrusly_Commerce_Core {
     }
 
     /**
-     * Sanitizes scan scheduling options and processes an optional Service Account JSON upload.
+     * Normalize and sanitize an array of countdown rule definitions.
      *
-     * Handles enabling/disabling the daily GMC scan schedule. If a service account file is uploaded,
-     * validates the file (size, MIME/extension, JSON syntax, required service account keys), stores
-     * the raw JSON in the `cirrusly_service_account_json` option on success, and augments the returned
-     * settings with upload status and filename. Validation failures and success messages are registered
-     * via settings errors/notices.
+     * Each returned rule will contain the keys: `taxonomy`, `term`, `end`, `label`,
+     * and `align` (one of "left", "right", or "center"; defaults to "left").
+     */
+    public function sanitize_countdown_rules( $input ) {
+        $clean_rules = array();
+        if ( ! is_array( $input ) ) {
+            return array();
+        }
+
+        foreach( $input as $rule ) {
+            if ( ! is_array( $rule ) ) {
+                continue;
+            }
+
+            $clean_rule = array();
+            
+            // Sanitize properties (assuming common structure)
+            $clean_rule['taxonomy'] = isset( $rule['taxonomy'] ) ? sanitize_key( $rule['taxonomy'] ) : '';
+            $clean_rule['term']     = isset( $rule['term'] ) ? sanitize_text_field( $rule['term'] ) : '';
+            $clean_rule['end']      = isset( $rule['end'] ) ? sanitize_text_field( $rule['end'] ) : '';
+            $clean_rule['label']    = isset( $rule['label'] ) ? sanitize_text_field( $rule['label'] ) : '';
+
+            // Sanitize align and default to 'left'
+            $align = isset( $rule['align'] ) ? sanitize_key( $rule['align'] ) : 'left';
+            $clean_rule['align'] = in_array( $align, array('left', 'right', 'center'), true ) ? $align : 'left';
+
+            // Only add the rule if it has sufficient data (e.g., a taxonomy or value)
+            if ( ! empty( $clean_rule['taxonomy'] ) || ! empty( $clean_rule['term'] ) || ! empty( $clean_rule['end'] ) ) {
+                $clean_rules[] = $clean_rule;
+            }
+        }
+        
+        return $clean_rules;
+    }
+
+    /**
+     * Process and sanitize GMC scan scheduling settings and handle an optional Service Account JSON upload.
      *
-     * @param array $input The submitted scan configuration settings to sanitize and normalize.
-     * @return array The sanitized settings array, possibly updated with `service_account_uploaded` and
-     * `service_account_name` when an upload was processed.
+     * If daily scanning is enabled, schedules the daily scan; if a valid Service Account JSON file is uploaded,
+     * the function validates the file, encrypts and stores its contents, and sets upload metadata on the returned settings.
+     *
+     * @param array $input Raw settings input from the settings form.
+     * @return array The sanitized settings array. May include keys `service_account_uploaded` (`'yes'`) and
+     * `service_account_name` when an upload was accepted.
      */
     public function handle_scan_schedule( $input ) {
         wp_clear_scheduled_hook( 'cirrusly_gmc_daily_scan' );
@@ -488,31 +579,18 @@ class Cirrusly_Commerce_Core {
 
             // 2. Verify MIME Type (Robust Check)
             $is_valid_mime = false;
-            
-            // Primary check using finfo
             if ( function_exists( 'finfo_open' ) ) {
                 $finfo = finfo_open( FILEINFO_MIME_TYPE );
                 $mime = finfo_file( $finfo, $file['tmp_name'] );
                 finfo_close( $finfo );
-                
-                // Allow standard JSON mime types
-                if ( in_array( $mime, array( 'application/json', 'text/plain', 'text/json' ), true ) ) {
-                    $is_valid_mime = true;
-                }
-            } 
-            // Fallback to WordPress check
-            else {
+                if ( in_array( $mime, array( 'application/json', 'text/plain', 'text/json' ), true ) ) $is_valid_mime = true;
+            } else {
                 $wp_check = wp_check_filetype_and_ext( $file['tmp_name'], $file['name'], array( 'json' => 'application/json' ) );
-                if ( $wp_check['ext'] === 'json' ) {
-                    $is_valid_mime = true;
-                }
+                if ( $wp_check['ext'] === 'json' ) $is_valid_mime = true;
             }
             
-            // Enforce extension match (case-insensitive)
             $ext = strtolower( pathinfo( $file['name'], PATHINFO_EXTENSION ) );
-            if ( $ext !== 'json' ) {
-               $is_valid_mime = false;
-            }
+            if ( $ext !== 'json' ) $is_valid_mime = false;
 
             if ( ! $is_valid_mime ) {
                 add_settings_error( 'cirrusly_scan_config', 'mime_error', 'Invalid file type. Please upload a valid JSON file.' );
@@ -523,20 +601,15 @@ class Cirrusly_Commerce_Core {
             $json_content = file_get_contents( $file['tmp_name'] );
             $data = json_decode( $json_content, true );
 
-            // Check valid JSON syntax
             if ( json_last_error() !== JSON_ERROR_NONE || ! is_array( $data ) ) {
                 add_settings_error( 'cirrusly_scan_config', 'json_error', 'File does not contain valid JSON content.' );
                 return $this->sanitize_options_array( $input );
             }
 
-            // Check for required Service Account keys
             $required_keys = array( 'type', 'project_id', 'private_key_id', 'private_key', 'client_email' );
             $missing_keys = array();
-            
             foreach ( $required_keys as $key ) {
-                if ( ! isset( $data[ $key ] ) ) {
-                    $missing_keys[] = $key;
-                }
+                if ( ! isset( $data[ $key ] ) ) $missing_keys[] = $key;
             }
 
             if ( ! empty( $missing_keys ) ) {
@@ -545,15 +618,12 @@ class Cirrusly_Commerce_Core {
             }
 
             // 4. Encrypt & Store
-            // We now encrypt the JSON content before passing it to update_option
             $encrypted_content = self::encrypt_data( $json_content );
 
             if ( $encrypted_content ) {
                 update_option( 'cirrusly_service_account_json', $encrypted_content, false );
-                
                 $input['service_account_uploaded'] = 'yes';
                 $input['service_account_name'] = sanitize_file_name( $file['name'] );
-
                 add_settings_error( 'cirrusly_scan_config', 'upload_success', 'Service Account JSON uploaded and encrypted successfully.', 'updated' );
             } else {
                 add_settings_error( 'cirrusly_scan_config', 'encrypt_error', 'Encryption failed. Please try again.' );
@@ -564,24 +634,18 @@ class Cirrusly_Commerce_Core {
     }
 
     /**
-     * Sanitizes and normalizes plugin settings for safe storage.
+     * Sanitize and normalize plugin settings submitted from the admin UI.
      *
-     * Converts complex inputs into JSON-encoded strings (revenue_tiers_json, matrix_rules_json,
-     * class_costs_json, custom_badges_json), casts numeric fields, sanitizes text/URLs, and
-     * normalizes boolean-like smart feature checkboxes to 'yes'.
+     * Converts complex input structures into canonical stored forms:
+     * - Converts `revenue_tiers` to `revenue_tiers_json` (array of {min,max,charge} with numeric values).
+     * - Converts `matrix_rules` to `matrix_rules_json` (keyed map with sanitized keys, labels, and numeric cost multipliers).
+     * - Converts `class_costs` to `class_costs_json` (map of sanitized class slug => float cost).
+     * - Converts `custom_badges` to `custom_badges_json` (array of badges with sanitized tag, URL, tooltip, and width).
+     * - Casts payment fields (`payment_pct`, `payment_flat`, `payment_pct_2`, `payment_flat_2`, `profile_split`) to floats and sanitizes `profile_mode`.
+     * - Normalizes smart badge checkbox flags (`smart_inventory`, `smart_performance`, `smart_scheduler`) to the string `'yes'` when present.
      *
-     * @param array $input Associative settings array submitted from the admin form.
-     * Expected keys may include:
-     * - revenue_tiers (array): tiers with 'min', optional 'max' and 'charge'.
-     * - matrix_rules (array): rules with 'key', 'label', 'cost_mult'.
-     * - class_costs (array): mapping of shipping class slug => cost.
-     * - custom_badges (array): badges with 'tag', 'url', 'tooltip', 'width'.
-     * - payment_pct, payment_flat, payment_pct_2, payment_flat_2, profile_split (numeric).
-     * - profile_mode (string).
-     * - smart_inventory, smart_performance, smart_scheduler (checkboxes).
-     *
-     * @return array The sanitized and normalized settings array ready to be saved (with JSON-encoded
-     * keys and cleaned scalar values).
+     * @param array $input Raw settings input from the settings form.
+     * @return array Sanitized settings array ready to be saved to options.
      */
     public function sanitize_settings( $input ) {
         if ( isset( $input['revenue_tiers'] ) && is_array( $input['revenue_tiers'] ) ) {
@@ -647,21 +711,16 @@ class Cirrusly_Commerce_Core {
     }
 
     /**
-     * Retrieve the shipping and pricing configuration merged with default values.
+     * Get the shipping and pricing configuration merged with default values.
      *
-     * If no saved option exists for a key, the returned array provides sensible defaults
-     * (JSON-encoded strings for tier/matrix/class data and numeric defaults for payment/profile settings).
+     * Returns the saved cirrusly_shipping_config option merged with built-in defaults for
+     * revenue tiers, scenario matrix rules, shipping class costs, payment fee settings and
+     * profile mode/split values.
      *
-     * @return array The merged configuration where saved options override defaults. Keys:
-     * - 'revenue_tiers_json' (string, JSON-encoded array of revenue tiers)
-     * - 'matrix_rules_json' (string, JSON-encoded matrix rules)
-     * - 'class_costs_json' (string, JSON-encoded class costs)
-     * - 'payment_pct' (float)
-     * - 'payment_flat' (float)
-     * - 'profile_mode' (string, e.g., 'single' or 'multi')
-     * - 'payment_pct_2' (float)
-     * - 'payment_flat_2' (float)
-     * - 'profile_split' (int)
+     * @return array Merged configuration array containing keys such as
+     * `revenue_tiers_json`, `matrix_rules_json`, `class_costs_json`,
+     * `payment_pct`, `payment_flat`, `profile_mode`, `payment_pct_2`,
+     * `payment_flat_2`, and `profile_split`.
      */
     public function get_global_config() {
         $saved = get_option( 'cirrusly_shipping_config' );
@@ -707,12 +766,44 @@ class Cirrusly_Commerce_Core {
         }
     }
 
-    // --- Metrics Caching ---
+    /**
+     * Collects and caches store metrics used by the admin dashboard.
+     *
+     * Gathers Google Merchant Center scan counts, content scan issues, catalog and cost statistics,
+     * margin and loss-maker estimates, a 7-day revenue pulse, and active badge flags, then stores
+     * the result in a transient for one hour.
+     *
+     * @return array{
+     * gmc_critical:int,
+     * gmc_warnings:int,
+     * content_issues:int,
+     * missing_cost:int,
+     * loss_makers:int,
+     * total_products:int,
+     * on_sale_count:int,
+     * avg_margin:float,
+     * weekly_revenue:float,
+     * weekly_orders:int,
+     * active_badges:string[]
+     * } Associative array of dashboard metrics:
+     * - `gmc_critical`: Number of critical GMC issues.
+     * - `gmc_warnings`: Number of non-critical GMC warnings.
+     * - `content_issues`: Count of site content/policy issues from the content scan.
+     * - `missing_cost`: Count of published products/variations missing cost data.
+     * - `loss_makers`: Estimated count of products with negative net (unprofitable).
+     * - `total_products`: Total published products including variations.
+     * - `on_sale_count`: Number of products currently on sale.
+     * - `avg_margin`: Average margin percentage across sampled products (one decimal).
+     * - `weekly_revenue`: Sum of order totals in the last 7 days for completed/processing orders.
+     * - `weekly_orders`: Number of orders counted in the weekly revenue period.
+     * - `active_badges`: List of enabled smart badge strategy names.
+     */
     public static function get_dashboard_metrics() {
         $metrics = get_transient( 'cirrusly_dashboard_metrics' );
         if ( false === $metrics ) {
             global $wpdb;
             
+            // 1. GMC Scan Data
             $scan_data = get_option( 'woo_gmc_scan_data' );
             $gmc_critical = 0; $gmc_warnings = 0;
             if ( ! empty( $scan_data['results'] ) ) {
@@ -723,6 +814,14 @@ class Cirrusly_Commerce_Core {
                 }
             }
             
+            // 2. Content Scan Data (New)
+            $content_data = get_option( 'cirrusly_content_scan_data' );
+            $content_issues = 0;
+            if ( ! empty( $content_data['issues'] ) ) {
+                $content_issues = count( $content_data['issues'] );
+            }
+
+            // 3. Catalog & Cost Stats
             // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
             $missing_cost = $wpdb->get_var("SELECT count(p.ID) FROM {$wpdb->posts} p LEFT JOIN {$wpdb->postmeta} pm ON (p.ID = pm.post_id AND pm.meta_key = '_cogs_total_value') WHERE p.post_type IN ('product', 'product_variation') AND p.post_status = 'publish' AND (pm.meta_value IS NULL OR pm.meta_value = '' OR pm.meta_value = 0)");
             
@@ -733,41 +832,108 @@ class Cirrusly_Commerce_Core {
             $on_sale_ids = wc_get_product_ids_on_sale();
             $on_sale_count = count( $on_sale_ids );
             
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-            $margin_query = $wpdb->get_results("SELECT pm.meta_value as cost, p.ID FROM {$wpdb->postmeta} pm JOIN {$wpdb->posts} p ON p.ID = pm.post_id WHERE pm.meta_key = '_cogs_total_value' AND p.post_type = 'product' AND p.post_status = 'publish' LIMIT 100");
-            
-            $total_margin = 0; $margin_count = 0;
-            foreach($margin_query as $row) {
-                $product = wc_get_product($row->ID);
-                if($product) {
-                    $price = (float)$product->get_price(); $cost = (float)$row->cost;
-                    if($price > 0 && $cost > 0) { $margin = (($price - $cost) / $price) * 100; $total_margin += $margin; $margin_count++; }
+            // 4. Margin & Loss Makers
+            $audit_data = get_transient( 'cw_audit_data' );
+            $loss_makers = 0;
+            $total_margin = 0; 
+            $margin_count = 0;
+
+            if ( is_array($audit_data) ) {
+                foreach($audit_data as $row) {
+                    if ( $row['net'] < 0 ) $loss_makers++;
+                    if ( isset($row['margin']) ) { $total_margin += $row['margin']; $margin_count++; }
+                }
+            } else {
+                // Fallback lightweight query
+                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+                $margin_query = $wpdb->get_results("SELECT pm.meta_value as cost, p.ID FROM {$wpdb->postmeta} pm JOIN {$wpdb->posts} p ON p.ID = pm.post_id WHERE pm.meta_key = '_cogs_total_value' AND p.post_type = 'product' AND p.post_status = 'publish' LIMIT 200");
+                
+                foreach($margin_query as $row) {
+                    $product = wc_get_product($row->ID);
+                    if($product) {
+                        $price = (float)$product->get_price(); $cost = (float)$row->cost;
+                        if($price > 0 && $cost > 0) { 
+                            $margin = (($price - $cost) / $price) * 100; $total_margin += $margin; $margin_count++;
+                            if ( $price < $cost ) $loss_makers++; // Rough Estimate in fallback
+                        }
+                    }
                 }
             }
             $avg_margin = $margin_count > 0 ? round($total_margin / $margin_count, 1) : 0;
 
+            // 5. Weekly Revenue Pulse
+            $weekly_revenue = 0;
+            $weekly_orders = 0;
+            
+            // Lightweight 7-day lookback
+            // Fix: Use string comparison instead of array for compatibility with HPOS
+            $orders = wc_get_orders( array(
+                'limit'        => 1000, // Cap to prevent memory issues on high-volume stores
+                'status'       => array('wc-completed', 'wc-processing'),
+                'date_created' => '>=' . wp_date('Y-m-d', strtotime('-7 days')), 
+                'return'       => 'ids'
+            ) );
+            
+            if ( ! empty($orders) ) {
+                $weekly_orders = count($orders);
+                foreach($orders as $oid) {
+                    $o = wc_get_order($oid);
+                    if($o) $weekly_revenue += $o->get_total();
+                }
+            }
+
+            // 6. Active Badges
+            $badge_cfg = get_option( 'cirrusly_badge_config', array() );
+            $active_badges = array();
+            if ( !empty($badge_cfg['enable_badges']) && $badge_cfg['enable_badges'] === 'yes' ) {
+                if ( !empty($badge_cfg['smart_inventory']) && $badge_cfg['smart_inventory'] === 'yes' ) $active_badges[] = 'Inventory';
+                if ( !empty($badge_cfg['smart_performance']) && $badge_cfg['smart_performance'] === 'yes' ) $active_badges[] = 'Best Sellers';
+                if ( !empty($badge_cfg['smart_scheduler']) && $badge_cfg['smart_scheduler'] === 'yes' ) $active_badges[] = 'Events';
+            }
+
             $metrics = array(
-                'gmc_critical' => $gmc_critical,
-                'gmc_warnings' => $gmc_warnings,
-                'missing_cost' => $missing_cost,
+                'gmc_critical'   => $gmc_critical,
+                'gmc_warnings'   => $gmc_warnings,
+                'content_issues' => $content_issues,
+                'missing_cost'   => $missing_cost,
+                'loss_makers'    => $loss_makers,
                 'total_products' => $total_products,
-                'on_sale_count' => $on_sale_count,
-                'avg_margin' => $avg_margin
+                'on_sale_count'  => $on_sale_count,
+                'avg_margin'     => $avg_margin,
+                'weekly_revenue' => $weekly_revenue,
+                'weekly_orders'  => $weekly_orders,
+                'active_badges'  => $active_badges
             );
             set_transient( 'cirrusly_dashboard_metrics', $metrics, 1 * HOUR_IN_SECONDS );
         }
         return $metrics;
     }
 
+    /**
+     * Renders the Cirrusly Commerce main admin dashboard page.
+     *
+     * Outputs the dashboard UI including the Store Pulse (last 7 days), catalog and margin summary,
+     * Google Merchant Center status, store integrity metrics, and quick links. The displayed data
+     * reflect current dashboard metrics and respect PRO feature gating.
+     */
     public function render_main_dashboard() {
-        echo '<div class="wrap">'; // Move wrapper outside/above header for consistency
+        echo '<div class="wrap">'; 
         self::render_page_header( 'Cirrusly Commerce Dashboard' );
         $m = self::get_dashboard_metrics();
         $is_pro = self::cirrusly_is_pro();
         ?>
+        
         <div class="cc-intro-text" style="background:#fff; padding:15px; border:1px solid #ccd0d4; margin-bottom:20px; border-left:4px solid #2271b1;">
-            <h3><?php esc_html_e( 'Welcome to Cirrusly Commerce', 'cirrusly-commerce' ); ?></h3>
-            <p><?php esc_html_e( 'Your comprehensive suite for optimizing your WooCommerce store\'s financial health and Google Merchant Center compliance.', 'cirrusly-commerce' ); ?></p>
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                    <h3 style="margin:0 0 5px 0;"><?php esc_html_e( 'Store Pulse (Last 7 Days)', 'cirrusly-commerce' ); ?></h3>
+                    <p style="margin:0;"><?php esc_html_e( 'Snapshot of recent performance.', 'cirrusly-commerce' ); ?></p>
+                </div>
+                <div style="text-align:right;">
+                     <span style="font-size:24px; font-weight:bold; color:#008a20;"><?php echo wc_price( $m['weekly_revenue'] ); ?></span><br>
+                     <span style="font-size:12px; color:#555;"><?php echo esc_html( $m['weekly_orders'] ); ?> orders</span>
+                </div>
+            </div>
         </div>
         
         <div class="cc-dash-grid">
@@ -780,8 +946,17 @@ class Cirrusly_Commerce_Core {
             
             <div class="cc-dash-card" style="border-top-color: #d63638;">
                 <div class="cc-card-head"><span>Google Merchant Center</span> <span class="dashicons dashicons-google"></span></div>
-                <div class="cc-stat-row"><span>Critical Issues</span><span class="cc-stat-val <?php echo $m['gmc_critical'] > 0 ? 'cc-val-bad' : 'cc-val-good'; ?>"><?php echo esc_html( $m['gmc_critical'] ); ?></span></div>
-                <div class="cc-stat-row"><span>Warnings</span><span class="cc-stat-val <?php echo $m['gmc_warnings'] > 0 ? 'cc-val-warn' : 'cc-val-good'; ?>"><?php echo esc_html( $m['gmc_warnings'] ); ?></span></div>
+                <div class="cc-stat-row"><span>Product Critical Issues</span><span class="cc-stat-val <?php echo $m['gmc_critical'] > 0 ? 'cc-val-bad' : 'cc-val-good'; ?>"><?php echo esc_html( $m['gmc_critical'] ); ?></span></div>
+                
+                <div class="cc-stat-row">
+                    <span>Site Content & Policy</span>
+                    <?php if ( $m['content_issues'] > 0 ): ?>
+                        <span class="cc-stat-val cc-val-bad"><?php echo esc_html( $m['content_issues'] ); ?> Issues</span>
+                    <?php else: ?>
+                        <span class="cc-stat-val cc-val-good">Pass</span>
+                    <?php endif; ?>
+                </div>
+
                 <div class="cc-stat-row" style="margin-top:15px; padding-top:10px; border-top:1px solid #f0f0f1;">
                     <span>Real-Time Sync</span>
                     <?php if($is_pro): ?>
@@ -790,21 +965,33 @@ class Cirrusly_Commerce_Core {
                         <span class="gmc-badge" style="background:#ccc;color:#666;">INACTIVE (PRO)</span>
                     <?php endif; ?>
                 </div>
-                <div class="cc-actions"><a href="admin.php?page=cirrusly-gmc&tab=scan" class="button button-primary">Fix Issues</a></div>
+                <div class="cc-actions">
+                    <a href="admin.php?page=cirrusly-gmc&tab=scan" class="button button-primary">Fix Products</a>
+                    <a href="admin.php?page=cirrusly-gmc&tab=content" class="button button-secondary" style="margin-left:5px;">Audit Content</a>
+                </div>
             </div>
 
             <div class="cc-dash-card" style="border-top-color: #2271b1;">
                 <div class="cc-card-head"><span>Store Integrity</span> <span class="dashicons dashicons-analytics"></span></div>
                 <div class="cc-stat-row"><span>Products Missing Cost</span><span class="cc-stat-val <?php echo $m['missing_cost'] > 0 ? 'cc-val-bad' : 'cc-val-good'; ?>"><?php echo esc_html( $m['missing_cost'] ); ?></span></div>
+                
                 <div class="cc-stat-row">
-                    <span>Automated Badging</span>
-                    <?php if($is_pro): ?>
-                         <span class="gmc-badge" style="background:#008a20;color:#fff;">ACTIVE</span>
+                    <span>Unprofitable Products</span>
+                    <span class="cc-stat-val <?php echo $m['loss_makers'] > 0 ? 'cc-val-bad' : 'cc-val-good'; ?>">
+                        <?php echo esc_html( $m['loss_makers'] ); ?>
+                    </span>
+                </div>
+
+                <div class="cc-stat-row" style="margin-top:15px; padding-top:10px; border-top:1px solid #f0f0f1;">
+                    <span>Active Strategies</span>
+                    <?php if ( !empty($m['active_badges']) ): ?>
+                        <span style="font-size:11px; color:#2271b1; font-weight:bold;"><?php echo esc_html( implode(', ', $m['active_badges']) ); ?></span>
                     <?php else: ?>
-                         <span class="gmc-badge" style="background:#ccc;color:#666;">BASIC</span>
+                        <span style="font-size:11px; color:#888;">None</span>
                     <?php endif; ?>
                 </div>
-                <div class="cc-actions"><a href="admin.php?page=cirrusly-audit" class="button button-secondary">Open Audit</a></div>
+                
+                <div class="cc-actions"><a href="admin.php?page=cirrusly-audit" class="button button-secondary">Open Financial Audit</a></div>
             </div>
             
             <div class="cc-dash-card" style="border-top-color: #00a32a;">
@@ -883,6 +1070,11 @@ class Cirrusly_Commerce_Core {
         $is_pro = self::cirrusly_is_pro();
         $pro_class = $is_pro ? '' : 'cc-pro-feature';
         $disabled_attr = $is_pro ? '' : 'disabled';
+        
+        $countdown_rules = get_option( 'cirrusly_countdown_rules', array() );
+        if ( ! is_array( $countdown_rules ) ) {
+            $countdown_rules = array();
+        }
 
         echo '<div class="cc-settings-grid">';
         
@@ -927,7 +1119,39 @@ class Cirrusly_Commerce_Core {
                 <p class="description">Enable this to hide grayed-out Pro features from the interface.</p>
             </div>
         </div>';
-        
+
+        // Card: Promotions (Countdown)
+        echo '<div class="cc-settings-card '.esc_attr($pro_class).'">';
+            if(!$is_pro) echo '<div class="cc-pro-overlay"><a href="'.esc_url( function_exists('cc_fs') ? cc_fs()->get_upgrade_url() : '#' ).'" class="cc-upgrade-btn"><span class="dashicons dashicons-lock cc-lock-icon"></span> Unlock Smart Rules</a></div>';
+
+        echo '<div class="cc-card-header">
+            <h3>Smart Countdown Rules <span class="cc-pro-badge">PRO</span></h3>
+            <span class="dashicons dashicons-clock"></span>
+            </div>
+            <div class="cc-card-body">
+            <p>Automatically inject countdown timers based on product taxonomy (Category/Brand).</p>
+            <table class="widefat striped cc-settings-table" style="max-width:100%;"><thead><tr><th>Taxonomy (e.g., product_cat)</th><th>Term Slug/ID</th><th>End Date (YYYY-MM-DD HH:MM:SS)</th><th>Label</th><th>Align</th><th></th></tr></thead><tbody id="cc-countdown-rows">';
+        if ( ! empty( $countdown_rules ) ) {
+            foreach ( $countdown_rules as $idx => $rule ) {
+                $align = isset($rule['align']) ? $rule['align'] : 'left';
+                echo '<tr>
+                    <td><input type="text" name="cirrusly_countdown_rules['.esc_attr($idx).'][taxonomy]" value="'.esc_attr($rule['taxonomy']).'" '.esc_attr($disabled_attr).'></td>
+                    <td><input type="text" name="cirrusly_countdown_rules['.esc_attr($idx).'][term]" value="'.esc_attr($rule['term']).'" '.esc_attr($disabled_attr).'></td>
+                    <td><input type="text" name="cirrusly_countdown_rules['.esc_attr($idx).'][end]" value="'.esc_attr($rule['end']).'" '.esc_attr($disabled_attr).'></td>
+                    <td><input type="text" name="cirrusly_countdown_rules['.esc_attr($idx).'][label]" value="'.esc_attr($rule['label']).'" '.esc_attr($disabled_attr).'></td>
+                    <td><select name="cirrusly_countdown_rules['.esc_attr($idx).'][align]" '.esc_attr($disabled_attr).'>
+                        <option value="left" '.selected('left', $align, false).'>Left</option>
+                        <option value="right" '.selected('right', $align, false).'>Right</option>
+                        <option value="center" '.selected('center', $align, false).'>Center</option>
+                    </select></td>
+                    <td><button type="button" class="button cc-remove-row" '.esc_attr($disabled_attr).'><span class="dashicons dashicons-trash"></span></button></td>
+                </tr>';
+            }
+        }
+        echo '</tbody></table><button type="button" class="button" id="cc-add-countdown-row" style="margin-top:10px;" '.esc_attr($disabled_attr).'>+ Add Countdown Rule</button>
+            </div>
+        </div>';
+
         // Card: Frontend Display (MSRP)
         echo '<div class="cc-settings-card">
             <div class="cc-card-header">
@@ -1169,14 +1393,54 @@ class Cirrusly_Commerce_Core {
         }
     }
 
+    /**
+     * Render the Cirrusly Commerce overview widget content for the WordPress dashboard.
+     *
+     * Outputs a compact widget that displays the last 7 days revenue and orders, average margin,
+     * a two‑cell health grid (Google Merchant Center status and loss makers), and a button
+     * linking to the full Cirrusly Commerce dashboard.
+     */
     public function render_wp_dashboard_widget() {
-        echo '<div style="text-align:center; padding:10px;"><a class="button button-primary" href="' . esc_url( admin_url( 'admin.php?page=cirrusly-commerce' ) ) . '">Open Dashboard</a></div>';
+        $m = self::get_dashboard_metrics();
+        
+        echo '<div class="cc-widget-container" style="display:flex; flex-direction:column; gap:15px;">';
+        
+        // 1. Revenue Pulse (Mini)
+        echo '<div style="border-bottom:1px solid #eee; padding-bottom:10px; display:flex; justify-content:space-between; align-items:end;">';
+            echo '<div><span style="color:#777; font-size:11px; text-transform:uppercase;">Last 7 Days</span><br><span style="font-size:20px; font-weight:600; color:#008a20;">' . wc_price($m['weekly_revenue']) . '</span></div>';
+            echo '<div style="text-align:right;"><span style="font-size:12px; color:#555;">' . $m['weekly_orders'] . ' Orders</span><br><span style="font-size:12px; color:' . ($m['avg_margin'] < 15 ? '#d63638' : '#008a20') . ';">' . $m['avg_margin'] . '% Margin</span></div>';
+        echo '</div>';
+
+        // 2. Health Grid
+        echo '<div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">';
+            
+            // GMC Health
+            $gmc_color = $m['gmc_critical'] > 0 ? '#d63638' : '#008a20';
+            $gmc_label = $m['gmc_critical'] > 0 ? $m['gmc_critical'] . ' Critical' : 'Healthy';
+            echo '<div style="background:#f9f9f9; padding:10px; border-radius:4px; text-align:center;">';
+                echo '<span class="dashicons dashicons-google" style="color:#555;"></span> <strong style="display:block; color:'. $gmc_color .';">' . $gmc_label . '</strong><span style="font-size:10px; color:#777;">Merchant Center</span>';
+            echo '</div>';
+
+            // Loss Makers
+            $loss_color = $m['loss_makers'] > 0 ? '#d63638' : '#777';
+            echo '<div style="background:#f9f9f9; padding:10px; border-radius:4px; text-align:center;">';
+                echo '<span class="dashicons dashicons-warning" style="color:#555;"></span> <strong style="display:block; color:'. $loss_color .';">' . $m['loss_makers'] . '</strong><span style="font-size:10px; color:#777;">Loss Makers</span>';
+            echo '</div>';
+            
+        echo '</div>';
+
+        // 3. Pro Action / Footer
+        echo '<div style="text-align:center; margin-top:5px;">';
+            echo '<a class="button button-primary" style="width:100%; text-align:center;" href="' . esc_url( admin_url( 'admin.php?page=cirrusly-commerce' ) ) . '">Open Full Dashboard</a>';
+        echo '</div>';
+        
+        echo '</div>';
     }
 
     /**
-     * Runs the scheduled Google Merchant Center health scan, stores results, and optionally emails a report.
+     * Perform the scheduled Google Merchant Center health scan and persist the results.
      *
-     * Executes the GMC scan, saves the scan timestamp and results to the `woo_gmc_scan_data` option, and — if the cirrusly scan configuration includes `enable_email_report` set to "yes" — sends an HTML summary email to the configured `email_recipient` (or the site admin email when not set).
+     * Runs the GMC scan, updates the `woo_gmc_scan_data` option with a timestamped result set, and — when the cirrusly scan configuration has `enable_email_report` set to `"yes"` and the scan returned issues — sends an HTML summary email to the configured `email_recipient` (or the site admin email when none is configured).
      */
     public function execute_scheduled_scan() {
         $scanner = new Cirrusly_Commerce_GMC();
