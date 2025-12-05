@@ -17,6 +17,7 @@ class Cirrusly_Commerce_Manual {
                 .cc-callout { background: #f0f6fc; border-left: 4px solid #72aee6; padding: 15px; margin: 15px 0; }
                 .cc-alert { background: #fcf0f1; border-left: 4px solid #d63638; padding: 15px; margin: 15px 0; }
                 .cc-notice-top { background: #fff; border-left: 4px solid #00a32a; box-shadow: 0 1px 1px rgba(0,0,0,.04); padding: 12px; margin-bottom: 20px; }
+                code { background: #f0f0f1; padding: 2px 5px; border-radius: 3px; }
             </style>
 
             <div class="cc-notice-top">
@@ -36,9 +37,9 @@ class Cirrusly_Commerce_Manual {
                     <a href="#audit">Financial Audit</a>
                     <a href="#profit">Profit Engine</a>
                     <a href="#pricing">Pricing Engine</a>
+                    <a href="#countdown">Countdown Timer</a>
                     <a href="#badges">Badge Manager</a>
                     <a href="#troubleshoot">Troubleshooting</a>
-                    <a href="#keys">Meta Keys</a>
                 </nav>
 
                 <div class="cc-manual-section" id="intro">
@@ -181,9 +182,33 @@ class Cirrusly_Commerce_Manual {
                     <ul class="cc-manual-list">
                         <li><strong>Financial Inputs:</strong> Enter <strong>MSRP</strong> (Retail Price), <strong>MAP</strong> (Min Advertised Price), and <strong>Google Min</strong> (lowest auto-price).</li>
                         <li><strong>Real-Time Calculator:</strong> As you type a price, the "Net Margin" bar updates instantly. It accounts for the COGS, Payment Fees (from settings), and Shipping Costs (from settings).</li>
-                        <li><strong>Apply Strategy:</strong> Use the dropdown to auto-calculate a price. Example: "Undercut Competitor" might set the price to <em>Competitor - 1%</em>, provided it stays above your floor margin.</li>
-                        <li><strong>GMC Attributes:</strong> Use the sidebar to assign <strong>Promotion IDs</strong> or <strong>Custom Labels</strong> (e.g., "clearance", "summer") specifically for this product.</li>
+                        <li><strong>Pricing Toolbar:</strong> Use the dropdown to auto-calculate a price based on common strategies.
+                            <ul>
+                                <li><em>Strategies:</em> 5-40% Off MSRP, Target 20% Margin, Match Competitor.</li>
+                                <li><em>Psychological Rounding:</em> Automatically round calculated prices to <strong>.99</strong>, <strong>.50</strong>, or the <strong>Nearest 5</strong> (e.g., 12.43 becomes 15.00).</li>
+                            </ul>
+                        </li>
                     </ul>
+                </div>
+
+                <div class="cc-manual-section" id="countdown">
+                    <h3>Countdown Timer</h3>
+                    <p>Create urgency with lightweight, CLS-free countdown timers on your product pages.</p>
+                    
+                    <h4>Method 1: Manual (Per Product)</h4>
+                    <p>Go to the <strong>Product Data > General</strong> tab. Enter a date and time in the <strong>"Sale Timer End"</strong> field (Format: YYYY-MM-DD HH:MM). A countdown will appear above the price until that time is reached.</p>
+
+                    <h4>Method 2: Smart Rules <span class="cc-manual-pro">PRO</span></h4>
+                    <p>Go to <em>Cirrusly Commerce > Settings > General</em> (bottom of page). You can create rules to auto-inject timers based on taxonomy.</p>
+                    <ul>
+                        <li><strong>Taxonomy:</strong> e.g., <code>product_cat</code> (Category) or <code>product_tag</code> (Tag).</li>
+                        <li><strong>Term:</strong> The slug of the category (e.g., <code>summer-sale</code>).</li>
+                        <li><strong>End Date:</strong> The expiry date for the entire group.</li>
+                    </ul>
+
+                    <h4>Method 3: Shortcode</h4>
+                    <p>Place a timer anywhere (Descriptions, Blog Posts) using the shortcode:</p>
+                    <code>[cw_countdown end="2025-12-31 23:59" label="Sale Ends:" align="center"]</code>
                 </div>
 
                 <div class="cc-manual-section" id="badges">
@@ -208,21 +233,27 @@ class Cirrusly_Commerce_Manual {
                         <li><strong>Solution:</strong> Review Step 3 in the <a href="#api-setup">Service Account Setup</a> section. You must add the <code>.iam.gserviceaccount.com</code> email as a user in Merchant Center.</li>
                     </ul>
 
-                    <h4>2. MSRP Not Appearing on Frontend</h4>
+                    <h4>2. GMC Updates Not Appearing Immediately</h4>
+                    <p>When you save a product, Cirrusly Commerce pushes the update to Google in the background.</p>
+                    <div class="cc-callout">
+                        <strong>Note:</strong> There is a built-in <strong>60-second delay</strong> after you click save. This ensures that all data (including variations) is fully saved in WooCommerce before we send it to Google to prevent sync errors. Please wait 1-2 minutes before checking Merchant Center.
+                    </div>
+
+                    <h4>3. MSRP Not Appearing on Frontend</h4>
                     <p>If you have entered an MSRP but it is not showing on your product page:</p>
                     <ul class="cc-manual-list">
                         <li><strong>Check Settings:</strong> Go to <em>Cirrusly Commerce > Settings > Pricing</em> and ensure "Enable Frontend Display" is checked.</li>
                         <li><strong>Block Themes (FSE):</strong> If you are using a modern Block Theme (like Twenty Twenty-Four), the standard WooCommerce hooks may not run. You must use the <strong>"MSRP Display" Block</strong> in the Site Editor to place the price manually.</li>
                     </ul>
 
-                    <h4>3. Data Not Showing in Google Merchant Center</h4>
+                    <h4>4. Data Not Showing in Google Merchant Center</h4>
                     <p>Cirrusly Commerce creates the data, but it does not generate the XML feed itself.</p>
                     <div class="cc-callout">
                         <strong>Solution:</strong> You must map the fields in your feed plugin (e.g., Product Feed PRO or CTX Feed).<br>
                         <em>Example:</em> Map <code>g:price</code> to the standard Price, and map <code>g:sale_price</code> to our <strong>MSRP</strong> (<code>_alg_msrp</code>) if you want to show strike-through pricing on Google.
                     </div>
 
-                    <h4>4. Profit Margin Seems Incorrect</h4>
+                    <h4>5. Profit Margin Seems Incorrect</h4>
                     <p>If the "Net Profit" calculated on the product page looks too low or too high:</p>
                     <ul class="cc-manual-list">
                         <li><strong>Check Shipping Classes:</strong> Ensure the product is assigned a Shipping Class, and that you have defined a "Label Cost" for that class in <em>Settings > Profit Engine</em>.</li>
@@ -257,6 +288,7 @@ class Cirrusly_Commerce_Manual {
                             <tr><td>Promotion ID</td><td><code>_gmc_promotion_id</code></td></tr>
                             <tr><td>Custom Label 0</td><td><code>_gmc_custom_label_0</code></td></tr>
                             <tr><td>Identifier Exists</td><td><code>_gla_identifier_exists</code></td></tr>
+                            <tr><td>Sale Timer End</td><td><code>_cw_sale_end</code></td></tr>
                         </tbody>
                     </table>
                 </div>

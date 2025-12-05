@@ -127,7 +127,7 @@ class Cirrusly_Commerce_Badges {
      * Builds HTML for product badges based on site configuration and the product's state.
      *
      * Generates zero or more badge elements for:
-     * - premium "SMART" badges (Inventory, Performance, Scheduler) when the site is PRO and corresponding features are enabled,
+     * - premium "SMART" badges (Inventory, Performance, Scheduler, Sentiment) when the site is PRO and corresponding features are enabled,
      * - sale-based discount badges calculated from MSRP or regular price,
      * - "New" arrival badges based on product age,
      * - custom tag-based image badges configured via JSON.
@@ -281,7 +281,7 @@ class Cirrusly_Commerce_Badges {
      * Uses the Google Cloud Natural Language API to analyze up to 5 approved comments for the given product, computes the average sentiment score, and returns a small HTML badge when the average score exceeds 0.6. Results are cached in a transient: a positive badge is cached for 7 days; an empty result is cached for 1 day. On any error or if there are no comments, an empty string is returned (and cached for 1 day).
      *
      * @param \WC_Product $product The product to analyze.
-     * @param \Google_Client $client An authenticated Google API client configured for Cloud Natural Language.
+     * @param \Google\Client $client An authenticated Google API client configured for Cloud Natural Language.
      * @return string The badge HTML ("Customer Fave ❤️") when sentiment is highly positive, or an empty string otherwise.
      */
     private function get_sentiment_badge( $product, $client ) {
@@ -290,8 +290,12 @@ class Cirrusly_Commerce_Badges {
         $cached = get_transient( $cache_key );
         if ( false !== $cached ) return $cached;
 
-        $comments = get_comments( array( 'post_id' => $product->get_id(), 'number' => 5, 'status' => 'approve' ) );
-        if ( empty( $comments ) ) {
+        $comments = get_comments( array(
+            'post_id' => $product->get_id(),
+            'number'  => 5,
+            'status'  => 'approve',
+            'type'    => 'review', // Only product reviews
+        ) );        if ( empty( $comments ) ) {
             set_transient( $cache_key, '', DAY_IN_SECONDS );
             return '';
         }
