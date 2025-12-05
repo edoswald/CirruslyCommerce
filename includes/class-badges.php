@@ -178,8 +178,9 @@ class Cirrusly_Commerce_Badges {
         if ( $start && $end && $now >= $start && $now <= $end ) {
             $output .= '<span class="cw-badge-pill" style="background-color:#826eb4;">Event</span>';
         }
+    }
 
-+    // 4. SMART BADGE: SENTIMENT (Customer Love)
+    // 4. SMART BADGE: SENTIMENT (Customer Love)
     if ( $is_pro ) {
         $client = Cirrusly_Commerce_GMC::get_google_client();
         
