@@ -109,7 +109,7 @@ class Cirrusly_Commerce_Countdown {
                  if ( $this->is_date_future( $rule['end'] ) ) {
                     $align = isset($rule['align']) ? $rule['align'] : 'left';
                     $label = isset($rule['label']) ? $rule['label'] : 'Ends in:';
-                    echo wp_kses_post( $this->generate_timer_html( $manual_end, 'Sale Ends In:', 'left' ) );
+                    echo wp_kses_post( $this->generate_timer_html( $rule['end'], $label, $align ) );
                     echo '<div style="margin-bottom: 15px;"></div>';
                     break; // Apply first matching rule
                  }

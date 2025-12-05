@@ -777,9 +777,14 @@ public function handle_promo_api_submit() {
     }
 
     // Extract POST data
-    $data = isset( $_POST['data'] ) ? $_POST['data'] : array();
-    $id = isset( $data['id'] ) ? sanitize_text_field( $data['id'] ) : '';
+    $data = isset( $_POST['data'] ) ? wp_unslash( $_POST['data'] ) : array();
+    $data = is_array( $data ) ? $data : array();
+    $id    = isset( $data['id'] ) ? sanitize_text_field( $data['id'] ) : '';
     $title = isset( $data['title'] ) ? sanitize_text_field( $data['title'] ) : '';
+
+    if ( '' === $id || '' === $title ) {
+        wp_send_json_error( 'Promotion ID and Title are required.' );
+    }
     
     // Initialize the Service
     $service = new Google\Service\ShoppingContent( $client );

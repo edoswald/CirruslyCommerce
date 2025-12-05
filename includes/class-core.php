@@ -236,7 +236,7 @@ class Cirrusly_Commerce_Core {
         return false; 
     }
 
-    / **
+    /**
      * Outputs admin CSS to hide PRO/upsell UI on Cirrusly admin pages when configured.
      *
      * Checks the Cirrusly scan settings and, if the 'hide_upsells' option is set to 'yes',
