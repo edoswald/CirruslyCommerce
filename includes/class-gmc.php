@@ -789,12 +789,36 @@ public function handle_promo_api_submit() {
     // Initialize the Service
     $service = new Google\Service\ShoppingContent( $client );
 
-    try {
+try {
         // Create Promotion Object
         $promo = new Google\Service\ShoppingContent\Promotion();
         $promo->setPromotionId( $id );
         $promo->setLongTitle( $title );
-        // ... (Set other fields like dates/codes) ...
+        $promo->setContentLanguage( 'en' ); // Should ideally be dynamic
+        $promo->setTargetCountry( 'US' );   // Should ideally be dynamic
+        $promo->setRedemptionChannel( array( 'ONLINE' ) );
+
+        // 1. Parse Dates (Format: YYYY-MM-DD/YYYY-MM-DD) received from JS
+        $dates_raw = isset( $data['dates'] ) ? sanitize_text_field( $data['dates'] ) : '';
+        if ( strpos( $dates_raw, '/' ) !== false ) {
+            list( $start_str, $end_str ) = explode( '/', $dates_raw );
+            $period = new Google\Service\ShoppingContent\PromotionPromotionStatusDateRange();
+            // Google expects ISO 8601 (e.g. 2025-06-01T00:00:00Z)
+            $period->setDateRange( $start_str . 'T00:00:00Z/' . $end_str . 'T23:59:59Z' );
+            $promo->setPromotionEffectiveTimePeriod( $period );
+        }
+
+        // 2. Product Applicability
+        $app_val = isset( $data['app'] ) ? sanitize_text_field( $data['app'] ) : 'ALL_PRODUCTS';
+        $promo->setProductApplicability( $app_val );
+
+        // 3. Offer Type & Generic Code
+        $type_val = isset( $data['type'] ) ? sanitize_text_field( $data['type'] ) : 'NO_CODE';
+        $promo->setOfferType( $type_val );
+        
+        if ( 'GENERIC_CODE' === $type_val && ! empty( $data['code'] ) ) {
+            $promo->setGenericRedemptionCode( sanitize_text_field( $data['code'] ) );
+        }
 
         // Send to Google
         $service->promotions->create( $merchant_id, $promo );

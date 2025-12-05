@@ -42,8 +42,6 @@ class Cirrusly_Commerce_Countdown {
             return array();
         }
 
-        // Example Pro Logic: Retrieve from DB options in real app
-        // For now, we return the structure you defined, but this could be dynamic.
         return get_option( 'cirrusly_countdown_rules', array() ); 
     }
 

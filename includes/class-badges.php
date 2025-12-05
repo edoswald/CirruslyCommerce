@@ -326,7 +326,10 @@ class Cirrusly_Commerce_Badges {
             }
 
         } catch ( Exception $e ) {
-            // fail silently
+            // Log error for debugging, do not crash frontend
+            if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+                error_log( 'Cirrusly Sentiment Analysis Error: ' . $e->getMessage() );
+            }
         }
         
         set_transient( $cache_key, '', DAY_IN_SECONDS );

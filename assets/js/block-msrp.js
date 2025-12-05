@@ -31,24 +31,15 @@
             html: false,
             align: ['left', 'center', 'right'],
         },
-        edit: function( props ) {
+edit: function( props ) {
             var attributes = props.attributes;
             var setAttributes = props.setAttributes;
+            var ServerSideRender = wp.serverSideRender; // Access global wp component
 
-            var blockProps = useBlockProps( { 
-                className: 'cirrusly-msrp-block-editor',
-                style: { 
-                    textAlign: attributes.textAlign 
-                } 
-            } );
-            
-            var msrpStyle = {
-                color: '#777',
-                textDecoration: attributes.showStrikethrough ? 'line-through' : 'none',
-                marginRight: '5px',
-                fontWeight: attributes.isBold ? 'bold' : 'normal',
-                textAlign: attributes.textAlign
-            };
+            var InspectorControls = wp.blockEditor.InspectorControls;
+            var PanelBody = wp.components.PanelBody;
+            var ToggleControl = wp.components.ToggleControl;
+            var SelectControl = wp.components.SelectControl;
 
             return [
                 el( InspectorControls, { key: 'inspector' },
@@ -75,9 +66,12 @@
                         } )
                     )
                 ),
-                el( 'div', blockProps,
-                    el( 'span', { style: msrpStyle }, 'MSRP: $199.99' ),
-                    el( 'span', { style: { fontSize: '12px', fontStyle: 'italic', color: '#888' } }, '(Placeholder)' )
+                el( 'div', useBlockProps( { className: 'cirrusly-msrp-block-editor' } ),
+                    // Dynamically render the PHP output in the editor
+                    el( ServerSideRender, {
+                        block: 'cirrusly/msrp',
+                        attributes: attributes
+                    } )
                 )
             ];
         },
