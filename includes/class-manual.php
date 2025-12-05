@@ -32,12 +32,12 @@ class Cirrusly_Commerce_Manual {
                     <a href="#intro">Introduction</a>
                     <a href="#dashboard">Dashboard</a>
                     <a href="#gmc">GMC Hub</a>
+                    <a href="#api-setup">Google API Setup</a>
                     <a href="#audit">Financial Audit</a>
                     <a href="#profit">Profit Engine</a>
                     <a href="#pricing">Pricing Engine</a>
                     <a href="#badges">Badge Manager</a>
-                    <a href="#troubleshoot">Troubleshooting & Setup</a>
-                    <a href="#compat">Compatibility</a>
+                    <a href="#troubleshoot">Troubleshooting</a>
                     <a href="#keys">Meta Keys</a>
                 </nav>
 
@@ -73,11 +73,61 @@ class Cirrusly_Commerce_Manual {
                     <p>Easily manage "Merchant Promotions" (coupon codes displayed on Google Shopping ads).</p>
                     <ul class="cc-manual-list">
                         <li><strong>ID Generation:</strong> Automatically generates valid <code>promotion_id</code> strings for your feeds based on WooCommerce coupons.</li>
-                        <li><strong>One-Click Submit:</strong> <span class="cc-manual-pro">PRO</span> Sends promotion data directly to Google via the Content API, bypassing the need for manual CSV uploads in Merchant Center.</li>
+                        <li><strong>One-Click Submit:</strong> <span class="cc-manual-pro">PRO</span> Sends promotion data directly to Google via the Content API, bypassing the need for manual CSV uploads in Merchant Center. <strong>Requires Service Account.</strong></li>
                     </ul>
 
                     <h4>3. Site Content Scan</h4>
                     <p>Scans your WordPress Pages (Refund Policy, Terms of Service, Contact) to ensure you meet Google's "Misrepresentation" policy requirements. It checks for required legal text and secure checkout indicators.</p>
+                </div>
+
+                <div class="cc-manual-section" id="api-setup">
+                    <h3>Google Service Account Setup <span class="cc-manual-pro">PRO</span></h3>
+                    <p>To use advanced features like <strong>One-Click Promotions</strong> and <strong>AI Content Scanning</strong>, you must connect Cirrusly Commerce to your Google Merchant Center via a Service Account.</p>
+                    
+                    <div class="cc-callout">
+                        <strong>What is a Service Account?</strong><br>
+                        It is a "Robot User" that you create in the Google Cloud Console. You give this robot permission to talk to your Merchant Center so it can upload promotions and scan data automatically.
+                    </div>
+
+                    <h4>Step 1: Create Project & Enable API</h4>
+                    <ol class="cc-manual-list">
+                        <li>Go to the <a href="https://console.cloud.google.com/" target="_blank">Google Cloud Console</a>.</li>
+                        <li>Create a <strong>New Project</strong> (name it something like "Cirrusly Commerce Connector").</li>
+                        <li>Using the search bar at the top, search for <strong>"Content API for Shopping"</strong> and click <strong>Enable</strong>.</li>
+                        <li>(Optional) Search for <strong>"Cloud Natural Language API"</strong> and click <strong>Enable</strong> (required for Medical Term AI detection).</li>
+                    </ol>
+
+                    <h4>Step 2: Create Credentials (JSON Key)</h4>
+                    <ol class="cc-manual-list">
+                        <li>In the Google Cloud sidebar, go to <strong>IAM & Admin > Service Accounts</strong>.</li>
+                        <li>Click <strong>Create Service Account</strong>. Give it a name (e.g., "shop-manager") and click "Done".</li>
+                        <li>You will see the new account in the list. Copy the <strong>Email Address</strong> (e.g., <code>shop-manager@project-id.iam.gserviceaccount.com</code>). <em>You will need this for Step 3.</em></li>
+                        <li>Click on the email address to open details. Go to the <strong>Keys</strong> tab.</li>
+                        <li>Click <strong>Add Key > Create New Key</strong>. Select <strong>JSON</strong> and click Create.</li>
+                        <li>A file will download to your computer. Open this file with Notepad or a Text Editor.</li>
+                    </ol>
+
+                    <h4>Step 3: Grant Access in Merchant Center (Crucial!)</h4>
+                    <div class="cc-alert">
+                        <strong>STOP! Do not skip this step.</strong><br>
+                        Creating the key is not enough. You must tell Google Merchant Center that this specific "Robot User" is allowed to access your store.
+                    </div>
+                    <ol class="cc-manual-list">
+                        <li>Log into your <a href="https://merchants.google.com/" target="_blank">Google Merchant Center</a>.</li>
+                        <li>Click the <strong>Settings (Gear Icon)</strong> > <strong>People & Access</strong>.</li>
+                        <li>Click <strong>Add User</strong>.</li>
+                        <li>Paste the <strong>Service Account Email</strong> you copied in Step 2.</li>
+                        <li>Grant it <strong>Standard</strong> or <strong>Admin</strong> access.</li>
+                    </ol>
+
+                    <h4>Step 4: Save in Plugin</h4>
+                    <ol class="cc-manual-list">
+                        <li>Go to your WordPress Admin > <em>Cirrusly Commerce > Settings</em>.</li>
+                        <li>Paste the <strong>Merchant Center ID</strong> (found in the top right of your Google Merchant Center).</li>
+                        <li>Copy the <strong>entire contents</strong> of the JSON file you downloaded in Step 2.</li>
+                        <li>Paste it into the <strong>Service Account JSON</strong> field in the settings.</li>
+                        <li>Click Save.</li>
+                    </ol>
                 </div>
 
                 <div class="cc-manual-section" id="audit">
@@ -151,33 +201,33 @@ class Cirrusly_Commerce_Manual {
                     <h3>Troubleshooting & Setup Issues</h3>
                     <p>Common configuration pitfalls and how to solve them.</p>
 
-                    <h4>1. MSRP Not Appearing on Frontend</h4>
+                    <h4>1. API Error: "User cannot access account"</h4>
+                    <p>This is the most common error when submitting Promotions.</p>
+                    <ul class="cc-manual-list">
+                        <li><strong>Cause:</strong> The Service Account (Step 2 above) was created, but not added to your Merchant Center users.</li>
+                        <li><strong>Solution:</strong> Review Step 3 in the <a href="#api-setup">Service Account Setup</a> section. You must add the <code>.iam.gserviceaccount.com</code> email as a user in Merchant Center.</li>
+                    </ul>
+
+                    <h4>2. MSRP Not Appearing on Frontend</h4>
                     <p>If you have entered an MSRP but it is not showing on your product page:</p>
                     <ul class="cc-manual-list">
                         <li><strong>Check Settings:</strong> Go to <em>Cirrusly Commerce > Settings > Pricing</em> and ensure "Enable Frontend Display" is checked.</li>
                         <li><strong>Block Themes (FSE):</strong> If you are using a modern Block Theme (like Twenty Twenty-Four), the standard WooCommerce hooks may not run. You must use the <strong>"MSRP Display" Block</strong> in the Site Editor to place the price manually.</li>
                     </ul>
 
-                    <h4>2. Data Not Showing in Google Merchant Center</h4>
+                    <h4>3. Data Not Showing in Google Merchant Center</h4>
                     <p>Cirrusly Commerce creates the data, but it does not generate the XML feed itself.</p>
                     <div class="cc-callout">
                         <strong>Solution:</strong> You must map the fields in your feed plugin (e.g., Product Feed PRO or CTX Feed).<br>
                         <em>Example:</em> Map <code>g:price</code> to the standard Price, and map <code>g:sale_price</code> to our <strong>MSRP</strong> (<code>_alg_msrp</code>) if you want to show strike-through pricing on Google.
                     </div>
 
-                    <h4>3. Profit Margin Seems Incorrect</h4>
+                    <h4>4. Profit Margin Seems Incorrect</h4>
                     <p>If the "Net Profit" calculated on the product page looks too low or too high:</p>
                     <ul class="cc-manual-list">
                         <li><strong>Check Shipping Classes:</strong> Ensure the product is assigned a Shipping Class, and that you have defined a "Label Cost" for that class in <em>Settings > Profit Engine</em>.</li>
                         <li><strong>Check Payment Fees:</strong> Verify your Payment Processor Fee settings. A default of 0% will make your profit look higher than it actually is.</li>
                         <li><strong>Verify COGS:</strong> Ensure the "Cost of Goods" field is not empty or zero.</li>
-                    </ul>
-
-                    <h4>4. Automated Emails Not Arriving</h4>
-                    <p>If you aren't receiving the Weekly Profit Report:</p>
-                    <ul class="cc-manual-list">
-                        <li>Check that the WP-Cron system is running on your server.</li>
-                        <li>Verify your server can send outgoing PHP mail (check your spam folder).</li>
                     </ul>
                 </div>
 
