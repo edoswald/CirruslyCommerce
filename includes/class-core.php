@@ -497,15 +497,6 @@ public function register_admin_menus() {
     /**
      * Normalize and sanitize an array of countdown rule definitions.
      *
-     * Each returned rule will contain the keys: `taxonomy`, `value`, `end_time`, `message`,
-     * and `align` (one of "left", "right", or "center"; defaults to "left").
-     *
-     * @param array $input Array of countdown rules (each rule as an associative array).
-     * @return array Cleaned array of sanitized countdown rules.
-     */
-    /**
-     * Normalize and sanitize an array of countdown rule definitions.
-     *
      * Each returned rule will contain the keys: `taxonomy`, `term`, `end`, `label`,
      * and `align` (one of "left", "right", or "center"; defaults to "left").
      */
