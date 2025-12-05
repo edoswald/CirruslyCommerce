@@ -64,7 +64,7 @@ edit: function( props ) {
                 el( 'div', useBlockProps( { className: 'cirrusly-msrp-block-editor' } ),
                     // Dynamically render the PHP output in the editor
                     el( ServerSideRender, {
-                        block: 'cirrusly/msrp',
+                        block: 'cirrusly-commerce/msrp',
                         attributes: attributes
                     } )
                 )
