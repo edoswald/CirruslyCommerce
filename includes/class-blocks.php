@@ -32,7 +32,8 @@ class Cirrusly_Commerce_Blocks {
 		wp_register_script(
 			'cirrusly-block-msrp', // Handle
 			CIRRUSLY_COMMERCE_URL . 'assets/js/block-msrp.js', // Path to file
-			array( 'wp-blocks', 'wp-element', 'wp-editor', 'wp-components', 'wp-i18n' ), // Dependencies
+			// Updated dependencies to include 'wp-server-side-render'
+			array( 'wp-blocks', 'wp-element', 'wp-editor', 'wp-components', 'wp-i18n', 'wp-server-side-render' ), 
 			CIRRUSLY_COMMERCE_VERSION,
 			true // Load in footer
 		);
