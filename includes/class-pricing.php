@@ -283,6 +283,7 @@ class Cirrusly_Commerce_Pricing {
         if ( isset( $_POST['_alg_msrp'] ) ) update_post_meta( $post_id, '_alg_msrp', wc_format_decimal( sanitize_text_field( wp_unslash( $_POST['_alg_msrp'] ) ) ) );
         // phpcs:ignore WordPress.Security.NonceVerification.Missing
         if ( isset( $_POST['_auto_pricing_min_price'] ) ) update_post_meta( $post_id, '_auto_pricing_min_price', wc_format_decimal( sanitize_text_field( wp_unslash( $_POST['_auto_pricing_min_price'] ) ) ) );
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Woo Core Context
         if ( isset( $_POST['_cw_sale_end'] ) ) update_post_meta( $post_id, '_cw_sale_end', sanitize_text_field( wp_unslash( $_POST['_cw_sale_end'] ) ) );
         // REFACTORED: Schedule a background task for Google Sync to prevent slowing down bulk save operations.
         $this->schedule_gmc_sync( $post_id );
