@@ -30,20 +30,39 @@ class Cirrusly_Commerce_Automated_Discounts {
 
     /**
      * Render the checkbox in the existing GMC Health Check > Settings area.
+     * Updated to include Merchant ID and Public Key fields.
      */
     public function render_settings_field() {
-        $scan_cfg = get_option( 'cirrusly_scan_config', array() );
-        $enabled  = ! empty( $scan_cfg['enable_automated_discounts'] );
+        $scan_cfg = get_option('cirrusly_scan_config', array());
+        
+        $checked = isset($scan_cfg['enable_automated_discounts']) && $scan_cfg['enable_automated_discounts'] === 'yes' ? 'checked' : '';
+        $merchant_id = isset($scan_cfg['merchant_id']) ? esc_attr($scan_cfg['merchant_id']) : '';
+        $public_key = isset($scan_cfg['google_public_key']) ? esc_textarea($scan_cfg['google_public_key']) : '';
         ?>
         <br>
-        <label>
-            <input type="checkbox" name="cirrusly_scan_config[enable_automated_discounts]" value="yes" <?php checked( $enabled ); ?>> 
-            <strong><?php esc_html_e( 'Enable Google Automated Discounts', 'cirrusly-commerce' ); ?></strong>
-            <p class="description" style="margin-left:25px; margin-top:2px;">
+        <div class="cirrusly-ad-settings" style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #ccc;">
+            <label>
+                <input type="checkbox" name="cirrusly_scan_config[enable_automated_discounts]" value="yes" <?php echo $checked; ?>> 
+                <strong>Enable Google Automated Discounts</strong>
+            </label>
+            <p class="description" style="margin-left:25px; margin-top:2px; margin-bottom:15px;">
                 Allows Google to dynamically lower prices for specific customers via Shopping Ads. 
                 <br>Requires <code>Cost of Goods</code> and <code>Google Min Price</code> to be set on products.
             </p>
-        </label>
+
+            <div class="cirrusly-ad-fields" style="margin-left: 25px; background: #f9f9f9; padding: 15px; border: 1px solid #e5e5e5;">
+                <p>
+                    <label><strong>Google Merchant Center ID</strong></label><br>
+                    <input type="text" name="cirrusly_scan_config[merchant_id]" value="<?php echo $merchant_id; ?>" class="regular-text">
+                    <br><span class="description">Required for security validation. Must match the Merchant ID in the incoming token.</span>
+                </p>
+                <p>
+                    <label><strong>Google Public Key (PEM)</strong></label><br>
+                    <textarea name="cirrusly_scan_config[google_public_key]" rows="5" class="large-text code" placeholder="-----BEGIN PUBLIC KEY----- ..."><?php echo $public_key; ?></textarea>
+                    <br><span class="description">Copy the full Public Key from your Google Merchant Center Automated Discounts settings.</span>
+                </p>
+            </div>
+        </div>
         <?php
     }
 
@@ -68,26 +87,47 @@ class Cirrusly_Commerce_Automated_Discounts {
 
     /**
      * Verifies the Google JWT.
-     * Uses the Google Client Library (already in your composer.json) to verify signature.
+     * Uses verifySignedJwt with the public key from settings.
      */
     private function verify_jwt( $token ) {
         // Ensure Google Client is available
         if ( ! class_exists( 'Google\Client' ) ) return false;
 
+        $cfg = get_option('cirrusly_scan_config', array());
+
+        // 1. Get Public Key from Settings
+        $public_key = isset( $cfg['google_public_key'] ) ? $cfg['google_public_key'] : '';
+        
+        if ( empty( $public_key ) ) {
+            error_log( 'Cirrusly Commerce: Missing Google Automated Discounts Public Key in settings.' );
+            return false;
+        }
+
         try {
             $client = new Google\Client();
-            // Verify ID Token (Google signs these tokens)
-            // Note: If Google changes signing method for Automated Discounts specifically, 
-            // you may need to use $client->verifySignedJwt() with specific certs, 
-            // but verifyIdToken is the standard entry point for Google-signed JWTs.
-            $payload = $client->verifyIdToken( $token );
+            
+            // Verify Signature using the specific Public Key (ES256)
+            $payload = $client->verifySignedJwt( $token, $public_key );
             
             if ( ! $payload ) return false;
 
-            // Validate Merchant ID if present in payload (claim 'm')
-            $my_merchant_id = get_option( 'cirrusly_gmc_merchant_id' );
-           if ( isset( $payload['m'] ) && (string) $payload['m'] !== (string) $my_merchant_id ) {
+            // 2. Validate Merchant ID (Claim 'm')
+            // Prefer the ID from this section's config, fallback to global option if needed
+            $stored_merchant_id = isset( $cfg['merchant_id'] ) ? $cfg['merchant_id'] : get_option( 'cirrusly_gmc_merchant_id' );
+            
+            if ( isset( $payload['m'] ) && (string) $payload['m'] !== (string) $stored_merchant_id ) {
+                error_log( 'Cirrusly Commerce JWT Fail: Merchant ID mismatch.' );
                 return false; 
+            }
+
+            // 3. Validate Currency (Claim 'c')
+            if ( isset( $payload['c'] ) && $payload['c'] !== get_woocommerce_currency() ) {
+                return false;
+            }
+
+            // 4. Validate Additional Claims
+            if ( ! isset( $payload['dc'] ) || ! isset( $payload['dp'] ) ) {
+                 return false;
             }
 
             return $payload;
@@ -121,6 +161,14 @@ class Cirrusly_Commerce_Automated_Discounts {
         }
 
         if ( $product_id ) {
+        // Verify product exists
+        $product = wc_get_product( $product_id );
+        if ( ! $product ) return;
+        
+        // Optional: Verify discount is actually lower than regular price
+        $regular_price = $product->get_regular_price();
+        if ( $regular_price && $price >= $regular_price ) return;
+
             $data = array(
                 'price' => $price,
                 'exp'   => $expiry
