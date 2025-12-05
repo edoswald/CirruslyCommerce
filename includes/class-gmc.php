@@ -831,6 +831,15 @@ public static function get_google_client() {
     // Fallback: If decryption fails (returns false), try using the original key 
     // (handles cases where legacy data might still be unencrypted)
     if ( ! $json_raw ) {
+    // Validate that the original key is actually valid JSON before falling back
+    $test_decode = json_decode( $json_key, true );
+    if ( json_last_error() === JSON_ERROR_NONE && is_array( $test_decode ) ) {
+        $json_raw = $json_key;
+    } else {
+        // Log decryption failure for debugging
+        error_log( 'Cirrusly Commerce: Service account decryption failed and fallback is not valid JSON.' );
+        return new WP_Error( 'decrypt_failed', 'Could not decrypt Service Account credentials. Please re-upload the JSON file.' );
+    }
         $json_raw = $json_key;
     }
 
