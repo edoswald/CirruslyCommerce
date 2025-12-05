@@ -3,7 +3,7 @@
 Contributors: edoswald
 Tags: Google Merchant Center, WooCommerce, pricing, MSRP, profit margin
 Requires at least: 5.8 
-Tested up to: 6.8 
+Tested up to: 6.9 
 Stable tag: 1.2 
 Requires PHP: 8.0 
 License: GPLv2 or later 
