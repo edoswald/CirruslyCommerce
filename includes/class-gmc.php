@@ -840,7 +840,6 @@ public static function get_google_client() {
         error_log( 'Cirrusly Commerce: Service account decryption failed and fallback is not valid JSON.' );
         return new WP_Error( 'decrypt_failed', 'Could not decrypt Service Account credentials. Please re-upload the JSON file.' );
     }
-        $json_raw = $json_key;
     }
 
     $auth_config = json_decode( $json_raw, true );
