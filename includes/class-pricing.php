@@ -382,10 +382,10 @@ class Cirrusly_Commerce_Pricing {
             // Required identifying fields for a PATCH/Update.
             // These must match the identifiers used when the product was inserted/created in GMC.
             $gmc_product->setOfferId( (string) $offer_id );
-            // Assuming 'en' and 'US' are the correct content language and target country.
-            $gmc_product->setContentLanguage( 'en' ); 
-            $gmc_product->setTargetCountry( 'US' );
-            $gmc_product->setChannel( 'online' );
+            $content_language = apply_filters( 'cirrusly_gmc_content_language', substr( get_locale(), 0, 2 ) );
+            $target_country = apply_filters( 'cirrusly_gmc_target_country', wc_get_base_location()['country'] ?? 'US' );
+            $gmc_product->setContentLanguage( $content_language ); 
+            $gmc_product->setTargetCountry( $target_country );
             
             // 1. Set Availability (Field to update)
             $gmc_product->setAvailability( $product->is_in_stock() ? 'in stock' : 'out of stock' );

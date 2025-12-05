@@ -350,6 +350,11 @@ public function clear_metrics_cache() { delete_transient( 'cirrusly_dashboard_me
                     var row = "<tr><td><input type=\'text\' name=\'cirrusly_shipping_config[matrix_rules]["+idx+"][key]\'></td><td><input type=\'text\' name=\'cirrusly_shipping_config[matrix_rules]["+idx+"][label]\'></td><td>x <input type=\'number\' step=\'0.1\' name=\'cirrusly_shipping_config[matrix_rules]["+idx+"][cost_mult]\' value=\'1.0\'></td><td><button type=\'button\' class=\'button cc-remove-row\'><span class=\'dashicons dashicons-trash\'></span></button></td></tr>";
                     $("#cc-matrix-rows").append(row);
                 });
+                $("#cc-add-countdown-row").click(function(){
+                    var idx = $("#cc-countdown-rows tr").length + 1000;
+                    var row = "<tr><td><input type=\'text\' name=\'cirrusly_countdown_rules["+idx+"][taxonomy]\'></td><td><input type=\'text\' name=\'cirrusly_countdown_rules["+idx+"][term]\'></td><td><input type=\'text\' name=\'cirrusly_countdown_rules["+idx+"][end]\'></td><td><input type=\'text\' name=\'cirrusly_countdown_rules["+idx+"][label]\'></td><td><select name=\'cirrusly_countdown_rules["+idx+"][align]\'><option value=\'left\'>Left</option><option value=\'right\'>Right</option><option value=\'center\'>Center</option></select></td><td><button type=\'button\' class=\'button cc-remove-row\'><span class=\'dashicons dashicons-trash\'></span></button></td></tr>";
+                    $("#cc-countdown-rows").append(row);
+                });
                 $(document).on("click", ".cc-remove-row", function(){ $(this).closest("tr").remove(); });
                 
                 // System Info Toggle
@@ -540,7 +545,7 @@ public function register_admin_menus() {
      *
      * @param array $input Raw settings input from the settings form.
      * @return array The sanitized settings array. May include keys `service_account_uploaded` (`'yes'`) and
-     *               `service_account_name` when an upload was accepted.
+     * `service_account_name` when an upload was accepted.
      */
     public function handle_scan_schedule( $input ) {
         wp_clear_scheduled_hook( 'cirrusly_gmc_daily_scan' );
@@ -701,9 +706,9 @@ public function register_admin_menus() {
      * profile mode/split values.
      *
      * @return array Merged configuration array containing keys such as
-     *               `revenue_tiers_json`, `matrix_rules_json`, `class_costs_json`,
-     *               `payment_pct`, `payment_flat`, `profile_mode`, `payment_pct_2`,
-     *               `payment_flat_2`, and `profile_split`.
+     * `revenue_tiers_json`, `matrix_rules_json`, `class_costs_json`,
+     * `payment_pct`, `payment_flat`, `profile_mode`, `payment_pct_2`,
+     * `payment_flat_2`, and `profile_split`.
      */
     public function get_global_config() {
         $saved = get_option( 'cirrusly_shipping_config' );
@@ -757,17 +762,17 @@ public function register_admin_menus() {
      * the result in a transient for one hour.
      *
      * @return array{
-     *   gmc_critical:int,
-     *   gmc_warnings:int,
-     *   content_issues:int,
-     *   missing_cost:int,
-     *   loss_makers:int,
-     *   total_products:int,
-     *   on_sale_count:int,
-     *   avg_margin:float,
-     *   weekly_revenue:float,
-     *   weekly_orders:int,
-     *   active_badges:string[]
+     * gmc_critical:int,
+     * gmc_warnings:int,
+     * content_issues:int,
+     * missing_cost:int,
+     * loss_makers:int,
+     * total_products:int,
+     * on_sale_count:int,
+     * avg_margin:float,
+     * weekly_revenue:float,
+     * weekly_orders:int,
+     * active_badges:string[]
      * } Associative array of dashboard metrics:
      * - `gmc_critical`: Number of critical GMC issues.
      * - `gmc_warnings`: Number of non-critical GMC warnings.
@@ -806,7 +811,7 @@ public function register_admin_menus() {
 
             // 3. Catalog & Cost Stats
             // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-            $missing_cost = $wpdb->get_var("SELECT count(p.ID) FROM {$wpdb->posts} p LEFT JOIN {$wpdb->postmeta} pm ON (p.ID = pm.post_id AND pm.meta_key = '_cogs_total_value') WHERE p.post_type IN ('product', 'product_variation') AND p.post_status = 'publish' AND (pm.meta_value IS NULL OR pm.meta_value = '' OR pm.meta_value = 0)");
+            $missing_cost = $wpdb->get_var("SELECT count(p.ID) FROM {$wpdb->posts} p LEFT JOIN {$wpdb->postmeta} pm ON (p.ID = pm->post_id AND pm->meta_key = '_cogs_total_value') WHERE p.post_type IN ('product', 'product_variation') AND p.post_status = 'publish' AND (pm->meta_value IS NULL OR pm->meta_value = '' OR pm->meta_value = 0)");
             
             $count_posts = wp_count_posts('product');
             $count_vars  = wp_count_posts('product_variation');
@@ -851,7 +856,7 @@ public function register_admin_menus() {
             // Lightweight 7-day lookback
             // Fix: Use string comparison instead of array for compatibility with HPOS
             $orders = wc_get_orders( array(
-                'limit'        => -1, 
+                'limit'        => 1000, // Cap to prevent memory issues on high-volume stores
                 'status'       => array('wc-completed', 'wc-processing'),
                 'date_created' => '>=' . wp_date('Y-m-d', strtotime('-7 days')), 
                 'return'       => 'ids'
@@ -1053,6 +1058,11 @@ public function register_admin_menus() {
         $is_pro = self::cirrusly_is_pro();
         $pro_class = $is_pro ? '' : 'cc-pro-feature';
         $disabled_attr = $is_pro ? '' : 'disabled';
+        
+        $countdown_rules = get_option( 'cirrusly_countdown_rules', array() );
+        if ( ! is_array( $countdown_rules ) ) {
+            $countdown_rules = array();
+        }
 
         echo '<div class="cc-settings-grid">';
         
@@ -1108,7 +1118,25 @@ public function register_admin_menus() {
             </div>
             <div class="cc-card-body">
             <p>Automatically inject countdown timers based on product taxonomy (Category/Brand).</p>
-            <p class="description">Configuration for rules is currently handled via the <code>cirrusly_countdown_rules</code> filter in this version.</p>
+            <table class="widefat striped cc-settings-table" style="max-width:100%;"><thead><tr><th>Taxonomy (e.g., product_cat)</th><th>Term Slug/ID</th><th>End Date (YYYY-MM-DD HH:MM:SS)</th><th>Label</th><th>Align</th><th></th></tr></thead><tbody id="cc-countdown-rows">';
+        if ( ! empty( $countdown_rules ) ) {
+            foreach ( $countdown_rules as $idx => $rule ) {
+                $align = isset($rule['align']) ? $rule['align'] : 'left';
+                echo '<tr>
+                    <td><input type="text" name="cirrusly_countdown_rules['.esc_attr($idx).'][taxonomy]" value="'.esc_attr($rule['taxonomy']).'" '.esc_attr($disabled_attr).'></td>
+                    <td><input type="text" name="cirrusly_countdown_rules['.esc_attr($idx).'][term]" value="'.esc_attr($rule['term']).'" '.esc_attr($disabled_attr).'></td>
+                    <td><input type="text" name="cirrusly_countdown_rules['.esc_attr($idx).'][end]" value="'.esc_attr($rule['end']).'" '.esc_attr($disabled_attr).'></td>
+                    <td><input type="text" name="cirrusly_countdown_rules['.esc_attr($idx).'][label]" value="'.esc_attr($rule['label']).'" '.esc_attr($disabled_attr).'></td>
+                    <td><select name="cirrusly_countdown_rules['.esc_attr($idx).'][align]" '.esc_attr($disabled_attr).'>
+                        <option value="left" '.selected('left', $align, false).'>Left</option>
+                        <option value="right" '.selected('right', $align, false).'>Right</option>
+                        <option value="center" '.selected('center', $align, false).'>Center</option>
+                    </select></td>
+                    <td><button type="button" class="button cc-remove-row" '.esc_attr($disabled_attr).'><span class="dashicons dashicons-trash"></span></button></td>
+                </tr>';
+            }
+        }
+        echo '</tbody></table><button type="button" class="button" id="cc-add-countdown-row" style="margin-top:10px;" '.esc_attr($disabled_attr).'>+ Add Countdown Rule</button>
             </div>
         </div>';
 
