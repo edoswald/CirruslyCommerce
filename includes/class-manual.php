@@ -207,8 +207,8 @@ class Cirrusly_Commerce_Manual {
                     </ul>
 
                     <h4>Method 3: Shortcode</h4>
-                    <p>Place a timer anywhere (Descriptions, Blog Posts) using the shortcode:</p>
-                    <code>[cw_countdown end="2025-12-31 23:59" label="Sale Ends:" align="center"]</code>
+                    <p>Place a timer anywhere (Descriptions, Blog Posts) using the shortcode, using the format below:</p>
+                    <code>[cw_countdown end="20XX-12-31 23:59" label="Sale Ends:" align="center"]</code>
                 </div>
 
                 <div class="cc-manual-section" id="badges">

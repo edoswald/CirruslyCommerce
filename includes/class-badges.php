@@ -295,33 +295,33 @@ class Cirrusly_Commerce_Badges {
             'number'  => 5,
             'status'  => 'approve',
             'type'    => 'review', // Only product reviews
-        ) );        if ( empty( $comments ) ) {
+        ) ); 
+        
+        if ( empty( $comments ) ) {
             set_transient( $cache_key, '', DAY_IN_SECONDS );
             return '';
         }
 
         try {
             $service = new Google\Service\CloudNaturalLanguage( $client );
-            $total_score = 0;
-            $count = 0;
-
-            foreach ( $comments as $comment ) {
-                $doc = new Google\Service\CloudNaturalLanguage\Document();
-                $doc->setContent( $comment->comment_content );
-                $doc->setType( 'PLAIN_TEXT' );
-                
-                $request = new Google\Service\CloudNaturalLanguage\AnalyzeSentimentRequest();
-                $request->setDocument($doc);
-
-                $resp = $service->documents->analyzeSentiment( $request );
-                $score = $resp->getDocumentSentiment()->getScore();
-                
-                $total_score += $score;
-                $count++;
-            }
+            
+            // Combine reviews into single document to minimize API calls
+            $combined_text = implode( "\n\n", array_map( function( $c ) {
+                return $c->comment_content;
+            }, $comments ) );
+            
+            $doc = new Google\Service\CloudNaturalLanguage\Document();
+            $doc->setContent( $combined_text );
+            $doc->setType( 'PLAIN_TEXT' );
+            
+            $request = new Google\Service\CloudNaturalLanguage\AnalyzeSentimentRequest();
+            $request->setDocument( $doc );
+            
+            $resp = $service->documents->analyzeSentiment( $request );
+            $score = $resp->getDocumentSentiment()->getScore();
 
             // If average sentiment is > 0.6 (Highly Positive)
-            if ( $count > 0 && ($total_score / $count) > 0.6 ) {
+            if ( $score > 0.6 ) {
                 $html = '<span class="cw-badge-pill" style="background-color:#e0115f;">Customer Fave ❤️</span>';
                 set_transient( $cache_key, $html, 7 * DAY_IN_SECONDS );
                 return $html;
