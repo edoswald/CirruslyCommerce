@@ -397,7 +397,7 @@ class Cirrusly_Commerce_Pricing {
             $gmc_product->setPrice( $price_obj );
             
             // The full product ID to update (e.g., online:en:US:offerId).
-            $product_rest_id = sprintf( 'online:en:US:%s', $offer_id );
+            $product_rest_id = sprintf( 'online:%s:%s:%s', $content_language, $target_country, $offer_id );
 
             // Call the products->update method (which performs a PATCH for partial updates).
             $service->products->update( 
