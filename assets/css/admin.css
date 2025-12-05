@@ -308,3 +308,17 @@
     outline: 2px solid #2271b1;
     border-bottom: none !important;
 }
+
+/* Active State for Global Nav */
+.cc-global-nav a.cc-nav-active {
+    background: #2271b1;
+    color: #fff;
+    border-color: #2271b1;
+    box-shadow: none;
+}
+
+.cc-global-nav a.cc-nav-active:hover {
+    background: #135e96; /* Darker blue on hover */
+    color: #fff;
+    border-color: #135e96;
+}

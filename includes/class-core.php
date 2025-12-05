@@ -377,6 +377,7 @@ public function clear_metrics_cache() { delete_transient( 'cirrusly_dashboard_me
      *
      * @param string $title The title to display in the header.
      */
+    
     public static function render_page_header( $title ) {
         $mailto = 'mailto:help@cirruslyweather.com?subject=Support%20Request';
         $is_pro = self::cirrusly_is_pro(); // Check PRO status
@@ -403,11 +404,22 @@ public function clear_metrics_cache() { delete_transient( 'cirrusly_dashboard_me
         self::render_system_info();
         echo '</textarea></div>';
         
+        // Active Page Logic
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+        $current_page = isset( $_GET['page'] ) ? sanitize_text_field( wp_unslash( $_GET['page'] ) ) : '';
+        
+        $nav_items = array(
+            'cirrusly-commerce' => 'Dashboard',
+            'cirrusly-gmc'      => 'GMC Hub',
+            'cirrusly-audit'    => 'Financial Audit',
+            'cirrusly-settings' => 'Settings',
+        );
+
         echo '<div class="cc-global-nav">';
-        echo '<a href="' . esc_url( admin_url( 'admin.php?page=cirrusly-commerce' ) ) . '">Dashboard</a>';
-        echo '<a href="' . esc_url( admin_url( 'admin.php?page=cirrusly-gmc' ) ) . '">GMC Hub</a>';
-        echo '<a href="' . esc_url( admin_url( 'admin.php?page=cirrusly-audit' ) ) . '">Financial Audit</a>';
-        echo '<a href="' . esc_url( admin_url( 'admin.php?page=cirrusly-settings' ) ) . '">Settings</a>';
+        foreach ( $nav_items as $slug => $label ) {
+            $active_class = ( $current_page === $slug ) ? 'cc-nav-active' : '';
+            echo '<a href="' . esc_url( admin_url( 'admin.php?page=' . $slug ) ) . '" class="' . esc_attr( $active_class ) . '">' . esc_html( $label ) . '</a>';
+        }
         echo '</div>';
     }
 
