@@ -715,11 +715,11 @@ class Cirrusly_Commerce_GMC {
     }
 
     /**
- * Create and return a configured Google API client for Cirrusly Commerce.
+ * Create and return a configured Google API client for Google Shopping Content.
  *
  * Attempts to build a Google\Client using the service account JSON stored in
  * the `cirrusly_gmc_service_account_json` option and configures scopes for
- * Shopping Content and Cloud Natural Language APIs.
+ * the Google Shopping Content API.
  *
  * @return Google\Client|WP_Error Configured Google\Client on success, or a WP_Error with one of the following codes:
  *                                - 'missing_lib' if the Google PHP client library is not available.
@@ -794,7 +794,7 @@ public function handle_promo_api_submit() {
     // Initialize the Service
     $service = new Google\Service\ShoppingContent( $client );
 
-try {
+    try {
         // Create Promotion Object
         $promo = new Google\Service\ShoppingContent\Promotion();
         $promo->setPromotionId( $id );
@@ -805,8 +805,12 @@ try {
 
         // 1. Parse Dates (Format: YYYY-MM-DD/YYYY-MM-DD) received from JS
         $dates_raw = isset( $data['dates'] ) ? sanitize_text_field( $data['dates'] ) : '';
-        if ( strpos( $dates_raw, '/' ) !== false ) {
+        if ( ! empty( $dates_raw ) && strpos( $dates_raw, '/' ) !== false ) {
             list( $start_str, $end_str ) = explode( '/', $dates_raw );
+            // Validate date format
+            if ( ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $start_str ) || ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $end_str ) ) {
+              wp_send_json_error( 'Invalid date format. Expected YYYY-MM-DD/YYYY-MM-DD.' );
+            }
             $period = new Google\Service\ShoppingContent\PromotionPromotionStatusDateRange();
             // Google expects ISO 8601 (e.g. 2025-06-01T00:00:00Z)
             $period->setDateRange( $start_str . 'T00:00:00Z/' . $end_str . 'T23:59:59Z' );

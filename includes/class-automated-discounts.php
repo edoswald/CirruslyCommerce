@@ -11,7 +11,8 @@ class Cirrusly_Commerce_Automated_Discounts {
 
     public function __construct() {
         // 1. Settings (Register in existing GMC settings group)
-        add_filter( 'cirrusly_commerce_scan_settings_ui', array( $this, 'render_settings_field' ) );
+        // FIXED: Changed from add_filter to add_action to match the do_action hook
+        add_action( 'cirrusly_commerce_scan_settings_ui', array( $this, 'render_settings_field' ) );
         
         // 2. Listener (Capture URL Token)
         add_action( 'template_redirect', array( $this, 'capture_google_token' ) );
