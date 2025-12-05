@@ -749,7 +749,6 @@ public static function get_google_client() {
         $client->setAuthConfig( $auth_config );
         $client->setScopes([
             'https://www.googleapis.com/auth/content',
-            'https://www.googleapis.com/auth/cloud-language'
         ]);
         
         return $client;
