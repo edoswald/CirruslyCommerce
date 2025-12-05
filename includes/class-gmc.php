@@ -423,11 +423,17 @@ class Cirrusly_Commerce_GMC {
             settings_fields('cirrusly_general_group'); 
             echo '<strong>Automated Compliance <span class="cc-pro-badge">PRO</span></strong><br>
             <label><input type="checkbox" name="cirrusly_scan_config[block_on_critical]" value="yes" '.$block_save.' '.esc_attr($disabled_attr).'> Block Save on Critical Error</label>
-            <label style="margin-left:10px;"><input type="checkbox" name="cirrusly_scan_config[auto_strip_banned]" value="yes" '.$auto_strip.' '.esc_attr($disabled_attr).'> Auto-strip Banned Words</label>
-            <br><br>
+            <label style="margin-left:10px;"><input type="checkbox" name="cirrusly_scan_config[auto_strip_banned]" value="yes" '.$auto_strip.' '.esc_attr($disabled_attr).'> Auto-strip Banned Words</label>';
+            
+            // NEW: Fire hook to render the Automated Discounts checkbox here
+            do_action( 'cirrusly_commerce_scan_settings_ui' );
+
+            echo '<br><br>
             <button type="submit" class="button button-small" '.esc_attr($disabled_attr).'>Save Rules</button>
             </form>';
         echo '</div>';
+
+
 
         // Scan Button
         echo '<div style="background:#fff; padding:20px; border-bottom:1px solid #ccc;"><form method="post">';
