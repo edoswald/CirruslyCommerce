@@ -32,13 +32,13 @@ class Cirrusly_Commerce_Automated_Discounts {
      * Render the checkbox in the existing GMC Health Check > Settings area.
      */
     public function render_settings_field() {
-        $scan_cfg = get_option('cirrusly_scan_config', array());
-        $checked = isset($scan_cfg['enable_automated_discounts']) ? 'checked' : '';
+        $scan_cfg = get_option( 'cirrusly_scan_config', array() );
+        $enabled  = ! empty( $scan_cfg['enable_automated_discounts'] );
         ?>
         <br>
         <label>
-            <input type="checkbox" name="cirrusly_scan_config[enable_automated_discounts]" value="yes" <?php echo $checked; ?>> 
-            <strong>Enable Google Automated Discounts</strong>
+            <input type="checkbox" name="cirrusly_scan_config[enable_automated_discounts]" value="yes" <?php checked( $enabled ); ?>> 
+            <strong><?php esc_html_e( 'Enable Google Automated Discounts', 'cirrusly-commerce' ); ?></strong>
             <p class="description" style="margin-left:25px; margin-top:2px;">
                 Allows Google to dynamically lower prices for specific customers via Shopping Ads. 
                 <br>Requires <code>Cost of Goods</code> and <code>Google Min Price</code> to be set on products.
@@ -54,10 +54,12 @@ class Cirrusly_Commerce_Automated_Discounts {
         if ( is_admin() || ! isset( $_GET[ self::TOKEN_PARAM ] ) ) return;
 
         // Check if feature enabled
-        $cfg = get_option('cirrusly_scan_config');
+        // Use default array() to avoid array-offset warnings if option is missing/false
+        $cfg = get_option('cirrusly_scan_config', array());
         if ( empty($cfg['enable_automated_discounts']) || $cfg['enable_automated_discounts'] !== 'yes' ) return;
 
-        $token = sanitize_text_field( $_GET[ self::TOKEN_PARAM ] );
+        // Unwrap raw request with wp_unslash before sanitizing
+        $token = sanitize_text_field( wp_unslash( $_GET[ self::TOKEN_PARAM ] ) );
         
         if ( $payload = $this->verify_jwt( $token ) ) {
             $this->store_discount_session( $payload );
@@ -106,7 +108,8 @@ class Cirrusly_Commerce_Automated_Discounts {
         // Claims: 'o' = Offer ID (SKU/ID), 'p' = Price, 'exp' = Expiration
         $offer_id = isset( $payload['o'] ) ? $payload['o'] : '';
         $price    = isset( $payload['p'] ) ? floatval( $payload['p'] ) : 0;
-        $expiry   = isset( $payload['exp'] ) ? $payload['exp'] : time() + ( 48 * HOUR_IN_SECONDS );
+        $expiry   = isset( $payload['exp'] ) ? (int) $payload['exp'] : time() + ( 48 * HOUR_IN_SECONDS );
+
 
         if ( ! $offer_id || $price <= 0 ) return;
 
