@@ -35,15 +35,15 @@ class Cirrusly_Commerce_Automated_Discounts {
      */
     public function render_settings_field() {
         $scan_cfg = get_option('cirrusly_scan_config', array());
-        
-        $checked = isset($scan_cfg['enable_automated_discounts']) && $scan_cfg['enable_automated_discounts'] === 'yes' ? 'checked' : '';
+
+        $checked = isset( $scan_cfg['enable_automated_discounts'] ) && $scan_cfg['enable_automated_discounts'] === 'yes';
         $merchant_id = isset($scan_cfg['merchant_id']) ? esc_attr($scan_cfg['merchant_id']) : '';
         $public_key = isset($scan_cfg['google_public_key']) ? esc_textarea($scan_cfg['google_public_key']) : '';
         ?>
         <br>
         <div class="cirrusly-ad-settings" style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #ccc;">
             <label>
-                <input type="checkbox" name="cirrusly_scan_config[enable_automated_discounts]" value="yes" <?php echo $checked; ?>> 
+                <input type="checkbox" name="cirrusly_scan_config[enable_automated_discounts]" value="yes" <?php checked( $checked ); ?>> 
                 <strong>Enable Google Automated Discounts</strong>
             </label>
             <p class="description" style="margin-left:25px; margin-top:2px; margin-bottom:15px;">
@@ -113,8 +113,19 @@ class Cirrusly_Commerce_Automated_Discounts {
             
             if ( ! $payload ) return false;
 
+            // 2. Validate Expiry (Claim 'exp') — REQUIRED
+            if ( ! isset( $payload['exp'] ) || (int) $payload['exp'] <= time() ) {
+                error_log( 'Cirrusly Commerce JWT Fail: Token expired or missing exp claim.' );
+                return false;
+            }
+
+
             // 2. Validate Merchant ID (Claim 'm') - STRICT REQUIREMENT
             $stored_merchant_id = isset( $cfg['merchant_id'] ) ? $cfg['merchant_id'] : get_option( 'cirrusly_gmc_merchant_id' );
+            if ( empty( $stored_merchant_id ) ) {
+                error_log( 'Cirrusly Commerce JWT Fail: No Merchant ID configured for Automated Discounts.' );
+                return false;
+            }
             
             // Fix: Enforce presence of 'm' and exact match
             if ( ! isset( $payload['m'] ) || (string) $payload['m'] !== (string) $stored_merchant_id ) {
