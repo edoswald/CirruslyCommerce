@@ -256,11 +256,13 @@ class Cirrusly_Commerce_Automated_Discounts {
 
         // Also check if any discount session is active
         if ( isset( WC()->session ) ) {
-            $session_data = WC()->session->get_session_data();
-            foreach ( array_keys( $session_data ) as $key ) {
+            $session_data = (array) WC()->session->get_session_data();
+            foreach ( $session_data as $key => $data ) {
                 if ( strpos( $key, self::SESSION_KEY_PREFIX ) === 0 ) {
+                    if ( isset( $data['exp'] ) && $data['exp'] > time() ) {
                     nocache_headers();
                     return;
+                    }
                 }
             }
         }

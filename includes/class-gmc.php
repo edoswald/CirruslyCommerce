@@ -967,11 +967,33 @@ public function handle_promo_api_list() {
                 // getPromotionStatus() usually returns an object with destinationStatuses, etc.
                 // We'll simplify for the UI list
                 $pStats = $p->getPromotionStatus(); 
-                if($pStats && !empty($pStats->getPromotionStatus())) {
-                     // Not always directly available as a simple string, logic varies by API version,
-                     // but commonly we look for the active status. We'll fallback to 'active' if it exists.
-                     // For V2.1, it's complex. Let's just assume 'active' for now or parse if available.
-                     $status = 'active'; 
+                                     
+                if ( $pStats && method_exists( $pStats, 'getDestinationStatuses' ) ) {
+                    $d_statuses = $pStats->getDestinationStatuses();
+                    $is_rejected = false;
+                    $is_expired  = false;
+                    $is_live     = false;
+                    $is_pending  = false;
+
+                    if ( ! empty( $d_statuses ) ) {
+                        foreach ( $d_statuses as $ds ) {
+                            $s = $ds->getStatus();
+                            if ( 'REJECTED' === $s ) $is_rejected = true;
+                            if ( 'EXPIRED' === $s ) $is_expired = true;
+                            if ( 'LIVE' === $s ) $is_live = true;
+                            if ( 'PENDING' === $s || 'IN_REVIEW' === $s ) $is_pending = true;
+                        }
+
+                        if ( $is_rejected ) {
+                            $status = 'rejected';
+                        } elseif ( $is_expired ) {
+                            $status = 'expired';
+                        } elseif ( $is_live ) {
+                            $status = 'active';
+                        } elseif ( $is_pending ) {
+                            $status = 'pending';
+                        }
+                    }
                 }
 
                 $output[] = array(
