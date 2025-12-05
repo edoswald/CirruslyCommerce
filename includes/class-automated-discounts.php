@@ -84,7 +84,7 @@ class Cirrusly_Commerce_Automated_Discounts {
 
             // Validate Merchant ID if present in payload (claim 'm')
             $my_merchant_id = get_option( 'cirrusly_gmc_merchant_id' );
-            if ( isset( $payload['m'] ) && $payload['m'] != $my_merchant_id ) {
+           if ( isset( $payload['m'] ) && (string) $payload['m'] !== (string) $my_merchant_id ) {
                 return false; 
             }
 
