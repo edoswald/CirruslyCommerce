@@ -694,7 +694,7 @@ class Cirrusly_Commerce_GMC {
         delete_transient( 'cirrusly_active_promos_stats' );
     }
 
-    / **
+    /**
      * Injects a small inline script on the Products list page that synchronizes the Quick Edit form's GMC fields
      * with the product's hidden GMC metadata in the row.
      *
