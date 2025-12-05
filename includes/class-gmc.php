@@ -800,13 +800,15 @@ class Cirrusly_Commerce_GMC {
  * Create and return a configured Google API client for Google Shopping Content.
  *
  * Attempts to build a Google\Client using the service account JSON stored in
- * the `cirrusly_gmc_service_account_json` option and configures scopes for
+ * the `cirrusly_service_account_json` option and configures scopes for
  * the Google Shopping Content API.
  *
  * @return Google\Client|WP_Error Configured Google\Client on success, or a WP_Error with one of the following codes:
  * - 'missing_lib' if the Google PHP client library is not available.
  * - 'missing_creds' if the service account JSON option is empty.
  * - 'invalid_json' if the stored JSON cannot be decoded.
+ * - 'decrypt_failed' if decryption fails and the fallback JSON is invalid.
+
  * - 'auth_failed' if client configuration or initialization fails (message included).
  */
 public static function get_google_client() {
@@ -840,6 +842,7 @@ public static function get_google_client() {
         error_log( 'Cirrusly Commerce: Service account decryption failed and fallback is not valid JSON.' );
         return new WP_Error( 'decrypt_failed', 'Could not decrypt Service Account credentials. Please re-upload the JSON file.' );
     }
+        $json_raw = $json_key;
     }
 
     $auth_config = json_decode( $json_raw, true );
