@@ -36,11 +36,6 @@ edit: function( props ) {
             var setAttributes = props.setAttributes;
             var ServerSideRender = wp.serverSideRender; // Access global wp component
 
-            var InspectorControls = wp.blockEditor.InspectorControls;
-            var PanelBody = wp.components.PanelBody;
-            var ToggleControl = wp.components.ToggleControl;
-            var SelectControl = wp.components.SelectControl;
-
             return [
                 el( InspectorControls, { key: 'inspector' },
                     el( PanelBody, { title: 'Appearance Settings', initialOpen: true },

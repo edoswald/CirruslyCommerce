@@ -179,18 +179,16 @@ class Cirrusly_Commerce_Badges {
             $output .= '<span class="cw-badge-pill" style="background-color:#826eb4;">Event</span>';
         }
 
-    // 4. SMART BADGE: SENTIMENT (Customer Love)
-        // Check if Pro AND connected to Google NLP
-        if ( Cirrusly_Commerce_Core::cirrusly_is_pro() ) {
-            // FIX: Assumes Cirrusly_Commerce_GMC::get_google_client() is available in the environment.
-            $client = Cirrusly_Commerce_GMC::get_google_client();
-            
-            if ( ! is_wp_error( $client ) ) {
-                $sentiment_badge = $this->get_sentiment_badge( $product, $client );
-                if ( $sentiment_badge ) $output .= $sentiment_badge;
-            }
++    // 4. SMART BADGE: SENTIMENT (Customer Love)
+    if ( $is_pro ) {
+        $client = Cirrusly_Commerce_GMC::get_google_client();
+        
+        if ( ! is_wp_error( $client ) ) {
+            $sentiment_badge = $this->get_sentiment_badge( $product, $client );
+            if ( $sentiment_badge ) $output .= $sentiment_badge;
+
         }
-    } // Closing brace for the L205 IF statement (if it was intended)
+    } 
 
     /* --------------------------------------------------------- */
     /* fs_premium_only end                                       */
