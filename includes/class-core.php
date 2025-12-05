@@ -503,6 +503,12 @@ public function register_admin_menus() {
      * @param array $input Array of countdown rules (each rule as an associative array).
      * @return array Cleaned array of sanitized countdown rules.
      */
+    /**
+     * Normalize and sanitize an array of countdown rule definitions.
+     *
+     * Each returned rule will contain the keys: `taxonomy`, `term`, `end`, `label`,
+     * and `align` (one of "left", "right", or "center"; defaults to "left").
+     */
     public function sanitize_countdown_rules( $input ) {
         $clean_rules = array();
         if ( ! is_array( $input ) ) {
@@ -527,7 +533,7 @@ public function register_admin_menus() {
             $clean_rule['align'] = in_array( $align, array('left', 'right', 'center'), true ) ? $align : 'left';
 
             // Only add the rule if it has sufficient data (e.g., a taxonomy or value)
-            if ( ! empty( $clean_rule['taxonomy'] ) || ! empty( $clean_rule['value'] ) || ! empty( $clean_rule['end_time'] ) ) {
+            if ( ! empty( $clean_rule['taxonomy'] ) || ! empty( $clean_rule['term'] ) || ! empty( $clean_rule['end'] ) ) {
                 $clean_rules[] = $clean_rule;
             }
         }
