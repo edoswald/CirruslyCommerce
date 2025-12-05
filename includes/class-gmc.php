@@ -810,7 +810,7 @@ class Cirrusly_Commerce_GMC {
  * - 'auth_failed' if client configuration or initialization fails (message included).
  */
 public static function get_google_client() {
-    $json_key = get_option( 'cirrusly_gmc_service_account_json' ); 
+    $json_key = get_option( 'cirrusly_service_account_json' ); 
     
     // Safety: Check if Composer loaded the class
     if ( ! class_exists( 'Google\Client' ) ) {
@@ -822,12 +822,23 @@ public static function get_google_client() {
     }
 
     try {
-        $client = new Google\Client();
-        $client->setApplicationName( 'Cirrusly Commerce' );
-        $auth_config = json_decode( $json_key, true );
-        if ( ! is_array( $auth_config ) ) {
-            return new WP_Error( 'invalid_json', 'Service Account JSON is malformed or not an object.' );
-        }
+    $client = new Google\Client();
+    $client->setApplicationName( 'Cirrusly Commerce' );
+
+    // Decrypt the key using the Core method
+    $json_raw = Cirrusly_Commerce_Core::decrypt_data( $json_key );
+
+    // Fallback: If decryption fails (returns false), try using the original key 
+    // (handles cases where legacy data might still be unencrypted)
+    if ( ! $json_raw ) {
+        $json_raw = $json_key;
+    }
+
+    $auth_config = json_decode( $json_raw, true );
+    
+    if ( ! is_array( $auth_config ) ) {
+        return new WP_Error( 'invalid_json', 'Service Account JSON is malformed or not an object.' );
+    }
         $client->setAuthConfig( $auth_config );
         $client->setScopes([
             'https://www.googleapis.com/auth/content',

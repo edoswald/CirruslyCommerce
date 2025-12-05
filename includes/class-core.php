@@ -85,7 +85,7 @@ class Cirrusly_Commerce_Core {
      * @param string $data The base64 encoded encrypted string.
      * @return string|false The decrypted plaintext, or false on failure.
      */
-    private static function decrypt_data( $data ) {
+    public static function decrypt_data( $data ) {
         if ( empty( $data ) ) return false;
 
         $key = self::get_encryption_key();
