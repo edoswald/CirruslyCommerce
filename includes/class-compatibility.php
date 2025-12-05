@@ -23,7 +23,8 @@ class Cirrusly_Commerce_Compatibility {
         add_filter( 'seopress_json_ld_product', array( $this, 'add_seopress_schema_data' ) );
 
         // NEW: Google Product Feed (Ademti / WooCommerce Official)
-        add_filter( 'woocommerce_gpf_elements', array( $this, 'add_ademti_feed_elements' ), 10, 2 );
+        add_filter( 'woocommerce_gpf_elements', array( $this, 'add_ademti_feed_elements' ), 10, 3 );
+
     }
 
     /**
@@ -123,18 +124,18 @@ class Cirrusly_Commerce_Compatibility {
      * NEW: Google Product Feed (Ademti/Official)
      * Maps custom fields so they appear in the feed plugin's dropdowns.
      */
-    public function add_ademti_feed_elements( $elements, $feed_item ) {
-        // Register MSRP so it can be mapped in their UI
-        $elements['cc_msrp'] = array(
-            'label' => 'MSRP (Cirrusly)',
-            'value' => get_post_meta( $feed_item->product_id, '_alg_msrp', true )
-        );
+    public function add_ademti_feed_elements( $elements, $product_id, $variation_id = null ) {
+        $id = ! is_null( $variation_id ) ? $variation_id : $product_id;
+
+        $msrp = get_post_meta( $id, '_alg_msrp', true );
+        if ( ! empty( $msrp ) ) {
+            $elements['cc_msrp'] = array( $msrp );
+        }
         
-        // Register Google Min Price
-        $elements['cc_min_price'] = array(
-            'label' => 'Google Min Price (Cirrusly)',
-            'value' => get_post_meta( $feed_item->product_id, '_auto_pricing_min_price', true )
-        );
+        $min_price = get_post_meta( $id, '_auto_pricing_min_price', true );
+        if ( ! empty( $min_price ) ) {
+            $elements['cc_min_price'] = array( $min_price );
+        }
 
         return $elements;
     }
