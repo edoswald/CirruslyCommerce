@@ -835,51 +835,5 @@ try {
     }
 }
 
-/**
- * Determines whether the given text is classified as medical or health-related by Google Cloud Natural Language.
- *
- * Uses Google Cloud Natural Language classification and returns `true` when any returned category contains
- * "/Health" or "/Medical". If the text is too short for reliable classification, the Google client is unavailable,
- * or an error occurs during classification, the function returns `false`.
- *
- * @param string $text The text to classify.
- * @return bool `true` if the text is classified as medical/health content, `false` otherwise.
- */
-private function is_medical_content( $text ) {
-    if ( str_word_count( $text ) < 20 ) return false;
-
-    $client = self::get_google_client();
-    if ( is_wp_error( $client ) ) return false;
-
-    // Initialize the Service
-    $service = new Google\Service\CloudNaturalLanguage( $client );
-
-    try {
-        // Build Document
-        $doc = new Google\Service\CloudNaturalLanguage\Document();
-        $doc->setContent( $text );
-        $doc->setType( 'PLAIN_TEXT' );
-
-        // Build Request
-        $request = new Google\Service\CloudNaturalLanguage\ClassifyTextRequest();
-        $request->setDocument( $doc );
-
-        // Execute
-        $result = $service->documents->classifyText( $request );
-        
-        // Analyze Categories
-        foreach ( $result->getCategories() as $category ) {
-            $name = $category->getName(); 
-            if ( strpos( $name, '/Health' ) !== false || strpos( $name, '/Medical' ) !== false ) {
-                return true;
-            }
-        }
-    } catch ( Exception $e ) {
-        // Log quietly
-        error_log( 'NLP Error: ' . $e->getMessage() );
-    }
-    
-    return false;
-}
    
 }

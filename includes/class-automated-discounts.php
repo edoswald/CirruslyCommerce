@@ -107,16 +107,17 @@ class Cirrusly_Commerce_Automated_Discounts {
             $client = new Google\Client();
             
             // Verify Signature using the specific Public Key (ES256)
-            $payload = $client->verifySignedJwt( $token, $public_key );
+            // Fix: Pass public key as an array as required by verifySignedJwt
+            $payload = $client->verifySignedJwt( $token, array( $public_key ) );
             
             if ( ! $payload ) return false;
 
-            // 2. Validate Merchant ID (Claim 'm')
-            // Prefer the ID from this section's config, fallback to global option if needed
+            // 2. Validate Merchant ID (Claim 'm') - STRICT REQUIREMENT
             $stored_merchant_id = isset( $cfg['merchant_id'] ) ? $cfg['merchant_id'] : get_option( 'cirrusly_gmc_merchant_id' );
             
-            if ( isset( $payload['m'] ) && (string) $payload['m'] !== (string) $stored_merchant_id ) {
-                error_log( 'Cirrusly Commerce JWT Fail: Merchant ID mismatch.' );
+            // Fix: Enforce presence of 'm' and exact match
+            if ( ! isset( $payload['m'] ) || (string) $payload['m'] !== (string) $stored_merchant_id ) {
+                error_log( 'Cirrusly Commerce JWT Fail: Merchant ID mismatch or missing.' );
                 return false; 
             }
 
@@ -246,8 +247,21 @@ class Cirrusly_Commerce_Automated_Discounts {
      * Prevent caching if a discount session is active to ensure users see their unique price.
      */
     public function prevent_caching_if_active() {
+        // Prevent caching if token in URL or active discount in session
         if ( isset( $_GET[ self::TOKEN_PARAM ] ) ) {
             nocache_headers();
+            return;
+        }
+
+        // Also check if any discount session is active
+        if ( isset( WC()->session ) ) {
+            $session_data = WC()->session->get_session_data();
+            foreach ( array_keys( $session_data ) as $key ) {
+                if ( strpos( $key, self::SESSION_KEY_PREFIX ) === 0 ) {
+                    nocache_headers();
+                    return;
+                }
+            }
         }
     }
 }
