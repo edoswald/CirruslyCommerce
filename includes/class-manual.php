@@ -15,7 +15,13 @@ class Cirrusly_Commerce_Manual {
                 .cc-manual-section h4 { font-size: 1.1em; margin-top: 20px; margin-bottom: 10px; color: #23282d; }
                 .cc-manual-list li { margin-bottom: 8px; line-height: 1.5; }
                 .cc-callout { background: #f0f6fc; border-left: 4px solid #72aee6; padding: 15px; margin: 15px 0; }
+                .cc-alert { background: #fcf0f1; border-left: 4px solid #d63638; padding: 15px; margin: 15px 0; }
+                .cc-notice-top { background: #fff; border-left: 4px solid #00a32a; box-shadow: 0 1px 1px rgba(0,0,0,.04); padding: 12px; margin-bottom: 20px; }
             </style>
+
+            <div class="cc-notice-top">
+                <p style="margin:0;"><strong>🚧 Work in Progress:</strong> We are currently working on a comprehensive version of this manual. In the meantime, please feel free to email us directly at <a href="mailto:support@cirruslyweather.com">support@cirruslyweather.com</a> with any questions.</p>
+            </div>
 
             <div class="card" style="max-width: 1000px; padding: 40px; margin-top: 20px;">
                 <h2 style="margin-top:0;">Cirrusly Commerce User Manual</h2>
@@ -30,7 +36,7 @@ class Cirrusly_Commerce_Manual {
                     <a href="#profit">Profit Engine</a>
                     <a href="#pricing">Pricing Engine</a>
                     <a href="#badges">Badge Manager</a>
-                    <a href="#reports">Reports &amp; Automation</a>
+                    <a href="#troubleshoot">Troubleshooting & Setup</a>
                     <a href="#compat">Compatibility</a>
                     <a href="#keys">Meta Keys</a>
                 </nav>
@@ -139,42 +145,48 @@ class Cirrusly_Commerce_Manual {
                         <li><strong>"New" Badge:</strong> Auto-labels products added within the last X days.</li>
                         <li><strong>Custom Tag Badges:</strong> Upload custom icons (e.g., "Vegan", "Made in USA") that appear automatically on products tagged with specific WooCommerce tags.</li>
                     </ul>
-                    <p><strong>Smart Badges:</strong> <span class="cc-manual-pro">PRO</span></p>
-                    <ul class="cc-manual-list">
-                        <li><strong>Inventory Trigger:</strong> Shows "Low Stock" when quantity drops below 5 (fixed threshold).</li>
-                        <li><strong>Performance Trigger:</strong> Shows "Best Seller" for top-performing products based on sales velocity.</li>
-                        <li><strong>Scheduler:</strong> Schedule event badges (e.g., "Black Friday Deal") to appear only during specific date ranges.</li>
-                    </ul>
                 </div>
 
-                <div class="cc-manual-section" id="reports">
-                    <h3>Reports &amp; Automation</h3>
-                    <p>Configure these features under <em>Cirrusly Commerce > Settings > General</em>.</p>
-                    
-                    <h4>Daily Health Scan</h4>
-                    <p>Runs automatically in the background every 24 hours. Checks for missing GTINs, empty descriptions, and banned words. Enable "Email Reports" to get a summary sent to your admin email.</p>
+                <div class="cc-manual-section" id="troubleshoot">
+                    <h3>Troubleshooting & Setup Issues</h3>
+                    <p>Common configuration pitfalls and how to solve them.</p>
 
-                    <h4>Weekly Profit Report <span class="cc-manual-pro">PRO</span></h4>
-                    <p>Delivered every Monday. This email digest includes:</p>
-                    <ul>
-                        <li>Total Sales &amp; Net Profit for the week.</li>
-                        <li>Top 5 Performing Products (by margin).</li>
-                        <li>Inventory value summary.</li>
+                    <h4>1. MSRP Not Appearing on Frontend</h4>
+                    <p>If you have entered an MSRP but it is not showing on your product page:</p>
+                    <ul class="cc-manual-list">
+                        <li><strong>Check Settings:</strong> Go to <em>Cirrusly Commerce > Settings > Pricing</em> and ensure "Enable Frontend Display" is checked.</li>
+                        <li><strong>Block Themes (FSE):</strong> If you are using a modern Block Theme (like Twenty Twenty-Four), the standard WooCommerce hooks may not run. You must use the <strong>"MSRP Display" Block</strong> in the Site Editor to place the price manually.</li>
                     </ul>
 
-                    <h4>Google Reviews Integration</h4>
-                    <p>Enable the "Google Customer Reviews" module to automatically inject the survey opt-in code on your Order Received page. Requires your Google Merchant ID.</p>
-                    
-                    <h4>Security &amp; API <span class="cc-manual-pro">PRO</span></h4>
-                    <p>The Service Account JSON used for the Content API is <strong>encrypted</strong> before storage in the database to ensure it is encrypted at rest. You do not need to manage keys manually; the system handles encryption automatically.</p>
+                    <h4>2. Data Not Showing in Google Merchant Center</h4>
+                    <p>Cirrusly Commerce creates the data, but it does not generate the XML feed itself.</p>
+                    <div class="cc-callout">
+                        <strong>Solution:</strong> You must map the fields in your feed plugin (e.g., Product Feed PRO or CTX Feed).<br>
+                        <em>Example:</em> Map <code>g:price</code> to the standard Price, and map <code>g:sale_price</code> to our <strong>MSRP</strong> (<code>_alg_msrp</code>) if you want to show strike-through pricing on Google.
+                    </div>
+
+                    <h4>3. Profit Margin Seems Incorrect</h4>
+                    <p>If the "Net Profit" calculated on the product page looks too low or too high:</p>
+                    <ul class="cc-manual-list">
+                        <li><strong>Check Shipping Classes:</strong> Ensure the product is assigned a Shipping Class, and that you have defined a "Label Cost" for that class in <em>Settings > Profit Engine</em>.</li>
+                        <li><strong>Check Payment Fees:</strong> Verify your Payment Processor Fee settings. A default of 0% will make your profit look higher than it actually is.</li>
+                        <li><strong>Verify COGS:</strong> Ensure the "Cost of Goods" field is not empty or zero.</li>
+                    </ul>
+
+                    <h4>4. Automated Emails Not Arriving</h4>
+                    <p>If you aren't receiving the Weekly Profit Report:</p>
+                    <ul class="cc-manual-list">
+                        <li>Check that the WP-Cron system is running on your server.</li>
+                        <li>Verify your server can send outgoing PHP mail (check your spam folder).</li>
+                    </ul>
                 </div>
 
                 <div class="cc-manual-section" id="compat">
                     <h3>Plugin Compatibility</h3>
                     <p>Cirrusly Commerce integrates with the following plugins:</p>
                     <ul class="cc-manual-list">
-                        <li><strong>Product Feed PRO (AdTribes):</strong> Custom fields (MSRP, MAP) appear in attribute mapping.</li>
-                        <li><strong>Rank Math &amp; Yoast SEO:</strong> MSRP/GTIN fields are registered for schema markup.</li>
+                        <li><strong>Product Feed PRO (AdTribes):</strong> Custom fields (MSRP, MAP) appear in attribute mapping dropdowns automatically.</li>
+                        <li><strong>Rank Math &amp; Yoast SEO:</strong> MSRP/GTIN fields are registered for schema markup automatically.</li>
                         <li><strong>WooCommerce Subscriptions:</strong> Pricing Engine supports recurring pricing fields.</li>
                         <li><strong>Flexible Shipping:</strong> Detects shipping classes for cost calculation.</li>
                         <li><strong>WPFactory MSRP:</strong> Shares the <code>_alg_msrp</code> key for seamless migration.</li>
@@ -183,7 +195,7 @@ class Cirrusly_Commerce_Manual {
                 
                 <div class="cc-manual-section" id="keys" style="border-bottom:0;">
                     <h3>Database Key Reference</h3>
-                    <p>For developers or custom feed configurations:</p>
+                    <p>For developers or custom feed configurations. Use these keys when mapping fields in your Feed plugin:</p>
                     <table class="widefat striped" style="max-width:600px;">
                         <thead><tr><th>Field</th><th>Meta Key</th></tr></thead>
                         <tbody>
