@@ -825,8 +825,8 @@ public static function get_google_client() {
         $client = new Google\Client();
         $client->setApplicationName( 'Cirrusly Commerce' );
         $auth_config = json_decode( $json_key, true );
-        if ( null === $auth_config ) {
-            return new WP_Error( 'invalid_json', 'Service Account JSON is malformed.' );
+        if ( ! is_array( $auth_config ) ) {
+            return new WP_Error( 'invalid_json', 'Service Account JSON is malformed or not an object.' );
         }
         $client->setAuthConfig( $auth_config );
         $client->setScopes([
