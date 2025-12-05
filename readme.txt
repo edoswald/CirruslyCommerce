@@ -47,20 +47,6 @@ Flexible Shipping (Octolize)
 
 WPFactory MSRP (Shared data keys)
 
-Compatibility:
-
-Cirrusly Commerce is designed to work seamlessly with:
-
-Product Feed PRO (AdTribes)
-
-Rank Math SEO & Yoast SEO
-
-WooCommerce Subscriptions
-
-Flexible Shipping (Octolize)
-
-WPFactory MSRP (Shared data keys)
-
 == Installation ==
 
 Upload the plugin files to the /wp-content/plugins/cirrusly-commerce directory, or install the plugin directly from the WordPress plugins screen.
