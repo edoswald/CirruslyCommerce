@@ -80,7 +80,12 @@ class Cirrusly_Commerce_GMC {
                 foreach ( $statuses->getResources() as $status ) {
                     // Google ID format is usually "online:en:US:123" -> We need "123"
                     $parts = explode( ':', $status->getProductId() );
-                    $wc_id = end( $parts ); 
+                    $wc_id = end( $parts );
+                    
+                    // Validate this is a numeric ID that could be a WC product
+                    if ( ! is_numeric( $wc_id ) ) {
+                        continue;
+                    } 
 
                     // Check for Item Level Issues (The "Why" it is disapproved)
                     $issues = $status->getItemLevelIssues();
@@ -628,6 +633,14 @@ class Cirrusly_Commerce_GMC {
      */
 public function run_gmc_scan_logic() {
     $issues_found = array();
+    $monitored = $this->get_monitored_terms();
+
+    // --- NEW: Fetch Real API Data ---
+    $api_data = array();
+    if ( Cirrusly_Commerce_Core::cirrusly_is_pro() ) {
+        $api_data = $this->fetch_google_real_statuses();
+    }
+    // --------------------------------
     $batch_size = 100;
     $paged = 1;
     do {
@@ -638,18 +651,6 @@ public function run_gmc_scan_logic() {
             'paged'          => $paged,
         );
         $products = get_posts( $args );
-        // ... process batch ...
-        $paged++;
-    } while ( count( $products ) === $batch_size );
-    $monitored = $this->get_monitored_terms();
-
-    // --- NEW: Fetch Real API Data ---
-    $api_data = array();
-    if ( Cirrusly_Commerce_Core::cirrusly_is_pro() ) {
-        $api_data = $this->fetch_google_real_statuses();
-    }
-    // --------------------------------
-
     foreach ( $products as $post ) {
         $p_issues = array();
         $pid = $post->ID;
@@ -687,7 +688,11 @@ public function run_gmc_scan_logic() {
         if ( ! empty( $p_issues ) ) {
             $issues_found[] = array( 'product_id' => $pid, 'issues' => $p_issues );
         }
-    }
+            }
+        
+        $paged++;
+    } while ( count( $products ) === $batch_size );
+    
     return $issues_found;
 }
 
