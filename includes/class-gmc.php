@@ -41,26 +41,33 @@ class Cirrusly_Commerce_GMC {
         $instance->render_gmc_hub_page();
     }
 
-    /**
+/**
      * NEW: Fetch account-level issues (Policy/Suspensions) from Google Content API.
+     * Returns Google_Service_ShoppingContent_AccountStatus object, or WP_Error on failure.
      */
     private function fetch_google_account_issues() {
-        $client = Cirrusly_Commerce_Core::get_google_client();
-        if ( is_wp_error( $client ) ) return null;
+        $client = self::get_google_client();
+        
+        // Return the specific error (e.g., "Google Library not loaded")
+        if ( is_wp_error( $client ) ) {
+            return $client; 
+        }
 
         $scan_config = get_option( 'cirrusly_scan_config' );
         $merchant_id = isset( $scan_config['merchant_id_pro'] ) ? $scan_config['merchant_id_pro'] : get_option( 'cirrusly_gmc_merchant_id', '' );
         
-        if ( empty( $merchant_id ) ) return null;
+        if ( empty( $merchant_id ) ) {
+            return new WP_Error( 'missing_id', 'Merchant ID not configured in settings.' );
+        }
 
         $service = new Google\Service\ShoppingContent( $client );
         
         try {
-            // accountstatuses.get requires merchantId and accountId. Use merchant_id for both for single accounts.
             $status = $service->accountstatuses->get( $merchant_id, $merchant_id );
             return $status;
         } catch ( Exception $e ) {
-            return null;
+            // Catch API errors (e.g. 401 Unauthorized, 404 Not Found)
+            return new WP_Error( 'api_error', 'Google API Error: ' . $e->getMessage() );
         }
     }
 
@@ -69,7 +76,7 @@ class Cirrusly_Commerce_GMC {
      */
     private function fetch_google_real_statuses() {
         // 1. Check API Connection
-        $client = Cirrusly_Commerce_Core::get_google_client();
+        $client = self::get_google_client();
     if ( is_wp_error( $client ) ) {
         if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
             error_log( 'Cirrusly Commerce: Failed to get Google client - ' . $client->get_error_message() );
@@ -187,6 +194,9 @@ class Cirrusly_Commerce_GMC {
 /**
      * Renders the Site Content Audit UI with Pro Account Check.
      */
+/**
+     * Renders the Site Content Audit UI with Pro Account Check.
+     */
     private function render_content_scan_view() {
         $is_pro = Cirrusly_Commerce_Core::cirrusly_is_pro();
         
@@ -205,19 +215,23 @@ class Cirrusly_Commerce_GMC {
         
         if ( $is_pro ) {
             $account_status = $this->fetch_google_account_issues();
-            if ( $account_status ) {
+            
+            // ERROR HANDLING
+            if ( is_wp_error( $account_status ) ) {
+                echo '<div class="notice notice-error inline" style="margin:0;"><p><strong>Connection Failed:</strong> ' . esc_html( $account_status->get_error_message() ) . '</p></div>';
+            } 
+            // SUCCESS
+            elseif ( $account_status ) {
                 $issues = $account_status->getAccountLevelIssues();
                 if ( empty( $issues ) ) {
-                    echo '<div class="notice notice-success inline"><p><strong>Account Healthy:</strong> No account-level policy issues detected.</p></div>';
+                    echo '<div class="notice notice-success inline" style="margin:0;"><p><strong>Account Healthy:</strong> No account-level policy issues detected.</p></div>';
                 } else {
-                    echo '<div class="notice notice-error inline"><p><strong>Attention Needed:</strong></p><ul style="list-style:disc; margin-left:20px;">';
+                    echo '<div class="notice notice-error inline" style="margin:0;"><p><strong>Attention Needed:</strong></p><ul style="list-style:disc; margin-left:20px;">';
                     foreach ( $issues as $issue ) {
                         echo '<li><strong>' . esc_html( $issue->getTitle() ) . ':</strong> ' . esc_html( $issue->getDetail() ) . '</li>';
                     }
                     echo '</ul></div>';
                 }
-            } else {
-                echo '<p><em>Could not fetch account status. Check API connection.</em></p>';
             }
         } else {
             echo '<p>View real-time suspension status and policy violations directly from Google.</p>';
@@ -227,11 +241,7 @@ class Cirrusly_Commerce_GMC {
         // --- 2. EXISTING: LOCAL SCAN EXPLANATION ---
         echo '<div class="cc-manual-helper">
             <h4>Site Content Audit (Local)</h4>
-            <p>This tool scans your site pages and product descriptions to ensure compliance with Google Merchant Center policies. It checks for:</p>
-            <ul style="list-style:disc; margin-left:20px; font-size:12px;">
-                <li><strong>Required Policies:</strong> Verifies the existence of Refund, Privacy, and Terms of Service pages.</li>
-                <li><strong>Restricted Terms:</strong> Detects medical claims or prohibited promotional text that may cause account suspension.</li>
-            </ul>
+            <p>This tool scans your site pages and product descriptions to ensure compliance with Google Merchant Center policies.</p>
         </div>';
         
         $all_pages = get_pages();
