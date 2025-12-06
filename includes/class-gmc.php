@@ -195,17 +195,17 @@ class Cirrusly_Commerce_GMC {
     private function get_monitored_terms() {
         return array(
             'promotional' => array(
-                'free shipping' => array('severity' => 'Medium', 'scope' => 'title', 'reason' => 'Allowed in descriptions but prohibited in titles.'),
+                'free shipping' => array('severity' => 'Medium', 'scope' => 'title', 'reason' => 'Allowed in descriptions, but prohibited in titles.'),
                 'sale'          => array('severity' => 'Medium', 'scope' => 'title', 'reason' => 'Prohibited in titles. Use the "Sale Price" field instead.'),
-                'buy one'       => array('severity' => 'Medium', 'scope' => 'title', 'reason' => 'Promotional text. Use GMC Promotions feed for BOGO offers.'),
-                'best price'    => array('severity' => 'High',   'scope' => 'title', 'reason' => 'Subjective claim. Google may flag this as "Misrepresentation".'),
-                'cheapest'      => array('severity' => 'High',   'scope' => 'title', 'reason' => 'Subjective claim. Highly likely to cause "Misrepresentation" suspension.'),
+                'buy one'       => array('severity' => 'Medium', 'scope' => 'title', 'reason' => 'Considered promotional text. Use GMC Promotions feed for BOGO offers.'),
+                'best price'    => array('severity' => 'High',   'scope' => 'title', 'reason' => 'A subjective claim, which may flagged as "Misrepresentation".'),
+                'cheapest'      => array('severity' => 'High',   'scope' => 'title', 'reason' => 'A subjective claim, and a frequent cause of "Misrepresentation" suspension.'),
             ),
             'medical' => array( 
-                'cure'        => array('severity' => 'Critical', 'scope' => 'all', 'reason' => 'Medical claim. Strictly prohibited for non-pharmacies.'),
-                'heal'        => array('severity' => 'Critical', 'scope' => 'all', 'reason' => 'Medical claim. Implies permanent fix.'),
-                'virus'       => array('severity' => 'Critical', 'scope' => 'all', 'reason' => 'Medical claim. Do not claim to prevent or treat viruses.'),
-                'covid'       => array('severity' => 'Critical', 'scope' => 'all', 'reason' => 'Sensitive event policy. Strictly regulated.'),
+                'cure'        => array('severity' => 'Critical', 'scope' => 'all', 'reason' => 'Medical claim, DO NOT use in non-medical situations without clear evidence.'),
+                'heal'        => array('severity' => 'Critical', 'scope' => 'all', 'reason' => 'Medical claim that implies a permanent fix.'),
+                'virus'       => array('severity' => 'Critical', 'scope' => 'all', 'reason' => 'Medical claim. Google prohibits claims of the prevention or treatment of viruses.'),
+                'covid'       => array('severity' => 'Critical', 'scope' => 'all', 'reason' => 'This term is considered a sensitive event, and is monitored closely.'),
                 'guaranteed'  => array('severity' => 'Medium',   'scope' => 'all', 'reason' => 'If you say "Guaranteed", you must have a clear money-back policy linked.')
             )
         );
