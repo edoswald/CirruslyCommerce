@@ -87,7 +87,7 @@ class Cirrusly_Commerce_Help {
                 <div style="width:60%; padding:20px; background:#f9f9f9;">
                     <h4 style="margin-top:0; display:flex; justify-content:space-between; align-items:center;">
                         <span>System Health</span>
-                        <button type="button" class="button button-small" onclick="var copyText = document.getElementById('cc-sys-info-text');copyText.select();document.execCommand('copy');alert('Copied to clipboard!');">Copy Log</button>
+                        <button type="button" class="button button-small" onclick="var copyText = document.getElementById('cc-sys-info-text');navigator.clipboard.writeText(copyText.value).then(function(){alert('Copied to clipboard!');}).catch(function(){copyText.select();document.execCommand('copy');alert('Copied to clipboard!');});">Copy Log</button>
                     </h4>
                     <p style="color:#666; font-size:12px; margin-bottom:10px;">Please copy this log when submitting a bug report.</p>
                     <textarea id="cc-sys-info-text" style="width:100%; height:320px; font-family:monospace; font-size:11px; background:#fff; border:1px solid #ccc; white-space:pre;" readonly><?php self::render_system_info(); ?></textarea>
