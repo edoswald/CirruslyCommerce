@@ -7,7 +7,7 @@
     var ToggleControl = wp.components.ToggleControl;
     var SelectControl = wp.components.SelectControl;
 
-    registerBlockType( 'cirrusly-commerce/msrp', {
+    registerBlockType( 'cirrusly/msrp', {
         title: 'MSRP Display',
         icon: 'tag', 
         category: 'woocommerce',
@@ -64,7 +64,7 @@ edit: function( props ) {
                 el( 'div', useBlockProps( { className: 'cirrusly-msrp-block-editor' } ),
                     // Dynamically render the PHP output in the editor
                     el( ServerSideRender, {
-                        block: 'cirrusly-commerce/msrp',
+                        block: 'cirrusly/msrp',
                         attributes: attributes
                     } )
                 )
