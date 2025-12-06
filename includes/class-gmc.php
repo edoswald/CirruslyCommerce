@@ -17,7 +17,6 @@ public function __construct() {
         add_action( 'quick_edit_custom_box', array( $this, 'render_quick_edit_box' ), 10, 2 );
         add_action( 'woocommerce_product_quick_edit_save', array( $this, 'save_quick_bulk_edit' ) );
         add_action( 'woocommerce_product_bulk_edit_save', array( $this, 'save_quick_bulk_edit' ) );
-        add_action( 'admin_footer', array( $this, 'render_quick_edit_script' ) );
         add_action( 'wp_ajax_cc_list_promos_gmc', array( $this, 'handle_promo_api_list' ) );
 
         // Handle "Mark as Custom" action
@@ -213,10 +212,7 @@ public function __construct() {
         );
     }
 
-/**
-     * Renders the Site Content Audit UI with Pro Account Check.
-     */
-/**
+    /**
      * Renders the Site Content Audit UI with Pro Account Check.
      */
     private function render_content_scan_view() {
