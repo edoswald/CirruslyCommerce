@@ -880,14 +880,15 @@ public function handle_promo_api_submit() {
     $client = self::get_google_client();
     if ( is_wp_error( $client ) ) wp_send_json_error( $client->get_error_message() );
 
-    $merchant_id = get_option( 'cirrusly_gmc_merchant_id' );
+    // FIX: Get Merchant ID from correct option
+    $scan_config = get_option( 'cirrusly_scan_config' );
+    $merchant_id = isset( $scan_config['merchant_id_pro'] ) ? $scan_config['merchant_id_pro'] : '';
+    
     if ( empty( $merchant_id ) ) {
         wp_send_json_error( 'Merchant ID not configured.' );
     }
 
-    // Extract POST data
     $data = isset( $_POST['data'] ) ? wp_unslash( $_POST['data'] ) : array();
-    $data = is_array( $data ) ? $data : array();
     $id    = isset( $data['id'] ) ? sanitize_text_field( $data['id'] ) : '';
     $title = isset( $data['title'] ) ? sanitize_text_field( $data['title'] ) : '';
 
@@ -895,37 +896,33 @@ public function handle_promo_api_submit() {
         wp_send_json_error( 'Promotion ID and Title are required.' );
     }
     
-    // Initialize the Service
     $service = new Google\Service\ShoppingContent( $client );
 
     try {
-        // Create Promotion Object
         $promo = new Google\Service\ShoppingContent\Promotion();
         $promo->setPromotionId( $id );
         $promo->setLongTitle( $title );
-        $promo->setContentLanguage( 'en' ); // Should ideally be dynamic
-        $promo->setTargetCountry( 'US' );   // Should ideally be dynamic
+        $promo->setContentLanguage( 'en' );
+        $promo->setTargetCountry( 'US' );
         $promo->setRedemptionChannel( array( 'ONLINE' ) );
 
-        // 1. Parse Dates (Format: YYYY-MM-DD/YYYY-MM-DD) received from JS
         $dates_raw = isset( $data['dates'] ) ? sanitize_text_field( $data['dates'] ) : '';
         if ( ! empty( $dates_raw ) && strpos( $dates_raw, '/' ) !== false ) {
             list( $start_str, $end_str ) = explode( '/', $dates_raw );
-            // Validate date format
             if ( ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $start_str ) || ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $end_str ) ) {
               wp_send_json_error( 'Invalid date format. Expected YYYY-MM-DD/YYYY-MM-DD.' );
             }
-            $period = new Google\Service\ShoppingContent\PromotionPromotionStatusDateRange();
-            // Google expects ISO 8601 (e.g. 2025-06-01T00:00:00Z)
-            $period->setDateRange( $start_str . 'T00:00:00Z/' . $end_str . 'T23:59:59Z' );
+            
+            // FIX: Use TimePeriod + setStartTime/EndTime (Fixes Critical Error)
+            $period = new Google\Service\ShoppingContent\TimePeriod();
+            $period->setStartTime( $start_str . 'T00:00:00Z' );
+            $period->setEndTime( $end_str . 'T23:59:59Z' );
             $promo->setPromotionEffectiveTimePeriod( $period );
         }
 
-        // 2. Product Applicability
         $app_val = isset( $data['app'] ) ? sanitize_text_field( $data['app'] ) : 'ALL_PRODUCTS';
         $promo->setProductApplicability( $app_val );
 
-        // 3. Offer Type & Generic Code
         $type_val = isset( $data['type'] ) ? sanitize_text_field( $data['type'] ) : 'NO_CODE';
         $promo->setOfferType( $type_val );
         
@@ -933,7 +930,6 @@ public function handle_promo_api_submit() {
             $promo->setGenericRedemptionCode( sanitize_text_field( $data['code'] ) );
         }
 
-        // Send to Google
         $service->promotions->create( $merchant_id, $promo );
 
         wp_send_json_success( 'Promotion submitted successfully!' );
@@ -947,47 +943,51 @@ public function handle_promo_api_submit() {
  * Fetches the active promotion list via the API and reformats it for the UI table.
  */
 public function handle_promo_api_list() {
-    check_ajax_referer( 'cc_promo_api_submit', 'security' ); // reuse same nonce scope
+    check_ajax_referer( 'cc_promo_api_submit', 'security' );
     
     if ( ! Cirrusly_Commerce_Core::cirrusly_is_pro() ) {
         wp_send_json_error( 'Pro version required.' );
     }
 
     $client = self::get_google_client();
-    if ( is_wp_error( $client ) ) wp_send_json_error( $client->get_error_message() );
+    if ( is_wp_error( $client ) ) {
+        wp_send_json_error( $client->get_error_message() );
+    }
 
-    $merchant_id = get_option( 'cirrusly_gmc_merchant_id' );
-    if ( empty( $merchant_id ) ) wp_send_json_error( 'Merchant ID missing.' );
+    $scan_config = get_option( 'cirrusly_scan_config' );
+    $merchant_id = isset( $scan_config['merchant_id_pro'] ) ? $scan_config['merchant_id_pro'] : '';
+
+    if ( empty( $merchant_id ) ) {
+        wp_send_json_error( 'Merchant ID missing in settings.' );
+    }
 
     $service = new Google\Service\ShoppingContent( $client );
 
     try {
-        // List promotions (defaults to page size 50 usually)
-        $resp = $service->promotions->listPromotions( $merchant_id, array('maxResults' => 50) );
+        // Use pageSize for v2.1
+        $resp = $service->promotions->listPromotions( $merchant_id, array('pageSize' => 50) );
         $list = $resp->getPromotions();
         
         $output = array();
+        
         if ( ! empty( $list ) ) {
             foreach ( $list as $p ) {
-                // Parse Date Range back to YYYY-MM-DD/YYYY-MM-DD
                 $range_str = '';
+                
+                // Date Handling
                 $period = $p->getPromotionEffectiveTimePeriod();
                 if ( $period ) {
-                    // DateRange string looks like: "2025-06-01T00:00:00Z/2025-06-30T23:59:59Z"
-                    $raw_dr = $period->getDateRange();
-                    if($raw_dr) {
-                        $parts = explode('/', $raw_dr);
-                        if(count($parts)==2) {
-                            $start = substr($parts[0], 0, 10);
-                            $end = substr($parts[1], 0, 10);
-                            $range_str = $start . '/' . $end;
-                        }
+                    $start_iso = $period->getStartTime(); 
+                    $end_iso   = $period->getEndTime();
+                    if ( $start_iso && $end_iso ) {
+                        $start = substr( $start_iso, 0, 10 );
+                        $end   = substr( $end_iso, 0, 10 );
+                        $range_str = $start . '/' . $end;
                     }
                 }
                 
+                // Status Logic
                 $status = 'unknown';
-                // getPromotionStatus() usually returns an object with destinationStatuses, etc.
-                // We'll simplify for the UI list
                 $pStats = $p->getPromotionStatus(); 
                                      
                 if ( $pStats && method_exists( $pStats, 'getDestinationStatuses' ) ) {
@@ -999,21 +999,24 @@ public function handle_promo_api_list() {
 
                     if ( ! empty( $d_statuses ) ) {
                         foreach ( $d_statuses as $ds ) {
-                            $s = $ds->getStatus();
-                            if ( 'REJECTED' === $s ) $is_rejected = true;
+                            $s = strtoupper( $ds->getStatus() ); // Normalize case
+                            
+                            // Check for both API terminology variations
+                            if ( 'REJECTED' === $s || 'DISAPPROVED' === $s ) $is_rejected = true;
                             if ( 'EXPIRED' === $s ) $is_expired = true;
-                            if ( 'LIVE' === $s ) $is_live = true;
+                            if ( 'LIVE' === $s || 'APPROVED' === $s ) $is_live = true;
                             if ( 'PENDING' === $s || 'IN_REVIEW' === $s ) $is_pending = true;
                         }
 
-                        if ( $is_rejected ) {
-                            $status = 'rejected';
-                        } elseif ( $is_expired ) {
-                            $status = 'expired';
-                        } elseif ( $is_live ) {
+                        // Updated Hierarchy: Prioritize Active/Live status
+                        if ( $is_live ) {
                             $status = 'active';
+                        } elseif ( $is_rejected ) {
+                            $status = 'rejected';
                         } elseif ( $is_pending ) {
                             $status = 'pending';
+                        } elseif ( $is_expired ) {
+                            $status = 'expired';
                         }
                     }
                 }
