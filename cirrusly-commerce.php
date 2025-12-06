@@ -144,6 +144,7 @@ class Cirrusly_Commerce_Main {
         require_once $includes_path . 'class-manual.php';
         require_once $includes_path . 'class-countdown.php';
         require_once $includes_path . 'class-automated-discounts.php';
+        require_once $includes_path . 'class-help.php';
 
         // Initialize Modules
         new Cirrusly_Commerce_Core();
@@ -156,6 +157,7 @@ class Cirrusly_Commerce_Main {
         new Cirrusly_Commerce_Badges();
         new Cirrusly_Commerce_Countdown();
         new Cirrusly_Commerce_Automated_Discounts();
+        Cirrusly_Commerce_Help::init();
 
         // Register Hooks
         register_activation_hook( __FILE__, array( $this, 'activate' ) );
