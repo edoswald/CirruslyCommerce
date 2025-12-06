@@ -40,10 +40,24 @@ class Cirrusly_Commerce_Blocks {
 
 		// 2. Register the block type in PHP, linking it to the script above.
         // FIX: Added render_callback so the block actually outputs HTML on the frontend
-		register_block_type( 'cirrusly/msrp', array(
-			'editor_script' => 'cirrusly-block-msrp',
-            'render_callback' => array( $this, 'render_msrp_block' )
-		) );
+register_block_type( 'cirrusly/msrp', array(
+    'editor_script' => 'cirrusly-block-msrp',
+    'render_callback' => array( $this, 'render_msrp_block' ),
+    'attributes' => array(
+        'textAlign' => array(
+            'type' => 'string',
+            'default' => 'left',
+        ),
+        'showStrikethrough' => array(
+            'type' => 'boolean',
+            'default' => true,
+        ),
+        'isBold' => array(
+            'type' => 'boolean',
+            'default' => false,
+        ),
+    ),
+) );
 	}
 
 	/**
@@ -51,6 +65,11 @@ class Cirrusly_Commerce_Blocks {
      */
     public function render_msrp_block( $attributes, $content ) {
         global $product;
+
+    // Check if productId attribute is set (for editor preview)
+    if ( isset( $attributes['productId'] ) && $attributes['productId'] > 0 ) {
+        $product = wc_get_product( $attributes['productId'] );
+    }
         
         // Ensure we have a product object
         if ( ! $product || ! is_a( $product, 'WC_Product' ) ) {
