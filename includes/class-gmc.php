@@ -217,45 +217,7 @@ public function __construct() {
     private function render_content_scan_view() {
         $is_pro = Cirrusly_Commerce_Core::cirrusly_is_pro();
         
-        // --- 1. PRO: GOOGLE ACCOUNT STATUS ---
-        echo '<div class="cc-settings-card ' . ( $is_pro ? '' : 'cc-pro-feature' ) . '" style="margin-bottom:20px; border:1px solid #c3c4c7; padding:0;">';
-        
-        if ( ! $is_pro ) {
-            echo '<div class="cc-pro-overlay"><a href="' . esc_url( function_exists('cc_fs') ? cc_fs()->get_upgrade_url() : '#' ) . '" class="cc-upgrade-btn"><span class="dashicons dashicons-lock cc-lock-icon"></span> Check Account Bans</a></div>';
-        }
-
-        echo '<div class="cc-card-header" style="background:#f8f9fa; border-bottom:1px solid #ddd; padding:15px;">
-                <h3 style="margin:0;">Google Account Status <span class="cc-pro-badge">PRO</span></h3>
-              </div>';
-        
-        echo '<div class="cc-card-body" style="padding:15px;">';
-        
-        if ( $is_pro ) {
-            $account_status = $this->fetch_google_account_issues();
-            
-            // ERROR HANDLING
-            if ( is_wp_error( $account_status ) ) {
-                echo '<div class="notice notice-error inline" style="margin:0;"><p><strong>Connection Failed:</strong> ' . esc_html( $account_status->get_error_message() ) . '</p></div>';
-            } 
-            // SUCCESS
-            elseif ( $account_status ) {
-                $issues = $account_status->getAccountLevelIssues();
-                if ( empty( $issues ) ) {
-                    echo '<div class="notice notice-success inline" style="margin:0;"><p><strong>Account Healthy:</strong> No account-level policy issues detected.</p></div>';
-                } else {
-                    echo '<div class="notice notice-error inline" style="margin:0;"><p><strong>Attention Needed:</strong></p><ul style="list-style:disc; margin-left:20px;">';
-                    foreach ( $issues as $issue ) {
-                        echo '<li><strong>' . esc_html( $issue->getTitle() ) . ':</strong> ' . esc_html( $issue->getDetail() ) . '</li>';
-                    }
-                    echo '</ul></div>';
-                }
-            }
-        } else {
-            echo '<p>View real-time suspension status and policy violations directly from Google.</p>';
-        }
-        echo '</div></div>';
-
-        // --- 2. EXISTING: LOCAL SCAN EXPLANATION ---
+        // --- 1. CORE: LOCAL SCAN EXPLANATION ---
         echo '<div class="cc-manual-helper">
             <h4>Site Content Audit (Local)</h4>
             <p>This tool scans your site pages and product descriptions to ensure compliance with Google Merchant Center policies.</p>
@@ -286,7 +248,7 @@ public function __construct() {
         }
         echo '</div>';
 
-        // --- 3. RESTRICTED TERMS SCAN ---
+        // --- 2. CORE: RESTRICTED TERMS SCAN ---
         echo '<div style="background:#fff; padding:20px; border:1px solid #c3c4c7; margin-bottom:20px; margin-top:20px;">
             <div style="display:flex; justify-content:space-between; align-items:center;">
                 <h3 style="margin:0;">Restricted Terms Scan</h3>
@@ -326,6 +288,44 @@ public function __construct() {
             echo '<p style="margin-top:10px;">No scan history found.</p>';
         }
         echo '</div>';
+
+        // --- 3. PRO: GOOGLE ACCOUNT STATUS (Moved to Bottom) ---
+        echo '<div class="cc-settings-card ' . ( $is_pro ? '' : 'cc-pro-feature' ) . '" style="margin-bottom:20px; border:1px solid #c3c4c7; padding:0;">';
+        
+        if ( ! $is_pro ) {
+            echo '<div class="cc-pro-overlay"><a href="' . esc_url( function_exists('cc_fs') ? cc_fs()->get_upgrade_url() : '#' ) . '" class="cc-upgrade-btn"><span class="dashicons dashicons-lock cc-lock-icon"></span> Check Account Bans</a></div>';
+        }
+
+        echo '<div class="cc-card-header" style="background:#f8f9fa; border-bottom:1px solid #ddd; padding:15px;">
+                <h3 style="margin:0;">Google Account Status <span class="cc-pro-badge">PRO</span></h3>
+              </div>';
+        
+        echo '<div class="cc-card-body" style="padding:15px;">';
+        
+        if ( $is_pro ) {
+            $account_status = $this->fetch_google_account_issues();
+            
+            // ERROR HANDLING
+            if ( is_wp_error( $account_status ) ) {
+                echo '<div class="notice notice-error inline" style="margin:0;"><p><strong>Connection Failed:</strong> ' . esc_html( $account_status->get_error_message() ) . '</p></div>';
+            } 
+            // SUCCESS
+            elseif ( $account_status ) {
+                $issues = $account_status->getAccountLevelIssues();
+                if ( empty( $issues ) ) {
+                    echo '<div class="notice notice-success inline" style="margin:0;"><p><strong>Account Healthy:</strong> No account-level policy issues detected.</p></div>';
+                } else {
+                    echo '<div class="notice notice-error inline" style="margin:0;"><p><strong>Attention Needed:</strong></p><ul style="list-style:disc; margin-left:20px;">';
+                    foreach ( $issues as $issue ) {
+                        echo '<li><strong>' . esc_html( $issue->getTitle() ) . ':</strong> ' . esc_html( $issue->getDetail() ) . '</li>';
+                    }
+                    echo '</ul></div>';
+                }
+            }
+        } else {
+            echo '<p>View real-time suspension status and policy violations directly from Google.</p>';
+        }
+        echo '</div></div>';
     }
 
     private function execute_content_scan_logic() {
@@ -378,7 +378,7 @@ public function __construct() {
         $pro_class = $is_pro ? '' : 'cc-pro-feature';
         $disabled_attr = $is_pro ? '' : 'disabled';
         
-        // --- 1. REMOTE PROMOTIONS DASHBOARD (PRO) ---
+        // --- 1. PRO: REMOTE PROMOTIONS DASHBOARD (Restored to Top) ---
         echo '<div class="cc-settings-card '.esc_attr($pro_class).'" style="margin-bottom:20px;">';
         if(!$is_pro) echo '<div class="cc-pro-overlay"><a href="'.esc_url( function_exists('cc_fs') ? cc_fs()->get_upgrade_url() : '#' ).'" class="cc-upgrade-btn"><span class="dashicons dashicons-lock cc-lock-icon"></span> Unlock Live Feed</a></div>';
         
@@ -395,7 +395,7 @@ public function __construct() {
               </div>';
         echo '</div>';
 
-        // --- 2. GENERATOR / EDITOR ---
+        // --- 2. CORE: GENERATOR / EDITOR ---
         echo '<div class="cc-manual-helper"><h4>Promotion Feed Generator</h4><p>Create or update a promotion entry for Google Merchant Center. Fill in the details, generate the code, and paste it into your Google Sheet feed.</p></div>';
         ?>
         <div class="cc-promo-generator" id="cc_promo_form_container">
@@ -591,7 +591,7 @@ public function __construct() {
         </script>
         <?php
 
-        // --- 3. LOCAL ASSIGNMENTS TABLE ---
+        // --- 3. CORE: LOCAL ASSIGNMENTS TABLE ---
         global $wpdb;
         // ... (Bulk Action Logic) ...
         if ( isset( $_POST['gmc_promo_bulk_action'] ) && ! empty( $_POST['gmc_promo_products'] ) && check_admin_referer( 'cirrusly_promo_bulk', 'cc_promo_nonce' ) ) {
@@ -654,29 +654,10 @@ public function __construct() {
         $block_save = isset($scan_cfg['block_on_critical']) ? 'checked' : '';
         $auto_strip = isset($scan_cfg['auto_strip_banned']) ? 'checked' : '';
 
+        // CORE 1: Manual Helper
         echo '<div class="cc-manual-helper"><h4>Health Check</h4><p>Scans product data for critical GMC issues.</p></div>';
         
-        // PRO: Auto-Fix Upsell
-        echo '<div class="'.esc_attr($pro_class).'" style="background:#f0f6fc; padding:15px; border:1px solid #c3c4c7; margin-bottom:20px; position:relative;">';
-            if(!$is_pro) echo '<div class="cc-pro-overlay"><a href="'.esc_url( function_exists('cc_fs') ? cc_fs()->get_upgrade_url() : '#' ).'" class="cc-upgrade-btn">Upgrade to Automate</a></div>';
-            
-            echo '<form method="post" action="options.php">';
-            settings_fields('cirrusly_general_group'); 
-            echo '<strong>Automated Compliance <span class="cc-pro-badge">PRO</span></strong><br>
-            <label><input type="checkbox" name="cirrusly_scan_config[block_on_critical]" value="yes" '.$block_save.' '.esc_attr($disabled_attr).'> Block Save on Critical Error</label>
-            <label style="margin-left:10px;"><input type="checkbox" name="cirrusly_scan_config[auto_strip_banned]" value="yes" '.$auto_strip.' '.esc_attr($disabled_attr).'> Auto-strip Banned Words</label>';
-            
-            // NEW: Fire hook to render the Automated Discounts checkbox here
-            do_action( 'cirrusly_commerce_scan_settings_ui' );
-
-            echo '<br><br>
-            <button type="submit" class="button button-small" '.esc_attr($disabled_attr).'>Save Rules</button>
-            </form>';
-        echo '</div>';
-
-
-
-        // Scan Button
+        // CORE 2: Scan Button
         echo '<div style="background:#fff; padding:20px; border-bottom:1px solid #ccc;"><form method="post">';
         wp_nonce_field( 'cirrusly_gmc_scan', 'cc_gmc_scan_nonce' );
         echo '<input type="hidden" name="run_gmc_scan" value="1">';
@@ -697,12 +678,10 @@ public function __construct() {
                 $issues = ''; 
                 foreach($r['issues'] as $i) {
                     $color = ($i['type'] === 'critical') ? '#d63638' : '#dba617';
-                    // UPDATED: Tooltip implementation
                     $tooltip = isset($i['reason']) ? $i['reason'] : $i['msg'];
                     $issues .= '<span class="gmc-badge" style="background:'.esc_attr($color).'; color:#fff; cursor:help;" title="'.esc_attr($tooltip).'">'.esc_html($i['msg']).'</span> ';
                 }
                 
-                // NEW: Mark as Custom Action
                 $actions = '<a href="'.esc_url(get_edit_post_link($p->get_id())).'" class="button button-small">Edit</a> ';
                 if ( strpos( $issues, 'Missing GTIN' ) !== false ) {
                     $url = wp_nonce_url( admin_url( 'admin-post.php?action=cc_mark_custom&pid=' . $p->get_id() ), 'cc_mark_custom_' . $p->get_id() );
@@ -713,6 +692,23 @@ public function __construct() {
             }
             echo '</tbody></table>';
         }
+
+        // PRO 3: Automated Compliance (Moved to Bottom)
+        echo '<div class="'.esc_attr($pro_class).'" style="background:#f0f6fc; padding:15px; border:1px solid #c3c4c7; margin-top:20px; position:relative;">';
+            if(!$is_pro) echo '<div class="cc-pro-overlay"><a href="'.esc_url( function_exists('cc_fs') ? cc_fs()->get_upgrade_url() : '#' ).'" class="cc-upgrade-btn">Upgrade to Automate</a></div>';
+            
+            echo '<form method="post" action="options.php">';
+            settings_fields('cirrusly_general_group'); 
+            echo '<strong>Automated Compliance <span class="cc-pro-badge">PRO</span></strong><br>
+            <label><input type="checkbox" name="cirrusly_scan_config[block_on_critical]" value="yes" '.$block_save.' '.esc_attr($disabled_attr).'> Block Save on Critical Error</label>
+            <label style="margin-left:10px;"><input type="checkbox" name="cirrusly_scan_config[auto_strip_banned]" value="yes" '.$auto_strip.' '.esc_attr($disabled_attr).'> Auto-strip Banned Words</label>';
+            
+            do_action( 'cirrusly_commerce_scan_settings_ui' );
+
+            echo '<br><br>
+            <button type="submit" class="button button-small" '.esc_attr($disabled_attr).'>Save Rules</button>
+            </form>';
+        echo '</div>';
     }
 
     /**
