@@ -265,11 +265,23 @@ class Cirrusly_Commerce_Audit {
                 return;
             }
 
-            // Normalize headers (trim spaces, maybe lowercase)
-            $map = array();
-            foreach ( $header as $index => $col_name ) {
-                $map[ trim($col_name) ] = $index;
-            }
+             // Normalize headers (trim spaces) and strip possible UTF‑8 BOM from the first column.
+             $map = array();
+             foreach ( $header as $index => $col_name ) {
+                 $col_name = (string) $col_name;
+
+                 if ( 0 === $index ) {
+                     // Remove UTF‑8 BOM if present.
+                     $col_name = preg_replace( '/^\xEF\xBB\xBF/', '', $col_name );
+                 }
+
+                 $key = trim( $col_name );
+                 if ( '' === $key ) {
+                     continue; // Ignore blank header cells.
+                 }
+
+                 $map[ $key ] = $index;
+             }
             // Normalize headers (trim spaces) and strip possible UTF‑8 BOM from the first column.
             $map = array();
             foreach ( $header as $index => $col_name ) {
