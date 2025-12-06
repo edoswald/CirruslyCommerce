@@ -29,7 +29,7 @@ class Cirrusly_Commerce_Automated_Discounts {
         add_action( 'send_headers', array( $this, 'prevent_caching_if_active' ) );
     }
 
-    /**
+/**
      * Render the checkbox in the existing GMC Health Check > Settings area.
      * Updated to include Merchant ID and Public Key fields.
      */
@@ -39,19 +39,21 @@ class Cirrusly_Commerce_Automated_Discounts {
         $checked = isset( $scan_cfg['enable_automated_discounts'] ) && $scan_cfg['enable_automated_discounts'] === 'yes';
         $merchant_id = isset($scan_cfg['merchant_id']) ? esc_attr($scan_cfg['merchant_id']) : '';
         $public_key = isset($scan_cfg['google_public_key']) ? esc_textarea($scan_cfg['google_public_key']) : '';
+        
+        // Added styling and Header to distinguish from the checkboxes above it
         ?>
-        <br>
-        <div class="cirrusly-ad-settings" style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #ccc;">
+        <div class="cirrusly-ad-settings" style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #c3c4c7;">
+            <h4 style="margin: 0 0 10px 0;">Google Automated Discounts</h4>
             <label>
                 <input type="checkbox" name="cirrusly_scan_config[enable_automated_discounts]" value="yes" <?php checked( $checked ); ?>> 
-                <strong>Enable Google Automated Discounts</strong>
+                <strong>Enable Dynamic Pricing</strong>
             </label>
             <p class="description" style="margin-left:25px; margin-top:2px; margin-bottom:15px;">
                 Allows Google to dynamically lower prices for specific customers via Shopping Ads. 
                 <br>Requires <code>Cost of Goods</code> and <code>Google Min Price</code> to be set on products.
             </p>
 
-            <div class="cirrusly-ad-fields" style="margin-left: 25px; background: #f9f9f9; padding: 15px; border: 1px solid #e5e5e5;">
+            <div class="cirrusly-ad-fields" style="margin-left: 25px; background: #fff; padding: 15px; border: 1px solid #c3c4c7; border-radius:4px;">
                 <p>
                     <label><strong>Google Merchant Center ID</strong></label><br>
                     <input type="text" name="cirrusly_scan_config[merchant_id]" value="<?php echo $merchant_id; ?>" class="regular-text">

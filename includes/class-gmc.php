@@ -693,16 +693,19 @@ public function __construct() {
             echo '</tbody></table>';
         }
 
-        // PRO 3: Automated Compliance (Moved to Bottom)
+        // PRO 3: Automation & Workflow Rules (Corrected Title)
         echo '<div class="'.esc_attr($pro_class).'" style="background:#f0f6fc; padding:15px; border:1px solid #c3c4c7; margin-top:20px; position:relative;">';
             if(!$is_pro) echo '<div class="cc-pro-overlay"><a href="'.esc_url( function_exists('cc_fs') ? cc_fs()->get_upgrade_url() : '#' ).'" class="cc-upgrade-btn">Upgrade to Automate</a></div>';
             
             echo '<form method="post" action="options.php">';
             settings_fields('cirrusly_general_group'); 
-            echo '<strong>Automated Compliance <span class="cc-pro-badge">PRO</span></strong><br>
+            
+            // UPDATED HEADER
+            echo '<strong>Automation & Workflow Rules <span class="cc-pro-badge">PRO</span></strong><br>
             <label><input type="checkbox" name="cirrusly_scan_config[block_on_critical]" value="yes" '.$block_save.' '.esc_attr($disabled_attr).'> Block Save on Critical Error</label>
             <label style="margin-left:10px;"><input type="checkbox" name="cirrusly_scan_config[auto_strip_banned]" value="yes" '.$auto_strip.' '.esc_attr($disabled_attr).'> Auto-strip Banned Words</label>';
             
+            // This hook injects the Automated Discounts UI
             do_action( 'cirrusly_commerce_scan_settings_ui' );
 
             echo '<br><br>
