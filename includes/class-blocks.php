@@ -53,12 +53,14 @@ class Cirrusly_Commerce_Blocks {
         global $product;
         
         // Ensure we have a product object
-        if ( ! $product && get_post_type() === 'product' ) {
-            $product = wc_get_product( get_the_ID() );
+        if ( ! $product || ! is_a( $product, 'WC_Product' ) ) {
+            $post_id = get_the_ID();
+            if ( $post_id && get_post_type( $post_id ) === 'product' ) {
+                $product = wc_get_product( $post_id );
+            }
         }
-        
-        // If used inside a Query Loop block, the global $product might need resetting
-        if ( ! $product ) {
+
+        if ( ! $product || ! is_a( $product, 'WC_Product' ) ) {
             return ''; 
         }
 
@@ -101,7 +103,7 @@ class Cirrusly_Commerce_Blocks {
         return sprintf( 
             '<div class="cirrusly-msrp-block-wrapper" style="%s">%s</div>', 
             esc_attr( $style_string ), 
-            $msrp_html // already sanitized in get_msrp_html via wc_price / manual construction
+            wp_kses_post( $msrp_html )
         );
     }
 
