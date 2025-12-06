@@ -11,7 +11,16 @@ class Cirrusly_Commerce_Audit {
     }
 
     /**
-     * Generate or retrieve cached per-product audit data used for the admin audit table and CSV export.
+     * Build and return per-product financial audit data used by the admin audit table and CSV export.
+     *
+     * When available, cached results are returned; setting $force_refresh to true rebuilds the data.
+     *
+     * Each returned item is an associative array with keys:
+     * `id`, `name`, `type`, `parent_id`, `cost`, `item_cost`, `ship_cost`, `ship_charge`,
+     * `ship_pl`, `price`, `net`, `margin`, `alerts`, `is_in_stock`, `cats`, `map`, `min_price`, `msrp`.
+     *
+     * @param bool $force_refresh If true, ignore cached data and regenerate the compiled audit data.
+     * @return array[] Array of per-product audit records (one associative array per product).
      */
     public static function get_compiled_data( $force_refresh = false ) {
         $cache_key = 'cw_audit_data';
@@ -121,6 +130,23 @@ class Cirrusly_Commerce_Audit {
         return $data;
     }
 
+    /**
+     * Compute key financial metrics for a single product ID for quick display or AJAX retrieval.
+     *
+     * Returns per-product values used by the audit UI: net profit, formatted net HTML and style,
+     * margin (string) and numeric margin percent, formatted shipping profit/loss, and formatted total cost.
+     *
+     * @param int $pid The WooCommerce product ID to evaluate.
+     * @return array|false An associative array with keys:
+     *                     - 'net_val' (float): net profit value (price minus costs and fees),
+     *                     - 'net_html' (string): formatted net profit using wc_price(),
+     *                     - 'net_style' (string): inline CSS style for net display (color/weight),
+     *                     - 'margin' (string): margin percent formatted to one decimal place,
+     *                     - 'margin_val' (float): numeric margin percent,
+     *                     - 'ship_pl_html' (string): formatted shipping profit/loss using wc_price(),
+     *                     - 'cost_html' (string): formatted total cost (item + shipping) using wc_price().
+     *                     Returns false if the product cannot be loaded.
+     */
     public static function get_single_metric( $pid ) {
         // ... (Kept original logic for single metric AJAX if needed, 
         // usually this function isn't used for the bulk export/import flow) ...
@@ -192,7 +218,9 @@ class Cirrusly_Commerce_Audit {
     }
 
     /**
-     * Outputs a CSV file of the compiled audit data when the audit admin page requests an export.
+     * Stream the compiled audit data as a CSV download when the audit admin page requests an export.
+     *
+     * This action checks for the admin page parameter `page=cirrusly-audit` and `action=export_csv`, verifies the current user can `edit_products` and that the site is Pro, then sends CSV headers and streams the compiled audit rows (ID, product name, type, cost, shipping cost, price, net profit, margin %, MAP, Google Min, MSRP) to php://output. Execution is terminated after the CSV is written. If the user lacks permission the method returns early; if not Pro, execution is halted via wp_die().
      */
     public static function handle_export() {
         if ( isset($_GET['page']) && $_GET['page'] === 'cirrusly-audit' && isset($_GET['action']) && $_GET['action'] === 'export_csv' ) {
@@ -231,8 +259,21 @@ class Cirrusly_Commerce_Audit {
     }
 
     /**
-     * Process an uploaded CSV to bulk-import product COGS and extra pricing fields.
-     * UPDATED: Uses dynamic header mapping to locate columns by name.
+     * Import product COGS and extra pricing fields from an uploaded CSV file.
+     *
+     * Processes the uploaded file named "csv_import", using the CSV header row to map column names to indexes
+     * (strips a UTF-8 BOM from the first header cell and ignores blank headers). Requires the user to have the
+     * 'edit_products' capability and the plugin Pro version; on failure a settings error is registered.
+     *
+     * The CSV must include an "ID" column. For each row with a valid product ID, the method conditionally updates
+     * post meta when the corresponding column is present and non-empty:
+     *  - "Cost (COGS)" -> _cogs_total_value (formatted as a decimal)
+     *  - "MAP"         -> _cirrusly_map_price
+     *  - "Google Min"  -> _auto_pricing_min_price
+     *  - "MSRP"        -> _alg_msrp
+     *
+     * Rows for missing or invalid product IDs are skipped. After processing the file the audit transient
+     * 'cw_audit_data' is cleared and a settings message is added indicating how many products were updated.
      */
     public static function handle_import() {
         if ( isset($_FILES['csv_import']) && current_user_can('edit_products') ) {
@@ -334,6 +375,18 @@ class Cirrusly_Commerce_Audit {
         }
     }
 
+    /**
+     * Render the Store Financial Audit admin page and handle related import/export actions.
+     *
+     * Displays the audit dashboard: metrics, filters, paginated product table, export/import controls,
+     * and (when Pro) inline editing behaviour. Handles import submissions when a valid nonce is present,
+     * refreshes cached audit data when requested, and enforces the current user's 'edit_products' capability.
+     *
+     * Side effects: outputs HTML/JS directly to the admin page, may call self::handle_import(), and may
+     * terminate execution via wp_die() if the current user lacks permission.
+     *
+     * @return void
+     */
     public static function render_page() {
         if ( ! current_user_can( 'edit_products' ) ) wp_die( 'No permission' );
         
