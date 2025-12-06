@@ -321,24 +321,34 @@ class Cirrusly_Commerce_GMC {
                             return;
                         }
                         // Render Rows
-                        $.each(res.data, function(i, p){
-                            var statusColor = '#777';
+            function ccEscapeHtml(str) {
+
+                return String(str)
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#039;');
+            }
+
+            $.each(res.data, function(i, p){
+                var statusColor = '#777';
                             if(p.status === 'active') statusColor = '#008a20';
                             if(p.status === 'rejected') statusColor = '#d63638';
                             if(p.status === 'expired') statusColor = '#999';
                             
                             // Handle unknown statuses gracefully in UI
-                            var displayStatus = p.status.toUpperCase();
-                            if(p.status.indexOf('(') > 0) statusColor = '#dba617'; // Custom fallback status
+                           var displayStatus = p.status.toUpperCase();
+                           if(p.status.indexOf('(') > 0) statusColor = '#dba617';
 
-                            var row = '<tr>' +
-                                '<td><strong>' + p.id + '</strong></td>' +
-                                '<td>' + p.title + '</td>' +
-                                '<td>' + p.dates + '</td>' +
-                                '<td><span class="gmc-badge" style="background:'+statusColor+';color:#fff;">'+displayStatus+'</span></td>' +
-                                '<td>' + p.type + (p.code ? ': <code>'+p.code+'</code>' : '') + '</td>' +
+                var row = '<tr>' +
+                    '<td><strong>' + ccEscapeHtml(p.id) + '</strong></td>' +
+                    '<td>' + ccEscapeHtml(p.title) + '</td>' +
+                    '<td>' + ccEscapeHtml(p.dates) + '</td>' +
+                    '<td><span class="gmc-badge" style="background:'+statusColor+';color:#fff;">'+ccEscapeHtml(displayStatus)+'</span></td>' +
+                    '<td>' + ccEscapeHtml(p.type) + (p.code ? ': <code>'+ccEscapeHtml(p.code)+'</code>' : '') + '</td>' +
                                 '<td><button type="button" class="button button-small cc-edit-promo" ' +
-                                    'data-id="'+p.id+'" data-title="'+p.title+'" data-dates="'+p.dates+'" data-app="'+p.app+'" data-type="'+p.type+'" data-code="'+p.code+'">Edit</button></td>' +
+                        'data-id="'+ccEscapeHtml(p.id)+'" data-title="'+ccEscapeHtml(p.title)+'" data-dates="'+ccEscapeHtml(p.dates)+'" data-app="'+ccEscapeHtml(p.app)+'" data-type="'+ccEscapeHtml(p.type)+'" data-code="'+ccEscapeHtml(p.code || '')+'">Edit</button></td>' +
                                 '</tr>';
                             $table.append(row);
                         });
