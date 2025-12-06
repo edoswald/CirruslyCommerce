@@ -46,31 +46,63 @@ class Cirrusly_Commerce_Blocks {
 		) );
 	}
 
-    /**
+	/**
      * Render the MSRP block HTML for the current product.
-     *
-     * Ensures a product context when on a product post type, then returns the MSRP HTML for that product or an empty string when no product is available or MSRP rendering is not provided.
-     *
-     * @param array  $attributes Block attributes.
-     * @param string $content    Inner block content.
-     * @return string The rendered HTML for the MSRP block, or an empty string if nothing can be rendered.
      */
     public function render_msrp_block( $attributes, $content ) {
         global $product;
         
-        // Ensure we have a product object (e.g., inside a loop or on single page)
+        // Ensure we have a product object
         if ( ! $product && get_post_type() === 'product' ) {
             $product = wc_get_product( get_the_ID() );
         }
         
-        if ( ! $product ) return '';
-
-        // Reuse the logic from the Pricing class to maintain consistency
-        if ( class_exists( 'Cirrusly_Commerce_Pricing' ) ) {
-            return Cirrusly_Commerce_Pricing::get_msrp_html( $product );
+        // If used inside a Query Loop block, the global $product might need resetting
+        if ( ! $product ) {
+            return ''; 
         }
+
+        // 1. Get the raw MSRP HTML
+        $msrp_html = '';
+        if ( class_exists( 'Cirrusly_Commerce_Pricing' ) ) {
+            $msrp_html = Cirrusly_Commerce_Pricing::get_msrp_html( $product );
+        }
+
+        if ( empty( $msrp_html ) ) {
+            return '';
+        }
+
+        // 2. Process Attributes for Styling
+        $align = isset( $attributes['textAlign'] ) ? $attributes['textAlign'] : 'left';
+        $is_bold = isset( $attributes['isBold'] ) && $attributes['isBold'];
+        $strikethrough = isset( $attributes['showStrikethrough'] ) ? $attributes['showStrikethrough'] : true;
+
+        // 3. Construct CSS Styles
+        $styles = array();
+        $styles[] = 'text-align:' . esc_attr( $align );
+        $styles[] = 'display:block'; // Ensure it takes full width to respect alignment
         
-        return '';
+        if ( $is_bold ) {
+            $styles[] = 'font-weight:bold';
+        }
+
+        // Handle Strikethrough Logic
+        // Since get_msrp_html hardcodes the strikethrough style, we might need to remove it if the user disabled it.
+        // The original class outputs: text-decoration:line-through;
+        if ( ! $strikethrough ) {
+            // We strip the line-through style if the user unchecked it
+            $msrp_html = str_replace( 'text-decoration:line-through;', 'text-decoration:none;', $msrp_html );
+        }
+
+        $style_string = implode( '; ', $styles );
+
+        // 4. Return Wrapped HTML
+        // We wrap the output in a div with the calculated styles
+        return sprintf( 
+            '<div class="cirrusly-msrp-block-wrapper" style="%s">%s</div>', 
+            esc_attr( $style_string ), 
+            $msrp_html // already sanitized in get_msrp_html via wc_price / manual construction
+        );
     }
 
 }
