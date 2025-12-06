@@ -757,23 +757,14 @@ public function register_admin_menus() {
      * avg_margin:float,
      * weekly_revenue:float,
      * weekly_orders:int,
-     * active_badges:string[]
-     * } Associative array of dashboard metrics:
-     * - `gmc_critical`: Number of critical GMC issues.
-     * - `gmc_warnings`: Number of non-critical GMC warnings.
-     * - `content_issues`: Count of site content/policy issues from the content scan.
-     * - `missing_cost`: Count of published products/variations missing cost data.
-     * - `loss_makers`: Estimated count of products with negative net (unprofitable).
-     * - `total_products`: Total published products including variations.
-     * - `on_sale_count`: Number of products currently on sale.
-     * - `avg_margin`: Average margin percentage across sampled products (one decimal).
-     * - `weekly_revenue`: Sum of order totals in the last 7 days for completed/processing orders.
-     * - `weekly_orders`: Number of orders counted in the weekly revenue period.
-     * - `active_badges`: List of enabled smart badge strategy names.
+     * low_stock_count:int
+     * } Associative array of dashboard metrics.
      */
     public static function get_dashboard_metrics() {
         $metrics = get_transient( 'cirrusly_dashboard_metrics' );
-        if ( false === $metrics ) {
+        
+        // Ensure new keys exist if served from old cache
+        if ( false === $metrics || ! isset($metrics['low_stock_count']) ) {
             global $wpdb;
             
             // 1. GMC Scan Data
@@ -787,7 +778,7 @@ public function register_admin_menus() {
                 }
             }
             
-            // 2. Content Scan Data (New)
+            // 2. Content Scan Data
             $content_data = get_option( 'cirrusly_content_scan_data' );
             $content_issues = 0;
             if ( ! empty( $content_data['issues'] ) ) {
@@ -855,14 +846,20 @@ public function register_admin_menus() {
                 }
             }
 
-            // 6. Active Badges
-            $badge_cfg = get_option( 'cirrusly_badge_config', array() );
-            $active_badges = array();
-            if ( !empty($badge_cfg['enable_badges']) && $badge_cfg['enable_badges'] === 'yes' ) {
-                if ( !empty($badge_cfg['smart_inventory']) && $badge_cfg['smart_inventory'] === 'yes' ) $active_badges[] = 'Inventory';
-                if ( !empty($badge_cfg['smart_performance']) && $badge_cfg['smart_performance'] === 'yes' ) $active_badges[] = 'Best Sellers';
-                if ( !empty($badge_cfg['smart_scheduler']) && $badge_cfg['smart_scheduler'] === 'yes' ) $active_badges[] = 'Events';
-            }
+            // 6. Low Stock (New)
+            $low_stock_threshold = get_option( 'woocommerce_notify_low_stock_amount', 2 );
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+            $low_stock_count = $wpdb->get_var( $wpdb->prepare( "
+                SELECT count(p.ID) 
+                FROM {$wpdb->posts} p 
+                INNER JOIN {$wpdb->postmeta} pm_stock ON p.ID = pm_stock.post_id AND pm_stock.meta_key = '_stock'
+                INNER JOIN {$wpdb->postmeta} pm_manage ON p.ID = pm_manage.post_id AND pm_manage.meta_key = '_manage_stock' AND pm_manage.meta_value = 'yes'
+                LEFT JOIN {$wpdb->postmeta} pm_low ON p.ID = pm_low.post_id AND pm_low.meta_key = '_low_stock_amount'
+                WHERE p.post_type IN ('product', 'product_variation') 
+                AND p.post_status = 'publish' 
+                AND CAST(pm_stock.meta_value AS SIGNED) > 0
+                AND CAST(pm_stock.meta_value AS SIGNED) <= COALESCE( NULLIF(pm_low.meta_value, ''), %d )
+            ", $low_stock_threshold ) );
 
             $metrics = array(
                 'gmc_critical'   => $gmc_critical,
@@ -875,7 +872,7 @@ public function register_admin_menus() {
                 'avg_margin'     => $avg_margin,
                 'weekly_revenue' => $weekly_revenue,
                 'weekly_orders'  => $weekly_orders,
-                'active_badges'  => $active_badges
+                'low_stock_count'=> $low_stock_count
             );
             set_transient( 'cirrusly_dashboard_metrics', $metrics, 1 * HOUR_IN_SECONDS );
         }
@@ -909,20 +906,39 @@ public function register_admin_menus() {
             </div>
         </div>
         
-        <div class="cc-dash-grid">
-            <div class="cc-dash-card cc-full-width">
-                <div class="cc-stat-block"><span class="cc-big-num"><?php echo esc_html( $m['total_products'] ); ?></span><span class="cc-label">Catalog Size</span></div>
-                <div class="cc-stat-block"><span class="cc-big-num" style="color: #d63638;"><?php echo esc_html( $m['on_sale_count'] ); ?></span><span class="cc-label">On Sale</span></div>
-                <div class="cc-stat-block"><span class="cc-big-num" style="color: #00a32a;"><?php echo esc_html( $m['avg_margin'] ); ?>%</span><span class="cc-label">Avg Margin (Est.)</span></div>
-                <div class="cc-stat-block"><span class="cc-big-num" style="color: #dba617;"><?php echo esc_html( $m['missing_cost'] ); ?></span><span class="cc-label">Missing Cost</span></div>
+        <div class="cc-dash-grid" style="grid-template-columns: repeat(2, 1fr);">
+            
+            <div class="cc-dash-card" style="border-top-color: #2271b1;">
+                <div class="cc-card-head"><span>Catalog Snapshot</span> <span class="dashicons dashicons-products"></span></div>
+                <div class="cc-stat-block" style="border:none; text-align:left; display:flex; gap:20px;">
+                    <div><span class="cc-big-num"><?php echo esc_html( $m['total_products'] ); ?></span><span class="cc-label">Products</span></div>
+                    <div><span class="cc-big-num" style="color: #d63638;"><?php echo esc_html( $m['on_sale_count'] ); ?></span><span class="cc-label">On Sale</span></div>
+                    <div><span class="cc-big-num" style="color: #dba617;"><?php echo esc_html( $m['low_stock_count'] ); ?></span><span class="cc-label">Low Stock</span></div>
+                </div>
             </div>
             
+            <div class="cc-dash-card" style="border-top-color: #00a32a;">
+                <div class="cc-card-head"><span>Profit Engine</span> <span class="dashicons dashicons-money"></span></div>
+                <div class="cc-stat-row"><span>Avg Margin (Est.)</span><span class="cc-stat-val" style="color:#00a32a;"><?php echo esc_html( $m['avg_margin'] ); ?>%</span></div>
+                <div class="cc-stat-row">
+                    <span>Unprofitable Products</span>
+                    <span class="cc-stat-val <?php echo $m['loss_makers'] > 0 ? 'cc-val-bad' : 'cc-val-good'; ?>">
+                        <?php echo esc_html( $m['loss_makers'] ); ?>
+                    </span>
+                </div>
+                <div class="cc-stat-row" style="border-bottom:none;">
+                    <span>Missing Cost Data</span>
+                    <span class="cc-stat-val <?php echo $m['missing_cost'] > 0 ? 'cc-val-bad' : 'cc-val-good'; ?>"><?php echo esc_html( $m['missing_cost'] ); ?></span>
+                </div>
+                <div class="cc-actions"><a href="admin.php?page=cirrusly-audit" class="button button-secondary">Audit Financials</a></div>
+            </div>
+
             <div class="cc-dash-card" style="border-top-color: #d63638;">
-                <div class="cc-card-head"><span>Google Merchant Center</span> <span class="dashicons dashicons-google"></span></div>
-                <div class="cc-stat-row"><span>Product Critical Issues</span><span class="cc-stat-val <?php echo $m['gmc_critical'] > 0 ? 'cc-val-bad' : 'cc-val-good'; ?>"><?php echo esc_html( $m['gmc_critical'] ); ?></span></div>
+                <div class="cc-card-head"><span>GMC Health</span> <span class="dashicons dashicons-google"></span></div>
+                <div class="cc-stat-row"><span>Critical Issues</span><span class="cc-stat-val <?php echo $m['gmc_critical'] > 0 ? 'cc-val-bad' : 'cc-val-good'; ?>"><?php echo esc_html( $m['gmc_critical'] ); ?></span></div>
                 
                 <div class="cc-stat-row">
-                    <span>Site Content & Policy</span>
+                    <span>Content Policy</span>
                     <?php if ( $m['content_issues'] > 0 ): ?>
                         <span class="cc-stat-val cc-val-bad"><?php echo esc_html( $m['content_issues'] ); ?> Issues</span>
                     <?php else: ?>
@@ -930,8 +946,8 @@ public function register_admin_menus() {
                     <?php endif; ?>
                 </div>
 
-                <div class="cc-stat-row" style="margin-top:15px; padding-top:10px; border-top:1px solid #f0f0f1;">
-                    <span>Real-Time Sync</span>
+                <div class="cc-stat-row" style="margin-top:15px; padding-top:10px; border-top:1px solid #f0f0f1; border-bottom:none;">
+                    <span>Sync Status</span>
                     <?php if($is_pro): ?>
                         <span class="gmc-badge" style="background:#008a20;color:#fff;">ACTIVE</span>
                     <?php else: ?>
@@ -939,39 +955,15 @@ public function register_admin_menus() {
                     <?php endif; ?>
                 </div>
                 <div class="cc-actions">
-                    <a href="admin.php?page=cirrusly-gmc&tab=scan" class="button button-primary">Fix Products</a>
-                    <a href="admin.php?page=cirrusly-gmc&tab=content" class="button button-secondary" style="margin-left:5px;">Audit Content</a>
+                    <a href="admin.php?page=cirrusly-gmc&tab=scan" class="button button-primary">Fix Issues</a>
                 </div>
-            </div>
-
-            <div class="cc-dash-card" style="border-top-color: #2271b1;">
-                <div class="cc-card-head"><span>Store Integrity</span> <span class="dashicons dashicons-analytics"></span></div>
-                <div class="cc-stat-row"><span>Products Missing Cost</span><span class="cc-stat-val <?php echo $m['missing_cost'] > 0 ? 'cc-val-bad' : 'cc-val-good'; ?>"><?php echo esc_html( $m['missing_cost'] ); ?></span></div>
-                
-                <div class="cc-stat-row">
-                    <span>Unprofitable Products</span>
-                    <span class="cc-stat-val <?php echo $m['loss_makers'] > 0 ? 'cc-val-bad' : 'cc-val-good'; ?>">
-                        <?php echo esc_html( $m['loss_makers'] ); ?>
-                    </span>
-                </div>
-
-                <div class="cc-stat-row" style="margin-top:15px; padding-top:10px; border-top:1px solid #f0f0f1;">
-                    <span>Active Strategies</span>
-                    <?php if ( !empty($m['active_badges']) ): ?>
-                        <span style="font-size:11px; color:#2271b1; font-weight:bold;"><?php echo esc_html( implode(', ', $m['active_badges']) ); ?></span>
-                    <?php else: ?>
-                        <span style="font-size:11px; color:#888;">None</span>
-                    <?php endif; ?>
-                </div>
-                
-                <div class="cc-actions"><a href="admin.php?page=cirrusly-audit" class="button button-secondary">Open Financial Audit</a></div>
             </div>
             
-            <div class="cc-dash-card" style="border-top-color: #00a32a;">
+            <div class="cc-dash-card" style="border-top-color: #646970;">
                 <div class="cc-card-head"><span>Quick Links</span> <span class="dashicons dashicons-admin-links"></span></div>
                 <div class="cc-stat-row"><a href="admin.php?page=cirrusly-gmc&tab=promotions">Promotions Manager</a></div>
                 <div class="cc-stat-row"><a href="admin.php?page=cirrusly-settings">Plugin Settings</a></div>
-                <div class="cc-stat-row"><a href="admin.php?page=cirrusly-manual">User Manual</a></div>
+                <div class="cc-stat-row" style="border-bottom:none;"><a href="admin.php?page=cirrusly-manual">User Manual</a></div>
             </div>
         </div>
         </div><?php
@@ -1388,19 +1380,25 @@ public function register_admin_menus() {
         echo '</div>';
 
         // 2. Health Grid
-        echo '<div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">';
+        echo '<div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:5px;">';
             
             // GMC Health
             $gmc_color = $m['gmc_critical'] > 0 ? '#d63638' : '#008a20';
             $gmc_label = $m['gmc_critical'] > 0 ? $m['gmc_critical'] . ' Critical' : 'Healthy';
             echo '<div style="background:#f9f9f9; padding:10px; border-radius:4px; text-align:center;">';
-                echo '<span class="dashicons dashicons-google" style="color:#555;"></span> <strong style="display:block; color:'. $gmc_color .';">' . $gmc_label . '</strong><span style="font-size:10px; color:#777;">Merchant Center</span>';
+                echo '<span class="dashicons dashicons-google" style="color:#555;"></span> <strong style="display:block; color:'. $gmc_color .';">' . $gmc_label . '</strong><span style="font-size:10px; color:#777;">GMC</span>';
             echo '</div>';
 
             // Loss Makers
             $loss_color = $m['loss_makers'] > 0 ? '#d63638' : '#777';
             echo '<div style="background:#f9f9f9; padding:10px; border-radius:4px; text-align:center;">';
                 echo '<span class="dashicons dashicons-warning" style="color:#555;"></span> <strong style="display:block; color:'. $loss_color .';">' . $m['loss_makers'] . '</strong><span style="font-size:10px; color:#777;">Loss Makers</span>';
+            echo '</div>';
+
+            // Missing Cost
+            $cost_color = $m['missing_cost'] > 0 ? '#d63638' : '#777';
+            echo '<div style="background:#f9f9f9; padding:10px; border-radius:4px; text-align:center;">';
+                echo '<span class="dashicons dashicons-clipboard" style="color:#555;"></span> <strong style="display:block; color:'. $cost_color .';">' . $m['missing_cost'] . '</strong><span style="font-size:10px; color:#777;">No Cost</span>';
             echo '</div>';
             
         echo '</div>';
