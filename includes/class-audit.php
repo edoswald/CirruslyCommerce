@@ -5,17 +5,13 @@ class Cirrusly_Commerce_Audit {
 
     /**
      * Registers audit-related hooks used by the admin area.
-     *
-     * Attaches the CSV export handler to the `admin_init` action so exports can be initiated before HTTP headers are sent.
      */
     public static function init() {
-        // Hook for export - must run before headers are sent
         add_action( 'admin_init', array( __CLASS__, 'handle_export' ) );
     }
 
     /**
      * Generate or retrieve cached per-product audit data used for the admin audit table and CSV export.
-     * UPDATED: Now fetches MAP, Google Min, and MSRP for the export.
      */
     public static function get_compiled_data( $force_refresh = false ) {
         $cache_key = 'cw_audit_data';
@@ -55,7 +51,7 @@ class Cirrusly_Commerce_Audit {
                 $cost = (float)$p->get_meta('_cogs_total_value');
                 $ship_cost = (float)$p->get_meta('_cw_est_shipping');
                 
-                // --- Custom Pricing Fields (New) ---
+                // --- Custom Pricing Fields ---
                 $map = (float)$p->get_meta('_cirrusly_map_price');
                 $min_price = (float)$p->get_meta('_auto_pricing_min_price');
                 $msrp = (float)$p->get_meta('_alg_msrp');
@@ -93,6 +89,7 @@ class Cirrusly_Commerce_Audit {
                 
                 $alerts = array();
                 if($cost <= 0) $alerts[] = '<a href="'.esc_url(get_edit_post_link($pid)).'" target="_blank" class="gmc-badge" style="background:#d63638;color:#fff;text-decoration:none;">Add Cost</a>';
+                
                 if( !$is_shipping_exempt && (float)$p->get_weight() <= 0) $alerts[] = '<span class="gmc-badge" style="background:#dba617;color:#000;">0 Weight</span>';
                 
                 $ship_pl = $rev - $ship_cost;
@@ -124,34 +121,15 @@ class Cirrusly_Commerce_Audit {
         return $data;
     }
 
-    /**
-     * Compute pricing and profitability metrics for a single product.
-     *
-     * Uses product price, cost, shipping estimates, configured revenue tiers, and payment fees
-     * to calculate net profit, margin, and shipping contribution for the specified product.
-     *
-     * @param int $pid The product ID to evaluate.
-     * @return array|false An associative array with computed values, or `false` if the product does not exist:
-     *                     - `net_val` (float): Net profit value (after fees).
-     *                     - `net_html` (string): Formatted net profit for display (HTML).
-     *                     - `net_style` (string): Inline CSS style for net display (color/weight).
-     *                     - `margin` (string): Margin formatted to one decimal place (percentage string).
-     *                     - `margin_val` (float): Numeric margin percentage.
-     *                     - `ship_pl_html` (string): Formatted shipping profit/loss for display (HTML).
-     *                     - `cost_html` (string): Formatted total cost (cost + shipping) for display (HTML).
-     */
     public static function get_single_metric( $pid ) {
-        // Force refresh just this item's calculation logic essentially
-        // We reuse the logic by running a partial routine similar to get_compiled_data
-        // but simpler for performance.
-        
+        // ... (Kept original logic for single metric AJAX if needed, 
+        // usually this function isn't used for the bulk export/import flow) ...
         $p = wc_get_product($pid);
         if(!$p) return false;
 
         $core = new Cirrusly_Commerce_Core(); 
         $config = $core->get_global_config();
         
-        // Configs
         $revenue_tiers = json_decode( $config['revenue_tiers_json'], true );
         $class_costs   = json_decode( $config['class_costs_json'], true );
         $mode = isset($config['profile_mode']) ? $config['profile_mode'] : 'single';
@@ -166,7 +144,6 @@ class Cirrusly_Commerce_Audit {
         $cost = (float)$p->get_meta('_cogs_total_value');
         $ship_cost = (float)$p->get_meta('_cw_est_shipping');
         
-        // Fallback Ship Cost
         if($ship_cost <= 0 && !$is_shipping_exempt) {
             $cid = $p->get_shipping_class_id();
             $slug = ($cid && ($t=get_term($cid,'product_shipping_class'))) ? $t->slug : 'default';
@@ -177,8 +154,6 @@ class Cirrusly_Commerce_Audit {
         }
 
         $price = (float)$p->get_price();
-        
-        // Get Revenue
         $rev = 0;
         if ( !$is_shipping_exempt && $revenue_tiers ) {
             foreach($revenue_tiers as $t) if($price>=$t['min'] && $price<=$t['max']) { $rev = $t['charge']; break; }
@@ -199,13 +174,10 @@ class Cirrusly_Commerce_Audit {
             } else {
                 $fee = ($total_inc * $pay_pct) + $pay_flat;
             }
-            
             $net = $gross - $fee;
         }
         
         $ship_pl = $rev - $ship_cost;
-
-        // Formatted HTML for JS return
         $net_style = $net < 0 ? 'color:#d63638;font-weight:bold;' : 'color:#008a20;font-weight:bold;';
         
         return array(
@@ -214,14 +186,13 @@ class Cirrusly_Commerce_Audit {
             'net_style' => $net_style,
             'margin' => number_format($margin, 1),
             'margin_val' => $margin,
-            'ship_pl_html' => wc_price($ship_pl), // if needed
-            'cost_html' => wc_price($total_cost) // if needed
+            'ship_pl_html' => wc_price($ship_pl), 
+            'cost_html' => wc_price($total_cost) 
         );
     }
 
-/**
+    /**
      * Outputs a CSV file of the compiled audit data when the audit admin page requests an export.
-     * UPDATED: Appends MAP, Google Min, and MSRP columns.
      */
     public static function handle_export() {
         if ( isset($_GET['page']) && $_GET['page'] === 'cirrusly-audit' && isset($_GET['action']) && $_GET['action'] === 'export_csv' ) {
@@ -237,7 +208,6 @@ class Cirrusly_Commerce_Audit {
             header('Content-Disposition: attachment; filename="store-audit-' . date('Y-m-d') . '.csv"');
             
             $fp = fopen('php://output', 'w');
-            // Headers match indices: 0..7 are standard, 8=MAP, 9=Min, 10=MSRP
             fputcsv($fp, array('ID', 'Product Name', 'Type', 'Cost (COGS)', 'Shipping Cost', 'Price', 'Net Profit', 'Margin %', 'MAP', 'Google Min', 'MSRP'));
             
             foreach ( $data as $row ) {
@@ -250,7 +220,6 @@ class Cirrusly_Commerce_Audit {
                     $row['price'],
                     $row['net'],
                     number_format($row['margin'], 2) . '%',
-                    // New Columns
                     $row['map'] > 0 ? $row['map'] : '',
                     $row['min_price'] > 0 ? $row['min_price'] : '',
                     $row['msrp'] > 0 ? $row['msrp'] : ''
@@ -263,7 +232,7 @@ class Cirrusly_Commerce_Audit {
 
     /**
      * Process an uploaded CSV to bulk-import product COGS and extra pricing fields.
-     * UPDATED: Refactored loop to support MAP (col 8), Google Min (col 9), and MSRP (col 10).
+     * UPDATED: Uses dynamic header mapping to locate columns by name.
      */
     public static function handle_import() {
         if ( isset($_FILES['csv_import']) && current_user_can('edit_products') ) {
@@ -278,50 +247,54 @@ class Cirrusly_Commerce_Audit {
 
             $file = $_FILES['csv_import']['tmp_name'];
             $handle = fopen($file, "r");
+            
+            // 1. Get Header Row & Map Indices
+            $header = fgetcsv($handle);
+            if ( ! $header ) {
+                fclose($handle);
+                return;
+            }
+
+            // Normalize headers (trim spaces, maybe lowercase)
+            $map = array();
+            foreach ( $header as $index => $col_name ) {
+                $map[ trim($col_name) ] = $index;
+            }
+
+            // Ensure we at least have an ID column
+            if ( ! isset($map['ID']) ) {
+                add_settings_error('cirrusly_audit', 'import_fail', 'Invalid CSV: Missing "ID" column.', 'error');
+                fclose($handle);
+                return;
+            }
+
             $count = 0;
             
-            // Skip header
-            fgetcsv($handle);
-            
             while (($row = fgetcsv($handle)) !== FALSE) {
-                // Check if row has a valid ID at index 0
-                if ( empty($row[0]) ) continue;
+                // Get Product ID
+                $id_idx = $map['ID'];
+                if ( empty($row[$id_idx]) ) continue;
                 
-                $pid = intval($row[0]);
+                $pid = intval($row[$id_idx]);
                 if ( ! $pid ) continue;
-                
-                $product = wc_get_product( $pid );
-                if ( ! $product ) continue;
-                
+
                 $updated = false;
 
-                // 1. Cost (Index 3)
-                if ( isset($row[3]) && is_numeric($row[3]) ) {
-                    $cost = floatval($row[3]);
-                    // Only update if positive to avoid accidental wipes of COGS
-                    if ( $cost > 0 ) {
-                        update_post_meta($pid, '_cogs_total_value', $cost);
+                // Helper to update if column exists and value is not empty
+                $update_field = function( $key, $meta_key, $is_price = true ) use ($row, $map, $pid, &$updated) {
+                    if ( isset($map[$key]) && isset($row[$map[$key]]) && $row[$map[$key]] !== '' ) {
+                        $val = $row[$map[$key]];
+                        if ( $is_price ) $val = wc_format_decimal($val);
+                        update_post_meta($pid, $meta_key, $val);
                         $updated = true;
                     }
-                }
+                };
 
-                // 2. MAP (Index 8)
-                if ( isset($row[8]) && $row[8] !== '' ) {
-                    update_post_meta($pid, '_cirrusly_map_price', wc_format_decimal($row[8]));
-                    $updated = true;
-                }
-
-                // 3. Google Min (Index 9)
-                if ( isset($row[9]) && $row[9] !== '' ) {
-                    update_post_meta($pid, '_auto_pricing_min_price', wc_format_decimal($row[9]));
-                    $updated = true;
-                }
-
-                // 4. MSRP (Index 10)
-                if ( isset($row[10]) && $row[10] !== '' ) {
-                    update_post_meta($pid, '_alg_msrp', wc_format_decimal($row[10]));
-                    $updated = true;
-                }
+                // Update Fields based on Column Names
+                $update_field('Cost (COGS)', '_cogs_total_value');
+                $update_field('MAP', '_cirrusly_map_price');
+                $update_field('Google Min', '_auto_pricing_min_price');
+                $update_field('MSRP', '_alg_msrp');
 
                 if ( $updated ) $count++;
             }
@@ -331,16 +304,6 @@ class Cirrusly_Commerce_Audit {
         }
     }
 
-    /**
-     * Render the "Store Financial Audit" admin page and handle related import actions.
-     *
-     * Verifies the current user has the `edit_products` capability and aborts if not authorized.
-     * When a POST contains a valid `cc_import_nonce`, processes a bulk COGS CSV import.
-     * Displays an audit dashboard that uses cached compiled audit data (with optional refresh via
-     * the `refresh_audit` query parameter), and renders filters, pagination, a sortable table of
-     * audited SKUs, and top-level summary cards. Pro-only controls (CSV export, bulk import,
-     * and inline COGS editing) are shown or enabled based on the Pro status.
-     */
     public static function render_page() {
         if ( ! current_user_can( 'edit_products' ) ) wp_die( 'No permission' );
         
@@ -373,12 +336,10 @@ class Cirrusly_Commerce_Audit {
             if($row['margin'] < 15) $low_margin_count++;
         }
 
-        // Check PRO status
         $is_pro = Cirrusly_Commerce_Core::cirrusly_is_pro();
         $pro_class = $is_pro ? '' : 'cc-pro-feature';
         $disabled_attr = $is_pro ? '' : 'disabled';
 
-        // --- Render Audit Header Strip ---
         ?>
         <div class="cc-dash-grid" style="grid-template-columns: 1fr; margin-bottom: 20px;">
             <div class="cc-dash-card cc-full-width" style="border-top-color: #2271b1;">
@@ -451,7 +412,6 @@ class Cirrusly_Commerce_Audit {
             if($f_oos && !$row['is_in_stock']) continue;
             if($f_cat && !in_array($f_cat, $row['cats'])) continue;
             if($search && stripos($row['name'], $search) === false) continue;
-            // Filter Logic: Show if margin is LOW (problematic) OR has alerts
             if ( $row['margin'] >= $f_margin && empty($row['alerts']) ) continue;
             
             $filtered_data[] = $row;
@@ -467,10 +427,8 @@ class Cirrusly_Commerce_Audit {
         $pages = ceil($total/$per_page);
         $slice = array_slice($filtered_data, ($paged-1)*$per_page, $per_page);
 
-        // 4. Render View
         $allowed_form_tags = array( 'select' => array('name' => true, 'id' => true, 'class' => true), 'option' => array('value' => true, 'selected' => true) );
         
-        // Helper to generate pagination HTML
         $pagination_html = '';
         if($pages>1) {
             $pagination_html .= '<div class="tablenav-pages"><span class="displaying-num">'.esc_html($total).' items</span>';
@@ -484,7 +442,6 @@ class Cirrusly_Commerce_Audit {
             $pagination_html .= '</span></div>';
         }
 
-        // Updated Filter Bar styling
         ?>
         <div class="tablenav top">
             <div class="alignleft actions">
@@ -504,11 +461,9 @@ class Cirrusly_Commerce_Audit {
                 </form>
             </div>
             <?php echo wp_kses_post( $pagination_html ); ?>
-
         </div>
         
         <?php
-        // Helper for Sort Links
         $sort_link = function($col, $label) use ($orderby, $order) {
             $new_order = ($orderby === $col && $order === 'asc') ? 'desc' : 'asc';
             $arrow = ($orderby === $col) ? ($order === 'asc' ? ' ▲' : ' ▼') : '';
@@ -542,7 +497,6 @@ class Cirrusly_Commerce_Audit {
                 $net_style = $row['net'] < 0 ? 'color:#d63638;font-weight:bold;' : 'color:#008a20;font-weight:bold;';
                 $ship_style = $row['ship_pl'] >= 0 ? 'color:#008a20;' : 'color:#d63638;';
                 
-                // Inline Edit Logic (Pro Only)
                 $cost_cell = wp_kses_post(wc_price($row['cost']));
                 $ship_cell = wp_kses_post(wc_price($row['ship_pl']));
                 
@@ -550,7 +504,6 @@ class Cirrusly_Commerce_Audit {
                      $cost_cell = '<span class="cc-inline-edit" data-pid="'.esc_attr($row['id']).'" data-field="_cogs_total_value" contenteditable="true" style="border-bottom:1px dashed #999; cursor:pointer;">'.number_format($row['item_cost'], 2).'</span> <small style="color:#999;">+ Ship '.number_format($row['ship_cost'], 2).'</small>';
                 }
 
-                // Add classes (col-net, col-margin) for AJAX targeting
                 echo '<tr>
                     <td>'.esc_html($row['id']).'</td>
                     <td><a href="'.esc_url(get_edit_post_link($row['id'])).'">'.wp_kses_post($name_html).'</a></td>
@@ -566,11 +519,8 @@ class Cirrusly_Commerce_Audit {
         }
         echo '</tbody></table>';
 
-        // Pagination Bottom
         echo '<div class="tablenav bottom">' . wp_kses_post( $pagination_html ) . '</div>';
 
-
-        // Inline Edit Script (Pro)
         if($is_pro) {
             ?>
             <script>
@@ -581,8 +531,6 @@ class Cirrusly_Commerce_Audit {
                     var pid = $el.data('pid');
                     var field = $el.data('field');
                     var val = $el.text();
-                    
-                    // Show loading state (opacity)
                     $el.css('opacity', '0.5');
 
                     $.post(ajaxurl, {
@@ -593,27 +541,20 @@ class Cirrusly_Commerce_Audit {
                         _nonce: '<?php echo wp_create_nonce("cc_audit_save"); ?>'
                     }, function(res){
                         $el.css('opacity', '1');
-                        
                         if(res.success) {
-                            // 1. Visual Confirmation (Green Flash)
                             $el.css('background-color', '#e7f6e7');
                             setTimeout(function(){ $el.css('background-color', 'transparent'); }, 1500);
-
-                            // 2. Update Row Data (if returned)
                             if(res.data) {
                                 if(res.data.net_html) $row.find('.col-net').html(res.data.net_html);
                                 if(res.data.net_style) $row.find('.col-net').attr('style', res.data.net_style);
                                 if(res.data.margin) $row.find('.col-margin').text(res.data.margin + '%');
                             }
                         } else {
-                            // Error Flash
                             $el.css('background-color', '#f8d7da');
                             alert('Save Failed: ' + (res.data || 'Unknown error'));
                         }
                     });
                 });
-                
-                // UX: Select text on click
                 $('.cc-inline-edit').on('focus', function() {
                     var range = document.createRange();
                     range.selectNodeContents(this);
@@ -625,7 +566,6 @@ class Cirrusly_Commerce_Audit {
             </script>
             <?php
         }
-
         echo '</div>'; 
     }
-}
+}x
