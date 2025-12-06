@@ -17,7 +17,7 @@ public function __construct() {
         add_action( 'quick_edit_custom_box', array( $this, 'render_quick_edit_box' ), 10, 2 );
         add_action( 'woocommerce_product_quick_edit_save', array( $this, 'save_quick_bulk_edit' ) );
         add_action( 'woocommerce_product_bulk_edit_save', array( $this, 'save_quick_bulk_edit' ) );
-        add_action( 'admin_footer', array( $this, 'render_quick_edit_script' ) );
+        add_action( 'wp_ajax_cc_list_promos_gmc', array( $this, 'handle_promo_api_list' ) );
 
         // Handle "Mark as Custom" action
         add_action( 'admin_post_cc_mark_custom', array( $this, 'handle_mark_custom' ) );
@@ -33,7 +33,6 @@ public function __construct() {
 
         // NEW: AJAX for Promo Submit & List
         add_action( 'wp_ajax_cc_submit_promo_to_gmc', array( $this, 'handle_promo_api_submit' ) );
-        add_action( 'wp_ajax_cc_list_promos_gmc', array( $this, 'handle_promo_api_list' ) );
     }
 
     /**
@@ -43,7 +42,7 @@ public function __construct() {
         $instance = new self();
         $instance->render_gmc_hub_page();
     }
-    
+
     /**
      * NEW: Fetch account-level issues (Policy/Suspensions) from Google Content API.
      * Returns Google_Service_ShoppingContent_AccountStatus object, or WP_Error on failure.
@@ -212,10 +211,7 @@ public function __construct() {
         );
     }
 
-/**
-     * Renders the Site Content Audit UI with Pro Account Check.
-     */
-/**
+    /**
      * Renders the Site Content Audit UI with Pro Account Check.
      */
     private function render_content_scan_view() {
@@ -473,7 +469,7 @@ public function __construct() {
                 
                 $.post(ajaxurl, {
                     action: 'cc_list_promos_gmc',
-                    security: '<?php echo wp_create_nonce("cc_promo_api_submit"); ?>', // Reusing existing nonce context
+                    security: '<?php echo wp_create_nonce("cc_promo_api_list"); ?>',
                     force_refresh: forceRefresh ? 1 : 0
                 }, function(res) {
                     $btn.prop('disabled', false).html('<span class="dashicons dashicons-update"></span> Sync from Google');
@@ -1166,13 +1162,13 @@ public function run_gmc_scan_logic() {
         }
     }
 
-    /**
+/**
      * AJAX Handler to list promotions from Google Merchant Center.
      * Fetches the active promotion list via the API and reformats it for the UI table.
      * Supports caching to prevent excessive API calls. Pass 'force_refresh' in POST to bypass cache.
      */
     public function handle_promo_api_list() {
-        check_ajax_referer( 'cc_promo_api_submit', 'security' ); // reuse same nonce scope
+        check_ajax_referer( 'cc_promo_api_list', 'security' );
 
         if ( ! current_user_can( 'manage_woocommerce' ) ) {
             wp_send_json_error( 'Insufficient permissions.' );
@@ -1215,22 +1211,27 @@ public function run_gmc_scan_logic() {
             $output = array();
             if ( ! empty( $list ) ) {
                 foreach ( $list as $p ) {
-                    // Parse Date Range (Correctly using getters)
+                    // Parse Date Range and Capture End Timestamp
                     $range_str = '';
+                    $end_timestamp = 0;
+                    
                     $period = $p->getPromotionEffectiveTimePeriod();
                     if ( $period ) {
                         $start_iso = $period->getStartTime(); 
                         $end_iso   = $period->getEndTime();
                         
                         if ( $start_iso && $end_iso ) {
-                            // Extract YYYY-MM-DD
+                            // Extract YYYY-MM-DD for display
                             $start = substr( $start_iso, 0, 10 );
                             $end   = substr( $end_iso, 0, 10 );
                             $range_str = $start . '/' . $end;
+                            
+                            // Capture timestamp for logic check
+                            $end_timestamp = strtotime( $end_iso );
                         }
                     }
                     
-                    // Status Logic (Expanded)
+                    // Status Logic
                     $status = 'unknown';
                     $pStats = $p->getPromotionStatus(); 
                                          
@@ -1241,7 +1242,7 @@ public function run_gmc_scan_logic() {
                         $is_live     = false;
                         $is_pending  = false;
                         
-                        $found_statuses = array(); // Debug helper / Fallback
+                        $found_statuses = array();
 
                         if ( ! empty( $d_statuses ) ) {
                             foreach ( $d_statuses as $ds ) {
@@ -1254,23 +1255,31 @@ public function run_gmc_scan_logic() {
                                 if ( 'PENDING' === $s || 'IN_REVIEW' === $s || 'READY_FOR_REVIEW' === $s ) $is_pending = true;
                             }
 
-                            if ( $is_live ) {
-                                $status = 'active';
-                            } elseif ( $is_rejected ) {
+                            // PRIORITY: Rejected > Pending > Live > Expired
+                            if ( $is_rejected ) {
                                 $status = 'rejected';
                             } elseif ( $is_pending ) {
                                 $status = 'pending';
+                            } elseif ( $is_live ) {
+                                $status = 'active';
                             } elseif ( $is_expired ) {
                                 $status = 'expired';
                             } else {
-                                // FALLBACK: If status is unknown but we have data, show the raw first status
                                 if ( !empty($found_statuses) ) {
                                     $status = strtolower($found_statuses[0]);
                                 }
                             }
+                        }
+                    }
+
+                    // FALLBACK: If status is still unknown (e.g. empty destination statuses)
+                    if ( 'unknown' === $status ) {
+                        // Check if the promotion end date is in the past
+                        if ( $end_timestamp > 0 && $end_timestamp < time() ) {
+                            $status = 'expired';
                         } else {
-                            // Sometimes destination statuses are empty if it's brand new
-                            $status = 'pending (new)';
+                            // Default to pending for new promotions
+                            $status = 'pending';
                         }
                     }
 
