@@ -289,6 +289,9 @@ class Cirrusly_Commerce_Audit {
                 
                 $pid = intval($row[0]);
                 if ( ! $pid ) continue;
+
+                $product = wc_get_product($pid);
+                if ( ! $product ) continue;
                 
                 $updated = false;
 
