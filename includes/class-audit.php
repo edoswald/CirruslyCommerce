@@ -568,4 +568,4 @@ class Cirrusly_Commerce_Audit {
         }
         echo '</div>'; 
     }
-}x
+}
