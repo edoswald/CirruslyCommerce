@@ -304,19 +304,19 @@ class Cirrusly_Commerce_Audit {
                 }
 
                 // 2. MAP (Index 8)
-                if ( isset($row[8]) && $row[8] !== '' ) {
+                if ( isset($row[8]) && $row[8] !== '' && is_numeric($row[8]) ) {
                     update_post_meta($pid, '_cirrusly_map_price', wc_format_decimal($row[8]));
                     $updated = true;
                 }
 
                 // 3. Google Min (Index 9)
-                if ( isset($row[9]) && $row[9] !== '' ) {
+                if ( isset($row[9]) && $row[9] !== '' && is_numeric($row[9]) ) {
                     update_post_meta($pid, '_auto_pricing_min_price', wc_format_decimal($row[9]));
                     $updated = true;
                 }
 
                 // 4. MSRP (Index 10)
-                if ( isset($row[10]) && $row[10] !== '' ) {
+                if ( isset($row[10]) && $row[10] !== '' && is_numeric($row[10]) ) {
                     update_post_meta($pid, '_alg_msrp', wc_format_decimal($row[10]));
                     $updated = true;
                 }
