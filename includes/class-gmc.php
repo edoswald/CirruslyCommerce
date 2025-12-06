@@ -18,6 +18,7 @@ public function __construct() {
         add_action( 'woocommerce_product_quick_edit_save', array( $this, 'save_quick_bulk_edit' ) );
         add_action( 'woocommerce_product_bulk_edit_save', array( $this, 'save_quick_bulk_edit' ) );
         add_action( 'admin_footer', array( $this, 'render_quick_edit_script' ) );
+        add_action( 'wp_ajax_cc_list_promos_gmc', array( $this, 'handle_promo_api_list' ) );
 
         // Handle "Mark as Custom" action
         add_action( 'admin_post_cc_mark_custom', array( $this, 'handle_mark_custom' ) );
@@ -43,7 +44,7 @@ public function __construct() {
         $instance = new self();
         $instance->render_gmc_hub_page();
     }
-    
+
     /**
      * NEW: Fetch account-level issues (Policy/Suspensions) from Google Content API.
      * Returns Google_Service_ShoppingContent_AccountStatus object, or WP_Error on failure.
@@ -1254,16 +1255,24 @@ public function run_gmc_scan_logic() {
                                 if ( 'PENDING' === $s || 'IN_REVIEW' === $s || 'READY_FOR_REVIEW' === $s ) $is_pending = true;
                             }
 
-                            if ( $is_live ) {
-                                $status = 'active';
-                            } elseif ( $is_rejected ) {
+                            // UPDATED PRIORITY LOGIC:
+                            // 1. Rejection takes priority (if rejected anywhere, flag it)
+                            if ( $is_rejected ) {
                                 $status = 'rejected';
-                            } elseif ( $is_pending ) {
+                            } 
+                            // 2. Pending takes next priority (e.g., waiting for review)
+                            elseif ( $is_pending ) {
                                 $status = 'pending';
-                            } elseif ( $is_expired ) {
+                            } 
+                            // 3. Only mark Active if Live and NOT rejected/pending elsewhere
+                            elseif ( $is_live ) {
+                                $status = 'active';
+                            } 
+                            // 4. Expired
+                            elseif ( $is_expired ) {
                                 $status = 'expired';
                             } else {
-                                // FALLBACK: If status is unknown but we have data, show the raw first status
+                                // FALLBACK
                                 if ( !empty($found_statuses) ) {
                                     $status = strtolower($found_statuses[0]);
                                 }
