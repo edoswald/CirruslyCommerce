@@ -138,7 +138,8 @@ class Cirrusly_Commerce_GMC {
         } catch ( Exception $e ) {
         if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
             error_log( 'Cirrusly Commerce: Google API error in fetch_google_real_statuses - ' . $e->getMessage() );
-        }        }
+        }
+    }
 
         return $google_issues;
     }
