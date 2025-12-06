@@ -8,10 +8,6 @@ class Cirrusly_Commerce_GMC {
 
     /**
      * Initialize GMC integration by registering WordPress and WooCommerce hooks and filters.
-     *
-     * Registers all admin UI, saving, quick-edit, bulk-edit, compliance, auto-strip, AJAX and admin action handlers
-     * required for Google Merchant Center related features (product meta UI, admin columns, quick edit behavior,
-     * promo submission endpoint, content/product scanning hooks, and save-time compliance enforcement).
      */
     public function __construct() {
         add_action( 'woocommerce_product_options_inventory_product_data', array( $this, 'render_gmc_product_settings' ) );
@@ -72,15 +68,7 @@ class Cirrusly_Commerce_GMC {
     }
 
     /**
-     * Provide the set of monitored terms grouped by category for content and product scans.
-     *
-     * Each category maps monitored term strings to a metadata array describing why the term is flagged.
-     *
-     * @return array Associative array where keys are category names (e.g., 'promotional', 'medical') and values are
-     * arrays mapping term => metadata. Metadata arrays contain:
-     * - 'severity' (string): severity label such as 'Critical', 'High', or 'Medium'.
-     * - 'scope' (string): where to check the term, e.g., 'title' or 'all'.
-     * - 'reason' (string): human-readable explanation for flagging the term.
+     * Provide the set of monitored terms grouped by category.
      */
     private function get_monitored_terms() {
         return array(
@@ -102,14 +90,9 @@ class Cirrusly_Commerce_GMC {
     }
 
     /**
-     * Renders the Site Content Audit UI and handles running and displaying content scan results.
-     *
-     * Outputs the "Required Policies" checklist and the "Restricted Terms Scan" form; when the scan form is submitted
-     * and verified, runs the content scan, persists results to the `cirrusly_content_scan_data` option, and displays
-     * the last scan's findings with per-item flagged terms and edit links.
+     * Renders the Site Content Audit UI.
      */
     private function render_content_scan_view() {
-        // UPDATED: Description
         echo '<div class="cc-manual-helper">
             <h4>Site Content Audit</h4>
             <p>This tool scans your site pages and product descriptions to ensure compliance with Google Merchant Center policies. It checks for:</p>
@@ -230,10 +213,6 @@ class Cirrusly_Commerce_GMC {
 
     /**
      * Render the Promotions tab UI for managing and submitting Google Merchant Center promotions.
-     *
-     * Outputs a Premium "Live" dashboard for fetching remote data (Pro only) and a 
-     * Promotion Feed Generator form. The Generator form acts as an "Add/Edit" interface
-     * where users can push data to Google.
      */
     private function render_promotions_view() {
         $is_pro = Cirrusly_Commerce_Core::cirrusly_is_pro();
@@ -252,11 +231,10 @@ class Cirrusly_Commerce_GMC {
         echo '<div class="cc-card-body" style="padding:0;">
                 <table class="wp-list-table widefat fixed striped" id="cc-gmc-promos-table" style="border:0; box-shadow:none;">
                     <thead><tr><th>ID</th><th>Title</th><th>Effective Dates</th><th>Status</th><th>Type</th><th>Actions</th></tr></thead>
-                    <tbody><tr class="cc-empty-row"><td colspan="6" style="padding:20px; text-align:center; color:#666;">Click "Sync from Google" to load active promotions.</td></tr></tbody>
+                    <tbody><tr class="cc-empty-row"><td colspan="6" style="padding:20px; text-align:center; color:#666;">Loading active promotions...</td></tr></tbody>
                 </table>
               </div>';
         echo '</div>';
-
 
         // --- 2. GENERATOR / EDITOR ---
         echo '<div class="cc-manual-helper"><h4>Promotion Feed Generator</h4><p>Create or update a promotion entry for Google Merchant Center. Fill in the details, generate the code, and paste it into your Google Sheet feed.</p></div>';
@@ -322,15 +300,18 @@ class Cirrusly_Commerce_GMC {
                 $('#pg_result_area').fadeIn();
             });
 
-            // --- API: LIST PROMOTIONS (PRO) ---
-            $('#cc_load_promos').click(function(){
-                var $btn = $(this);
+            // --- API: LIST PROMOTIONS (PRO) - Auto & Cached ---
+            var loadPromotions = function( forceRefresh ) {
+                var $btn = $('#cc_load_promos');
                 var $table = $('#cc-gmc-promos-table tbody');
+                
                 $btn.prop('disabled', true).html('<span class="dashicons dashicons-update" style="animation:spin 2s linear infinite;"></span> Syncing...');
+                if( forceRefresh ) $table.html('<tr class="cc-empty-row"><td colspan="6" style="padding:20px; text-align:center;">Refreshing data...</td></tr>');
                 
                 $.post(ajaxurl, {
                     action: 'cc_list_promos_gmc',
-                    security: '<?php echo wp_create_nonce("cc_promo_api_submit"); ?>' // Reusing existing nonce context for API
+                    security: '<?php echo wp_create_nonce("cc_promo_api_submit"); ?>', // Reusing existing nonce context
+                    force_refresh: forceRefresh ? 1 : 0
                 }, function(res) {
                     $btn.prop('disabled', false).html('<span class="dashicons dashicons-update"></span> Sync from Google');
                     if(res.success) {
@@ -340,26 +321,53 @@ class Cirrusly_Commerce_GMC {
                             return;
                         }
                         // Render Rows
-                        $.each(res.data, function(i, p){
-                            var statusColor = '#777';
+            function ccEscapeHtml(str) {
+
+                return String(str)
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#039;');
+            }
+
+            $.each(res.data, function(i, p){
+                var statusColor = '#777';
                             if(p.status === 'active') statusColor = '#008a20';
                             if(p.status === 'rejected') statusColor = '#d63638';
+                            if(p.status === 'expired') statusColor = '#999';
                             
-                            var row = '<tr>' +
-                                '<td><strong>' + p.id + '</strong></td>' +
-                                '<td>' + p.title + '</td>' +
-                                '<td>' + p.dates + '</td>' +
-                                '<td><span class="gmc-badge" style="background:'+statusColor+';color:#fff;">'+p.status.toUpperCase()+'</span></td>' +
-                                '<td>' + p.type + (p.code ? ': <code>'+p.code+'</code>' : '') + '</td>' +
+                            // Handle unknown statuses gracefully in UI
+                           var displayStatus = p.status.toUpperCase();
+                           if(p.status.indexOf('(') > 0) statusColor = '#dba617';
+
+                var row = '<tr>' +
+                    '<td><strong>' + ccEscapeHtml(p.id) + '</strong></td>' +
+                    '<td>' + ccEscapeHtml(p.title) + '</td>' +
+                    '<td>' + ccEscapeHtml(p.dates) + '</td>' +
+                    '<td><span class="gmc-badge" style="background:'+statusColor+';color:#fff;">'+ccEscapeHtml(displayStatus)+'</span></td>' +
+                    '<td>' + ccEscapeHtml(p.type) + (p.code ? ': <code>'+ccEscapeHtml(p.code)+'</code>' : '') + '</td>' +
                                 '<td><button type="button" class="button button-small cc-edit-promo" ' +
-                                    'data-id="'+p.id+'" data-title="'+p.title+'" data-dates="'+p.dates+'" data-app="'+p.app+'" data-type="'+p.type+'" data-code="'+p.code+'">Edit</button></td>' +
+                        'data-id="'+ccEscapeHtml(p.id)+'" data-title="'+ccEscapeHtml(p.title)+'" data-dates="'+ccEscapeHtml(p.dates)+'" data-app="'+ccEscapeHtml(p.app)+'" data-type="'+ccEscapeHtml(p.type)+'" data-code="'+ccEscapeHtml(p.code || '')+'">Edit</button></td>' +
                                 '</tr>';
                             $table.append(row);
                         });
                     } else {
-                        alert('Error: ' + (res.data || 'Failed to fetch data.'));
+                        // Only alert if manual click, otherwise just show empty or error in row
+                        if(forceRefresh) alert('Error: ' + (res.data || 'Failed to fetch data.'));
+                        $table.html('<tr class="cc-empty-row"><td colspan="6" style="padding:20px; text-align:center; color:#d63638;">Error loading data.</td></tr>');
                     }
                 });
+            };
+
+            // Auto-load on init (uses cache if available)
+            if( $('#cc-gmc-promos-table').length > 0 ) {
+                loadPromotions(false);
+            }
+
+            // Manual Sync Click (Forces Refresh)
+            $('#cc_load_promos').click(function(){
+                loadPromotions(true);
             });
 
             // --- UI: EDIT PROMOTION CLICK ---
@@ -368,7 +376,7 @@ class Cirrusly_Commerce_GMC {
                 var d = $(this).data();
                 
                 // Populate Form
-                $('#pg_id').val(d.id); // ID is usually immutable in GMC for primary key, but creation logic handles upsert
+                $('#pg_id').val(d.id); 
                 $('#pg_title').val(d.title);
                 $('#pg_dates').val(d.dates);
                 $('#pg_app').val(d.app).trigger('change');
@@ -412,10 +420,8 @@ class Cirrusly_Commerce_GMC {
                 }, function(response) {
                     if(response.success) {
                         alert('Success! Promotion pushed to Google Merchant Center.');
-                        // Auto-refresh list if it was loaded
-                        if( !$('#cc-gmc-promos-table .cc-empty-row').length || $('#cc-gmc-promos-table tr').length > 1 ) {
-                             $('#cc_load_promos').click();
-                        }
+                        // Force refresh list to show new promo
+                        loadPromotions(true);
                     } else {
                         alert('Error: ' + (response.data || 'Could not connect to API.'));
                     }
@@ -479,12 +485,6 @@ class Cirrusly_Commerce_GMC {
 
     /**
      * Render the Health Check admin UI for Google Merchant Center integration.
-     *
-     * Displays Pro-gated automated compliance controls (block save on critical errors,
-     * auto-strip banned words), a manual Diagnostics Scan form, and the latest scan results.
-     * If a diagnostics scan is submitted with a valid nonce, runs the scan logic and stores
-     * results in the `woo_gmc_scan_data` option. Scan results include per-product issues
-     * with Edit and a "Mark Custom" action for products flagged with a missing GTIN.
      */
     private function render_scan_view() {
         $is_pro = Cirrusly_Commerce_Core::cirrusly_is_pro();
@@ -557,16 +557,7 @@ class Cirrusly_Commerce_GMC {
     }
 
     /**
-     * Scan published products for GMC-related issues such as missing GTINs and monitored banned or promotional terms.
-     *
-     * Iterates all published products, flags products that are not marked as custom but lack a GTIN-like meta, and detects monitored medical (critical) and promotional (warning) terms in product titles. Returns an array of detected issues grouped by product ID.
-     *
-     * @return array[] Each element is an associative array with keys:
-     * - 'product_id' (int): The product post ID.
-     * - 'issues' (array[]): List of issue objects, each with:
-     * - 'type' (string): 'critical' or 'warning'.
-     * - 'msg' (string): Short message describing the issue (e.g., 'Missing GTIN', 'Restricted: cure').
-     * - 'reason' (string): Explanation for why the term or issue was flagged.
+     * Scan published products for GMC-related issues.
      */
     public function run_gmc_scan_logic() {
         $issues_found = array();
@@ -580,22 +571,11 @@ class Cirrusly_Commerce_GMC {
             $title = $post->post_title;
             
             // 1. Check GTIN
-            // If '_gla_identifier_exists' is NOT 'no' (default is yes), the product claims to have an identifier.
-            // We verify if one exists (Assuming standard woo attributes or common fields like _gtin, _ean, or just SKU if strictly managed)
-            // For this logic, we check if marked as custom.
             $is_custom = get_post_meta( $pid, '_gla_identifier_exists', true );
             
-            // Note: In render_gmc_product_settings, checkbox 'gmc_is_custom_product' value is 'yes' if meta is 'no'. 
-            // So if meta is 'no', it IS custom (No GTIN required). 
-            // If meta is 'yes' or empty, it requires GTIN.
             if ( 'no' !== $is_custom ) {
-                // Here we check for a hypothetical GTIN field. 
-                // Since this plugin doesn't seem to add its own GTIN field, we'll check a common one or rely on the user to mark custom.
-                // For demonstration, we'll flag it if we can't find a GTIN-like meta.
                 $gtin = get_post_meta( $pid, '_gtin', true ); 
                 if ( empty( $gtin ) ) {
-                    // Fallback check: maybe it's using SKU as GTIN? Unlikely but possible.
-                    // $sku = get_post_meta( $pid, '_sku', true );
                     $p_issues[] = array( 'type' => 'critical', 'msg' => 'Missing GTIN', 'reason' => 'Product is not marked as Custom (Identifier Exists) but lacks a GTIN.' );
                 }
             }
@@ -623,10 +603,6 @@ class Cirrusly_Commerce_GMC {
 
     /**
      * Marks a product as a custom product (no GTIN) and redirects back to the GMC scan tab.
-     *
-     * Verifies the current user can edit products and validates the admin nonce for the given
-     * product ID taken from $_GET['pid']; sets the post meta '_gla_identifier_exists' to 'no'
-     * for that product, then redirects to the Cirrusly GMC scan page and terminates execution.
      */
     public function handle_mark_custom() {
         if ( ! current_user_can( 'edit_products' ) ) wp_die('No permission');
@@ -639,15 +615,7 @@ class Cirrusly_Commerce_GMC {
     }
 
     /****
-     * Prevent publishing of products that contain critical (medical) terms when the block-on-critical option is enabled.
-     *
-     * When enabled in cirrusly_scan_config['block_on_critical'], this method checks a product's title for monitored
-     * medical terms and, if any are found, forces the product into draft status to prevent it from being published.
-     * The check is skipped during autosaves and for non-product post types.
-     *
-     * @param int     $post_id The ID of the post being saved.
-     * @param WP_Post $post    The post object being saved.
-     * @param bool    $update  Whether this is an existing post being updated (true) or a new post (false).
+     * Prevent publishing of products that contain critical (medical) terms.
      */
     public function check_compliance_on_save( $post_id, $post, $update ) {
         // Only run if option enabled
@@ -660,8 +628,7 @@ class Cirrusly_Commerce_GMC {
         $monitored = $this->get_monitored_terms();
         foreach($monitored['medical'] as $word => $data) {
              if ( stripos($post->post_title, $word) !== false ) {
-                 // We can't easily stop the save process in WP without throwing a die() or removing hooks, 
-                 // which is bad UX. Instead, we force post_status back to draft to prevent publishing.
+                 // Force post_status back to draft to prevent publishing.
                  $post->post_status = 'draft';
                  wp_update_post( $post );
              }
@@ -669,14 +636,7 @@ class Cirrusly_Commerce_GMC {
     }
 
     /**
-     * Removes configured banned medical terms from a product's title and, when allowed, its content before saving.
-     *
-     * Iterates the monitored medical term list and strips whole-word, case-insensitive matches from post_title.
-     * If a term's scope is "all", the term is also removed from post_content. Multiple whitespace is collapsed in the title after removals.
-     *
-     * @param array $data   The post data being saved (will be returned, possibly modified).
-     * @param array $postarr The original post array passed to wp_insert_post.
-     * @return array The potentially modified post data with banned medical terms removed where applicable.
+     * Removes configured banned medical terms from a product's title and content.
      */
     public function handle_auto_strip_on_save( $data, $postarr ) {
         // Check if enabled
@@ -711,10 +671,6 @@ class Cirrusly_Commerce_GMC {
     
     /**
      * Renders the Google Merchant Center attributes meta box controls on the product edit screen.
-     *
-     * Outputs form fields for marking a product as custom (no GTIN), for a Promotion ID, and for Custom Label 0.
-     *
-     * @return void
      */
     public function render_gmc_product_settings() {
         global $post;
@@ -784,10 +740,6 @@ class Cirrusly_Commerce_GMC {
 
     /**
      * Injects a small inline script on the Products list page that synchronizes the Quick Edit form's GMC fields
-     * with the product's hidden GMC metadata in the row.
-     *
-     * The script runs only on the admin products listing and updates the "Custom Product" checkbox in Quick Edit
-     * to reflect the row's stored GMC custom flag.
      */
     public function render_quick_edit_script() {
         global $pagenow; if('edit.php'!==$pagenow || 'product'!==get_post_type()) return;
@@ -797,222 +749,293 @@ class Cirrusly_Commerce_GMC {
     }
 
     /**
- * Create and return a configured Google API client for Google Shopping Content.
- *
- * Attempts to build a Google\Client using the service account JSON stored in
- * the `cirrusly_gmc_service_account_json` option and configures scopes for
- * the Google Shopping Content API.
- *
- * @return Google\Client|WP_Error Configured Google\Client on success, or a WP_Error with one of the following codes:
- * - 'missing_lib' if the Google PHP client library is not available.
- * - 'missing_creds' if the service account JSON option is empty.
- * - 'invalid_json' if the stored JSON cannot be decoded.
- * - 'auth_failed' if client configuration or initialization fails (message included).
- */
-public static function get_google_client() {
-    $json_key = get_option( 'cirrusly_gmc_service_account_json' ); 
-    
-    // Safety: Check if Composer loaded the class
-    if ( ! class_exists( 'Google\Client' ) ) {
-        return new WP_Error( 'missing_lib', 'Google Library not loaded. Run composer install.' );
-    }
-
-    if ( empty( $json_key ) ) {
-        return new WP_Error( 'missing_creds', 'Missing Service Account JSON.' );
-    }
-
-    try {
-        $client = new Google\Client();
-        $client->setApplicationName( 'Cirrusly Commerce' );
-        $auth_config = json_decode( $json_key, true );
-        if ( ! is_array( $auth_config ) ) {
-            return new WP_Error( 'invalid_json', 'Service Account JSON is malformed or not an object.' );
-        }
-        $client->setAuthConfig( $auth_config );
-        $client->setScopes([
-            'https://www.googleapis.com/auth/content',
-        ]);
+     * Create and return a configured Google API client for Google Shopping Content.
+     */
+    public static function get_google_client() {
+        // Fix: Use the correct option name (no _gmc_ prefix)
+        $json_key = get_option( 'cirrusly_service_account_json' ); 
         
-        return $client;
-    } catch ( Exception $e ) {
-        return new WP_Error( 'auth_failed', 'Auth Error: ' . $e->getMessage() );
-    }
-}
+        // Safety: Check if Composer loaded the class
+        if ( ! class_exists( 'Google\Client' ) ) {
+            return new WP_Error( 'missing_lib', 'Google Library not loaded. Run composer install.' );
+        }
 
-/**
- * Handles an AJAX request to submit a Promotion to the Google Shopping Content API.
- *
- * Validates the AJAX nonce and PRO entitlement, obtains a configured Google client and the
- * merchant ID, builds a Promotion object from POSTed data (at minimum `id` and `title`),
- * and submits it to the Merchant Center via the ShoppingContent service. Responds with
- * JSON success on successful submission or JSON error messages for validation, configuration,
- * client, or API failures.
- */
-public function handle_promo_api_submit() {
-    check_ajax_referer( 'cc_promo_api_submit', 'security' );
-    
-    if ( ! Cirrusly_Commerce_Core::cirrusly_is_pro() ) {
-        wp_send_json_error( 'Pro version required for API access.' );
-    }
+        if ( empty( $json_key ) ) {
+            return new WP_Error( 'missing_creds', 'Missing Service Account JSON.' );
+        }
 
-    $client = self::get_google_client();
-    if ( is_wp_error( $client ) ) wp_send_json_error( $client->get_error_message() );
+        try {
+            $client = new Google\Client();
+            $client->setApplicationName( 'Cirrusly Commerce' );
 
-    $merchant_id = get_option( 'cirrusly_gmc_merchant_id' );
-    if ( empty( $merchant_id ) ) {
-        wp_send_json_error( 'Merchant ID not configured.' );
-    }
-
-    // Extract POST data
-    $data = isset( $_POST['data'] ) ? wp_unslash( $_POST['data'] ) : array();
-    $data = is_array( $data ) ? $data : array();
-    $id    = isset( $data['id'] ) ? sanitize_text_field( $data['id'] ) : '';
-    $title = isset( $data['title'] ) ? sanitize_text_field( $data['title'] ) : '';
-
-    if ( '' === $id || '' === $title ) {
-        wp_send_json_error( 'Promotion ID and Title are required.' );
-    }
-    
-    // Initialize the Service
-    $service = new Google\Service\ShoppingContent( $client );
-
-    try {
-        // Create Promotion Object
-        $promo = new Google\Service\ShoppingContent\Promotion();
-        $promo->setPromotionId( $id );
-        $promo->setLongTitle( $title );
-        $promo->setContentLanguage( 'en' ); // Should ideally be dynamic
-        $promo->setTargetCountry( 'US' );   // Should ideally be dynamic
-        $promo->setRedemptionChannel( array( 'ONLINE' ) );
-
-        // 1. Parse Dates (Format: YYYY-MM-DD/YYYY-MM-DD) received from JS
-        $dates_raw = isset( $data['dates'] ) ? sanitize_text_field( $data['dates'] ) : '';
-        if ( ! empty( $dates_raw ) && strpos( $dates_raw, '/' ) !== false ) {
-            list( $start_str, $end_str ) = explode( '/', $dates_raw );
-            // Validate date format
-            if ( ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $start_str ) || ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $end_str ) ) {
-              wp_send_json_error( 'Invalid date format. Expected YYYY-MM-DD/YYYY-MM-DD.' );
+            // Fix: Decrypt the key using the Core method
+            $json_raw = Cirrusly_Commerce_Core::decrypt_data( $json_key );
+            // Fallback: If decryption fails (returns false), try using the original key 
+            if ( ! $json_raw ) {
+                if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+                    error_log( 'Cirrusly Commerce: Decryption returned false, using raw key as fallback.' );
+                }
+                $json_raw = $json_key;
             }
-            $period = new Google\Service\ShoppingContent\PromotionPromotionStatusDateRange();
-            // Google expects ISO 8601 (e.g. 2025-06-01T00:00:00Z)
-            $period->setDateRange( $start_str . 'T00:00:00Z/' . $end_str . 'T23:59:59Z' );
-            $promo->setPromotionEffectiveTimePeriod( $period );
+
+            $auth_config = json_decode( $json_raw, true );
+            if ( ! is_array( $auth_config ) ) {
+                return new WP_Error( 'invalid_json', 'Service Account JSON is malformed or not an object.' );
+            }
+            $client->setAuthConfig( $auth_config );
+            $client->setScopes([
+                'https://www.googleapis.com/auth/content',
+            ]);
+            
+            return $client;
+        } catch ( Exception $e ) {
+            return new WP_Error( 'auth_failed', 'Auth Error: ' . $e->getMessage() );
         }
-
-        // 2. Product Applicability
-        $app_val = isset( $data['app'] ) ? sanitize_text_field( $data['app'] ) : 'ALL_PRODUCTS';
-        $promo->setProductApplicability( $app_val );
-
-        // 3. Offer Type & Generic Code
-        $type_val = isset( $data['type'] ) ? sanitize_text_field( $data['type'] ) : 'NO_CODE';
-        $promo->setOfferType( $type_val );
-        
-        if ( 'GENERIC_CODE' === $type_val && ! empty( $data['code'] ) ) {
-            $promo->setGenericRedemptionCode( sanitize_text_field( $data['code'] ) );
-        }
-
-        // Send to Google
-        $service->promotions->create( $merchant_id, $promo );
-
-        wp_send_json_success( 'Promotion submitted successfully!' );
-    } catch ( Exception $e ) {
-        wp_send_json_error( 'Google Error: ' . $e->getMessage() );
-    }
-}
-
-/**
- * AJAX Handler to list promotions from Google Merchant Center.
- * Fetches the active promotion list via the API and reformats it for the UI table.
- */
-public function handle_promo_api_list() {
-    check_ajax_referer( 'cc_promo_api_submit', 'security' ); // reuse same nonce scope
-    
-    if ( ! Cirrusly_Commerce_Core::cirrusly_is_pro() ) {
-        wp_send_json_error( 'Pro version required.' );
     }
 
-    $client = self::get_google_client();
-    if ( is_wp_error( $client ) ) wp_send_json_error( $client->get_error_message() );
+    /**
+     * Handles an AJAX request to submit a Promotion to the Google Shopping Content API.
+     */
+    public function handle_promo_api_submit() {
+        check_ajax_referer( 'cc_promo_api_submit', 'security' );
 
-    $merchant_id = get_option( 'cirrusly_gmc_merchant_id' );
-    if ( empty( $merchant_id ) ) wp_send_json_error( 'Merchant ID missing.' );
-
-    $service = new Google\Service\ShoppingContent( $client );
-
-    try {
-        // List promotions (defaults to page size 50 usually)
-        $resp = $service->promotions->listPromotions( $merchant_id, array('maxResults' => 50) );
-        $list = $resp->getPromotions();
+        if ( ! current_user_can( 'manage_woocommerce' ) ) {
+            wp_send_json_error( 'Insufficient permissions.' );
+        }
         
-        $output = array();
-        if ( ! empty( $list ) ) {
-            foreach ( $list as $p ) {
-                // Parse Date Range back to YYYY-MM-DD/YYYY-MM-DD
-                $range_str = '';
-                $period = $p->getPromotionEffectiveTimePeriod();
-                if ( $period ) {
-                    // DateRange string looks like: "2025-06-01T00:00:00Z/2025-06-30T23:59:59Z"
-                    $raw_dr = $period->getDateRange();
-                    if($raw_dr) {
-                        $parts = explode('/', $raw_dr);
-                        if(count($parts)==2) {
-                            $start = substr($parts[0], 0, 10);
-                            $end = substr($parts[1], 0, 10);
+        if ( ! Cirrusly_Commerce_Core::cirrusly_is_pro() ) {
+            wp_send_json_error( 'Pro version required for API access.' );
+        }
+
+        $client = self::get_google_client();
+        if ( is_wp_error( $client ) ) wp_send_json_error( $client->get_error_message() );
+
+        // FIX: Get Merchant ID from correct option
+        $scan_config = get_option( 'cirrusly_scan_config' );
+        $merchant_id = isset( $scan_config['merchant_id_pro'] ) ? $scan_config['merchant_id_pro'] : '';
+        
+        // Fallback for legacy installs
+        if ( empty( $merchant_id ) ) {
+            $merchant_id = get_option( 'cirrusly_gmc_merchant_id', '' );
+        }
+
+        if ( empty( $merchant_id ) ) {
+            wp_send_json_error( 'Merchant ID not configured.' );
+        }
+
+        // Extract POST data
+        $data = isset( $_POST['data'] ) ? wp_unslash( $_POST['data'] ) : array();
+        $data = is_array( $data ) ? $data : array();
+        $id    = isset( $data['id'] ) ? sanitize_text_field( $data['id'] ) : '';
+        $title = isset( $data['title'] ) ? sanitize_text_field( $data['title'] ) : '';
+
+        if ( '' === $id || '' === $title ) {
+            wp_send_json_error( 'Promotion ID and Title are required.' );
+        }
+        
+        // Initialize the Service
+        $service = new Google\Service\ShoppingContent( $client );
+
+        try {
+            // Create Promotion Object
+            $promo = new Google\Service\ShoppingContent\Promotion();
+            $promo->setPromotionId( $id );
+            $promo->setLongTitle( $title );
+            $content_lang = isset( $scan_config['content_language'] ) ? $scan_config['content_language'] : substr( get_locale(), 0, 2 );
+            $target_country = isset( $scan_config['target_country'] ) ? $scan_config['target_country'] : WC()->countries->get_base_country();
+            $promo->setContentLanguage( $content_lang );
+            $promo->setTargetCountry( $target_country );
+            $promo->setRedemptionChannel( array( 'ONLINE' ) );
+
+            // 1. Parse Dates (Format: YYYY-MM-DD/YYYY-MM-DD) received from JS
+            $dates_raw = isset( $data['dates'] ) ? sanitize_text_field( $data['dates'] ) : '';
+            if ( ! empty( $dates_raw ) && strpos( $dates_raw, '/' ) !== false ) {
+                list( $start_str, $end_str ) = explode( '/', $dates_raw );
+                // Validate date format
+                if ( ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $start_str ) || ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $end_str ) ) {
+                  wp_send_json_error( 'Invalid date format. Expected YYYY-MM-DD/YYYY-MM-DD.' );
+                }
+                
+                // FIX: Calculate UTC times based on Site Timezone
+                $tz_string = get_option( 'timezone_string' );
+                if ( ! $tz_string ) {
+                    $offset  = get_option( 'gmt_offset' );
+                    $hours   = (int) $offset;
+                    $minutes = abs( ( $offset - $hours ) * 60 );
+                    $tz_string = sprintf( '%+03d:%02d', $hours, $minutes );
+                }
+
+                try {
+                    $site_tz = new DateTimeZone( $tz_string );
+                } catch ( Exception $e ) {
+                    $site_tz = new DateTimeZone( 'UTC' );
+                }
+                $utc_tz = new DateTimeZone( 'UTC' );
+
+                $dt_start = new DateTime( $start_str . ' 00:00:00', $site_tz );
+                $dt_end   = new DateTime( $end_str . ' 23:59:59', $site_tz );
+
+                $dt_start->setTimezone( $utc_tz );
+                $dt_end->setTimezone( $utc_tz );
+
+                $period = new Google\Service\ShoppingContent\TimePeriod();
+                $period->setStartTime( $dt_start->format( 'Y-m-d\TH:i:s\Z' ) );
+                $period->setEndTime( $dt_end->format( 'Y-m-d\TH:i:s\Z' ) );
+                $promo->setPromotionEffectiveTimePeriod( $period );
+            }
+
+            // 2. Product Applicability
+            $app_val = isset( $data['app'] ) ? sanitize_text_field( $data['app'] ) : 'ALL_PRODUCTS';
+            $promo->setProductApplicability( $app_val );
+
+            // 3. Offer Type & Generic Code
+            $type_val = isset( $data['type'] ) ? sanitize_text_field( $data['type'] ) : 'NO_CODE';
+            $promo->setOfferType( $type_val );
+            
+            if ( 'GENERIC_CODE' === $type_val && ! empty( $data['code'] ) ) {
+                $promo->setGenericRedemptionCode( sanitize_text_field( $data['code'] ) );
+            }
+
+            // Send to Google
+            $service->promotions->create( $merchant_id, $promo );
+
+            // Clear Cache on successful update
+            delete_transient( 'cirrusly_gmc_promos_cache' );
+
+            wp_send_json_success( 'Promotion submitted successfully!' );
+        } catch ( Exception $e ) {
+            wp_send_json_error( 'Google Error: ' . $e->getMessage() );
+        }
+    }
+
+    /**
+     * AJAX Handler to list promotions from Google Merchant Center.
+     * Fetches the active promotion list via the API and reformats it for the UI table.
+     * Supports caching to prevent excessive API calls. Pass 'force_refresh' in POST to bypass cache.
+     */
+    public function handle_promo_api_list() {
+        check_ajax_referer( 'cc_promo_api_submit', 'security' ); // reuse same nonce scope
+
+        if ( ! current_user_can( 'manage_woocommerce' ) ) {
+            wp_send_json_error( 'Insufficient permissions.' );
+        }
+        
+        if ( ! Cirrusly_Commerce_Core::cirrusly_is_pro() ) {
+            wp_send_json_error( 'Pro version required.' );
+        }
+        
+        // CACHE CHECK
+        $force = isset($_POST['force_refresh']) && $_POST['force_refresh'] == '1';
+        $cache = get_transient( 'cirrusly_gmc_promos_cache' );
+        
+        if ( ! $force && false !== $cache ) {
+            wp_send_json_success( $cache );
+            return;
+        }
+
+        $client = self::get_google_client();
+        if ( is_wp_error( $client ) ) wp_send_json_error( $client->get_error_message() );
+
+        // Fix: Merchant ID from Settings
+        $scan_config = get_option( 'cirrusly_scan_config' );
+        $merchant_id = isset( $scan_config['merchant_id_pro'] ) ? $scan_config['merchant_id_pro'] : '';
+        
+        // Fallback for legacy installs
+        if ( empty( $merchant_id ) ) {
+            $merchant_id = get_option( 'cirrusly_gmc_merchant_id', '' );
+        }
+
+        if ( empty( $merchant_id ) ) wp_send_json_error( 'Merchant ID missing.' );
+
+        $service = new Google\Service\ShoppingContent( $client );
+
+        try {
+            // Fix: Use pageSize (v2.1)
+            $resp = $service->promotions->listPromotions( $merchant_id, array('pageSize' => 50) );
+            $list = $resp->getPromotions();
+            
+            $output = array();
+            if ( ! empty( $list ) ) {
+                foreach ( $list as $p ) {
+                    // Parse Date Range (Correctly using getters)
+                    $range_str = '';
+                    $period = $p->getPromotionEffectiveTimePeriod();
+                    if ( $period ) {
+                        $start_iso = $period->getStartTime(); 
+                        $end_iso   = $period->getEndTime();
+                        
+                        if ( $start_iso && $end_iso ) {
+                            // Extract YYYY-MM-DD
+                            $start = substr( $start_iso, 0, 10 );
+                            $end   = substr( $end_iso, 0, 10 );
                             $range_str = $start . '/' . $end;
                         }
                     }
-                }
-                
-                $status = 'unknown';
-                // getPromotionStatus() usually returns an object with destinationStatuses, etc.
-                // We'll simplify for the UI list
-                $pStats = $p->getPromotionStatus(); 
-                                     
-                if ( $pStats && method_exists( $pStats, 'getDestinationStatuses' ) ) {
-                    $d_statuses = $pStats->getDestinationStatuses();
-                    $is_rejected = false;
-                    $is_expired  = false;
-                    $is_live     = false;
-                    $is_pending  = false;
+                    
+                    // Status Logic (Expanded)
+                    $status = 'unknown';
+                    $pStats = $p->getPromotionStatus(); 
+                                         
+                    if ( $pStats && method_exists( $pStats, 'getDestinationStatuses' ) ) {
+                        $d_statuses = $pStats->getDestinationStatuses();
+                        $is_rejected = false;
+                        $is_expired  = false;
+                        $is_live     = false;
+                        $is_pending  = false;
+                        
+                        $found_statuses = array(); // Debug helper / Fallback
 
-                    if ( ! empty( $d_statuses ) ) {
-                        foreach ( $d_statuses as $ds ) {
-                            $s = $ds->getStatus();
-                            if ( 'REJECTED' === $s ) $is_rejected = true;
-                            if ( 'EXPIRED' === $s ) $is_expired = true;
-                            if ( 'LIVE' === $s ) $is_live = true;
-                            if ( 'PENDING' === $s || 'IN_REVIEW' === $s ) $is_pending = true;
-                        }
+                        if ( ! empty( $d_statuses ) ) {
+                            foreach ( $d_statuses as $ds ) {
+                                $s = strtoupper( $ds->getStatus() );
+                                $found_statuses[] = $s;
 
-                        if ( $is_rejected ) {
-                            $status = 'rejected';
-                        } elseif ( $is_expired ) {
-                            $status = 'expired';
-                        } elseif ( $is_live ) {
-                            $status = 'active';
-                        } elseif ( $is_pending ) {
-                            $status = 'pending';
+                                if ( 'REJECTED' === $s || 'DISAPPROVED' === $s ) $is_rejected = true;
+                                if ( 'EXPIRED' === $s ) $is_expired = true;
+                                if ( 'LIVE' === $s || 'APPROVED' === $s || 'ACTIVE' === $s ) $is_live = true;
+                                if ( 'PENDING' === $s || 'IN_REVIEW' === $s || 'READY_FOR_REVIEW' === $s ) $is_pending = true;
+                            }
+
+                            if ( $is_live ) {
+                                $status = 'active';
+                            } elseif ( $is_rejected ) {
+                                $status = 'rejected';
+                            } elseif ( $is_pending ) {
+                                $status = 'pending';
+                            } elseif ( $is_expired ) {
+                                $status = 'expired';
+                            } else {
+                                // FALLBACK: If status is unknown but we have data, show the raw first status
+                                if ( !empty($found_statuses) ) {
+                                    $status = strtolower($found_statuses[0]);
+                                }
+                            }
+                        } else {
+                            // Sometimes destination statuses are empty if it's brand new
+                            $status = 'pending (new)';
                         }
                     }
+
+                    $output[] = array(
+                        'id'    => $p->getPromotionId(),
+                        'title' => $p->getLongTitle(),
+                        'dates' => $range_str,
+                        'app'   => $p->getProductApplicability(),
+                        'type'  => $p->getOfferType(),
+                        'code'  => $p->getGenericRedemptionCode(),
+                        'status'=> $status
+                    );
                 }
-
-                $output[] = array(
-                    'id'    => $p->getPromotionId(),
-                    'title' => $p->getLongTitle(),
-                    'dates' => $range_str,
-                    'app'   => $p->getProductApplicability(),
-                    'type'  => $p->getOfferType(),
-                    'code'  => $p->getGenericRedemptionCode(),
-                    'status'=> $status
-                );
             }
-        }
-        
-        wp_send_json_success( $output );
+            
+            // Cache for 1 hour
+            set_transient( 'cirrusly_gmc_promos_cache', $output, 1 * HOUR_IN_SECONDS );
+            
+            wp_send_json_success( $output );
 
-    } catch ( Exception $e ) {
-        wp_send_json_error( 'Google API Error: ' . $e->getMessage() );
+        } catch ( Exception $e ) {
+            wp_send_json_error( 'Google API Error: ' . $e->getMessage() );
+        }
     }
-}
    
 }

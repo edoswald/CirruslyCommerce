@@ -207,6 +207,15 @@ class Cirrusly_Commerce_Main {
         
         // 3. Force Enable Native COGS on Activation
         update_option( 'woocommerce_enable_cost_of_goods_sold', 'yes' );
+
+        // 4. Migration: Legacy Merchant ID [ADDED]
+        $legacy_id = get_option( 'cirrusly_gmc_merchant_id' );
+        $scan_config = get_option( 'cirrusly_scan_config', array() );
+        
+        if ( ! empty( $legacy_id ) && empty( $scan_config['merchant_id_pro'] ) ) {
+            $scan_config['merchant_id_pro'] = $legacy_id;
+            update_option( 'cirrusly_scan_config', $scan_config );
+        }
         
     }
 
