@@ -260,6 +260,8 @@ class Cirrusly_Commerce_Audit {
             $header = fgetcsv($handle);
             if ( ! $header ) {
                 fclose($handle);
+                add_settings_error( 'cirrusly_audit', 'import_fail', 'CSV file is empty or has no header row.', 'error' );
+
                 return;
             }
 
@@ -312,7 +314,7 @@ class Cirrusly_Commerce_Audit {
 
                 // Helper to update if column exists and value is not empty
                 $update_field = function( $key, $meta_key, $is_price = true ) use ($row, $map, $pid, &$updated) {
-                    if ( isset($map[$key]) && isset($row[$map[$key]]) && $row[$map[$key]] !== '' ) {
+                    if ( isset($map[$key]) && array_key_exists($map[$key], $row) && $row[$map[$key]] !== '' ) {
                         $val = $row[$map[$key]];
                         if ( $is_price ) $val = wc_format_decimal($val);
                         update_post_meta($pid, $meta_key, $val);
