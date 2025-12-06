@@ -77,7 +77,7 @@ class Cirrusly_Commerce_Help {
                     <h4 style="margin-top:0;"><span class="dashicons dashicons-email-alt" style="color:#2271b1;"></span> Support</h4>
                     <p style="color:#666; font-size:13px; margin-bottom:15px;">Having trouble? Reach out to our team.</p>
                     
-                    <a href="<?php echo esc_attr( $mailto ); ?>" class="button button-primary" style="width:100%; text-align:center; margin-bottom:10px;">Email Support</a>
+                    <a href="<?php echo esc_url( $mailto ); ?>" class="button button-primary" style="width:100%; text-align:center; margin-bottom:10px;">Email Support</a>
                     <a href="<?php echo esc_url( $google_form_url ); ?>" target="_blank" class="button" style="width:100%; text-align:center;">
                         <span class="dashicons dashicons-external" style="font-size:14px; vertical-align:middle;"></span> Submit Bug Report
                     </a>
