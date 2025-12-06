@@ -71,58 +71,64 @@ register_block_type( 'cirrusly/msrp', array(
         $product = wc_get_product( $attributes['productId'] );
     }
         
-        // Ensure we have a product object
-        if ( ! $product || ! is_a( $product, 'WC_Product' ) ) {
-            $post_id = get_the_ID();
-            if ( $post_id && get_post_type( $post_id ) === 'product' ) {
-                $product = wc_get_product( $post_id );
+    // 1. Ensure we have a product object
+        if ( ! $product ) {
+            $product_id = get_the_ID();
+            if ( $product_id ) {
+                $product = wc_get_product( $product_id );
             }
         }
+        
+        // If still no product (e.g. on a standard post), return empty.
+        if ( ! $product || ! is_object( $product ) ) return '';
 
-        if ( ! $product || ! is_a( $product, 'WC_Product' ) ) {
-            return ''; 
-        }
-
-        // 1. Get the raw MSRP HTML
+        // 2. Get the raw MSRP HTML from your Pricing class
         $msrp_html = '';
         if ( class_exists( 'Cirrusly_Commerce_Pricing' ) ) {
             $msrp_html = Cirrusly_Commerce_Pricing::get_msrp_html( $product );
         }
-
+        
+        // FIX: Handle "Edge Case" where the preview product has no MSRP.
         if ( empty( $msrp_html ) ) {
-            return '';
+            // Check if we are inside the Block Editor (REST API Request)
+            if ( defined( 'REST_REQUEST' ) && REST_REQUEST ) {
+                // Return a placeholder so the block is visible and selectable in the editor
+                $msrp_html = '<div class="cw-msrp-container" style="color:#999;font-size:0.9em;margin-bottom:5px;line-height:1;border:1px dashed #ccc;padding:2px;">MSRP: <span class="cw-msrp-value" style="text-decoration:line-through;">$99.99</span> <small>(Preview)</small></div>';
+            } else {
+                // On the Frontend, truly return empty if there is no MSRP
+                return '';
+            }
         }
 
-        // 2. Process Attributes for Styling
+        // 3. Process Attributes
         $align = isset( $attributes['textAlign'] ) ? $attributes['textAlign'] : 'left';
-        $is_bold = isset( $attributes['isBold'] ) && $attributes['isBold'];
+        $is_bold = isset( $attributes['isBold'] ) ? $attributes['isBold'] : false;
         $strikethrough = isset( $attributes['showStrikethrough'] ) ? $attributes['showStrikethrough'] : true;
 
-        // 3. Construct CSS Styles
-        $styles = array();
-        $styles[] = 'text-align:' . esc_attr( $align );
-        $styles[] = 'display:block'; // Ensure it takes full width to respect alignment
+        // 4. Construct CSS Styles
+        $style_parts = array();
         
+        // Alignment: We use text-align on a block-level container
+        $style_parts[] = 'text-align:' . esc_attr( $align );
+        $style_parts[] = 'display:block';
+        $style_parts[] = 'width:100%';
+
         if ( $is_bold ) {
-            $styles[] = 'font-weight:bold';
+            $style_parts[] = 'font-weight:bold';
         }
 
-        // Handle Strikethrough Logic
-        // Since get_msrp_html hardcodes the strikethrough style, we might need to remove it if the user disabled it.
-        // The original class outputs: text-decoration:line-through;
+        // Logic to remove strikethrough if disabled
         if ( ! $strikethrough ) {
-            // We strip the line-through style if the user unchecked it
             $msrp_html = str_replace( 'text-decoration:line-through;', 'text-decoration:none;', $msrp_html );
         }
 
-        $style_string = implode( '; ', $styles );
-
-        // 4. Return Wrapped HTML
-        // We wrap the output in a div with the calculated styles
+        // 5. Wrap and Return
+        $styles = implode( '; ', $style_parts );
+        
         return sprintf( 
             '<div class="cirrusly-msrp-block-wrapper" style="%s">%s</div>', 
-            esc_attr( $style_string ), 
-            wp_kses_post( $msrp_html )
+            esc_attr( $styles ), 
+            $msrp_html 
         );
     }
 
