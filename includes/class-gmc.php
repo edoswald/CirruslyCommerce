@@ -41,51 +41,72 @@ class Cirrusly_Commerce_GMC {
         $instance->render_gmc_hub_page();
     }
 
-    /**
- * NEW: Fetch actual product statuses from Google Content API.
- */
-private function fetch_google_real_statuses() {
-    // 1. Check API Connection
-    $client = Cirrusly_Commerce_Core::get_google_client();
-    if ( is_wp_error( $client ) ) return array(); // Fail silently or log error
-
-    // 2. Get Merchant ID
-    $scan_config = get_option( 'cirrusly_scan_config' );
-    $merchant_id = isset( $scan_config['merchant_id_pro'] ) ? $scan_config['merchant_id_pro'] : get_option( 'cirrusly_gmc_merchant_id', '' );
-    
-    if ( empty( $merchant_id ) ) return array();
-
-    $service = new Google\Service\ShoppingContent( $client );
-    $google_issues = array();
-
-    try {
-        // Fetch statuses in batch (page size 100 is standard max)
-        $params = array( 'maxResults' => 100 ); 
-        $statuses = $service->productstatuses->listProductstatuses( $merchant_id, $params );
-
-        foreach ( $statuses->getResources() as $status ) {
-            // Google ID format is usually "online:en:US:123" -> We need "123"
-            $parts = explode( ':', $status->getProductId() );
-            $wc_id = end( $parts ); 
-
-            // Check for Item Level Issues (The "Why" it is disapproved)
-            $issues = $status->getItemLevelIssues();
-            if ( ! empty( $issues ) ) {
-                foreach ( $issues as $issue ) {
-                    $google_issues[ $wc_id ][] = array(
-                        'msg'    => '[Google API] ' . $issue->getDescription(),
-                        'reason' => $issue->getDetail(),
-                        'type'   => ($issue->getServability() === 'disapproved') ? 'critical' : 'warning'
-                    );
-                }
-            }
+/**
+     * NEW: Fetch actual product statuses from Google Content API.
+     */
+    private function fetch_google_real_statuses() {
+        // 1. Check API Connection
+        $client = Cirrusly_Commerce_Core::get_google_client();
+    if ( is_wp_error( $client ) ) {
+        if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+            error_log( 'Cirrusly Commerce: Failed to get Google client - ' . $client->get_error_message() );
         }
-    } catch ( Exception $e ) {
-        // Log error if needed
+        return array();
     }
 
-    return $google_issues;
-}
+        // 2. Get Merchant ID
+        $scan_config = get_option( 'cirrusly_scan_config', array() );
+        $merchant_id = isset( $scan_config['merchant_id_pro'] ) ? $scan_config['merchant_id_pro'] : get_option( 'cirrusly_gmc_merchant_id', '' );
+        
+        if ( empty( $merchant_id ) ) return array();
+
+        $service = new Google\Service\ShoppingContent( $client );
+        $google_issues = array();
+
+        try {
+            // Fetch statuses in batch (page size 100 is standard max)
+            // UPDATED: Now supports pagination loop
+            $params = array( 'maxResults' => 100 );
+            $pageToken = null;
+
+            do {
+                // Add page token to params if it exists from previous iteration
+                if ( $pageToken ) {
+                    $params['pageToken'] = $pageToken;
+                }
+
+                $statuses = $service->productstatuses->listProductstatuses( $merchant_id, $params );
+
+                foreach ( $statuses->getResources() as $status ) {
+                    // Google ID format is usually "online:en:US:123" -> We need "123"
+                    $parts = explode( ':', $status->getProductId() );
+                    $wc_id = end( $parts ); 
+
+                    // Check for Item Level Issues (The "Why" it is disapproved)
+                    $issues = $status->getItemLevelIssues();
+                    if ( ! empty( $issues ) ) {
+                        foreach ( $issues as $issue ) {
+                            $google_issues[ $wc_id ][] = array(
+                                'msg'    => '[Google API] ' . $issue->getDescription(),
+                                'reason' => $issue->getDetail(),
+                                'type'   => ($issue->getServability() === 'disapproved') ? 'critical' : 'warning'
+                            );
+                        }
+                    }
+                }
+
+                // Check for next page
+                $pageToken = $statuses->getNextPageToken();
+
+            } while ( null !== $pageToken );
+
+        } catch ( Exception $e ) {
+        if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+            error_log( 'Cirrusly Commerce: Google API error in fetch_google_real_statuses - ' . $e->getMessage() );
+        }        }
+
+        return $google_issues;
+    }
 
     public function render_gmc_hub_page() {
         // phpcs:ignore WordPress.Security.NonceVerification.Recommended
@@ -607,8 +628,19 @@ private function fetch_google_real_statuses() {
      */
 public function run_gmc_scan_logic() {
     $issues_found = array();
-    $args = array( 'post_type' => 'product', 'posts_per_page' => -1, 'post_status' => 'publish' );
-    $products = get_posts( $args );
+    $batch_size = 100;
+    $paged = 1;
+    do {
+        $args = array(
+            'post_type'      => 'product',
+            'posts_per_page' => $batch_size,
+            'post_status'    => 'publish',
+            'paged'          => $paged,
+        );
+        $products = get_posts( $args );
+        // ... process batch ...
+        $paged++;
+    } while ( count( $products ) === $batch_size );
     $monitored = $this->get_monitored_terms();
 
     // --- NEW: Fetch Real API Data ---
