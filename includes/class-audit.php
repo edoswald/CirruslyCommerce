@@ -246,7 +246,15 @@ class Cirrusly_Commerce_Audit {
             }
 
             $file = $_FILES['csv_import']['tmp_name'];
-            $handle = fopen($file, "r");
+            if ( ! $file || ! is_readable( $file ) ) {
+                add_settings_error( 'cirrusly_audit', 'import_fail', 'Could not read uploaded CSV file.', 'error' );
+                return;
+            }
+            $handle = fopen( $file, 'r' );
+            if ( ! $handle ) {
+                add_settings_error( 'cirrusly_audit', 'import_fail', 'Failed to open uploaded CSV file.', 'error' );
+                return;
+            }
             
             // 1. Get Header Row & Map Indices
             $header = fgetcsv($handle);
@@ -259,6 +267,23 @@ class Cirrusly_Commerce_Audit {
             $map = array();
             foreach ( $header as $index => $col_name ) {
                 $map[ trim($col_name) ] = $index;
+            }
+            // Normalize headers (trim spaces) and strip possible UTF‑8 BOM from the first column.
+            $map = array();
+            foreach ( $header as $index => $col_name ) {
+                $col_name = (string) $col_name;
+
+                if ( 0 === $index ) {
+                    // Remove UTF‑8 BOM if present.
+                    $col_name = preg_replace( '/^\xEF\xBB\xBF/', '', $col_name );
+                }
+
+                $key = trim( $col_name );
+                if ( '' === $key ) {
+                    continue; // Ignore blank header cells.
+                }
+
+                $map[ $key ] = $index;
             }
 
             // Ensure we at least have an ID column
@@ -275,8 +300,13 @@ class Cirrusly_Commerce_Audit {
                 $id_idx = $map['ID'];
                 if ( empty($row[$id_idx]) ) continue;
                 
-                $pid = intval($row[$id_idx]);
-                if ( ! $pid ) continue;
+                $pid = intval( $row[ $id_idx ] );
+                if ( ! $pid ) {
+                    continue;
+                }
+                if ( ! get_post( $pid ) ) {
+                    continue; // Skip rows for non-existent IDs.
+                }
 
                 $updated = false;
 
