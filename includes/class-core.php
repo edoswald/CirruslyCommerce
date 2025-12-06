@@ -356,12 +356,6 @@ public function clear_metrics_cache() { delete_transient( 'cirrusly_dashboard_me
                     $("#cc-countdown-rows").append(row);
                 });
                 $(document).on("click", ".cc-remove-row", function(){ $(this).closest("tr").remove(); });
-                
-                // System Info Toggle
-                $("#cc-sys-info-toggle").click(function(e){
-                    e.preventDefault();
-                    $("#cc-sys-info-panel").toggle();
-                });
             });' );
         }
     }
@@ -371,15 +365,13 @@ public function clear_metrics_cache() { delete_transient( 'cirrusly_dashboard_me
      * system information panel, and top navigation links.
      *
      * Outputs the page title with logo, a PRO badge when the site is licensed,
-     * a System Info button and hidden system information panel (containing a copyable
-     * textarea), a Get Support mailto link, a version badge, and links to Dashboard,
+     * a Help Center button (delegated to the Help class), version badge, and links to Dashboard,
      * GMC Hub, Financial Audit, and Settings.
      *
      * @param string $title The title to display in the header.
      */
     
     public static function render_page_header( $title ) {
-        $mailto = 'mailto:help@cirruslyweather.com?subject=Support%20Request';
         $is_pro = self::cirrusly_is_pro(); // Check PRO status
 
         echo '<h1 class="cc-page-title" style="margin-bottom:20px; display:flex; align-items:center;">';
@@ -392,17 +384,13 @@ public function clear_metrics_cache() { delete_transient( 'cirrusly_dashboard_me
             echo '<span class="cc-pro-version-badge">PRO</span>';
         }
         
-        echo '<a href="#" id="cc-sys-info-toggle" class="button button-secondary" title="View System Info for Support">System Info</a>';
-        echo '<a href="' . esc_attr( $mailto ) . '" class="button button-secondary">Get Support</a>'; 
+        // New Help Center Button (Delegated)
+        if ( class_exists( 'Cirrusly_Commerce_Help' ) ) {
+            Cirrusly_Commerce_Help::render_button();
+        }
+
         echo '<span class="cc-ver-badge" style="background:#f0f0f1;color:#646970;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;">v' . esc_html( CIRRUSLY_COMMERCE_VERSION ) . '</span>';
         echo '</div></h1>';
-        
-        // Hidden System Info Panel
-        echo '<div id="cc-sys-info-panel" style="display:none; background:#fff; border:1px solid #c3c4c7; padding:15px; margin-bottom:20px;">';
-        echo '<h4>System Information <button type="button" class="button button-small" onclick="var copyText = document.getElementById(\'cc-sys-info-text\');copyText.select();document.execCommand(\'copy\');alert(\'Copied to clipboard!\');">Copy</button></h4>';
-        echo '<textarea id="cc-sys-info-text" style="width:100%; height:150px; font-family:monospace; font-size:11px;" readonly>';
-        self::render_system_info();
-        echo '</textarea></div>';
         
         // Active Page Logic
         // phpcs:ignore WordPress.Security.NonceVerification.Recommended
@@ -421,21 +409,6 @@ public function clear_metrics_cache() { delete_transient( 'cirrusly_dashboard_me
             echo '<a href="' . esc_url( admin_url( 'admin.php?page=' . $slug ) ) . '" class="' . esc_attr( $active_class ) . '">' . esc_html( $label ) . '</a>';
         }
         echo '</div>';
-    }
-
-    public static function render_system_info() {
-        global $wp_version;
-        echo "### System Info ###\n";
-        echo "Site URL: " . site_url() . "\n";
-        echo "WP Version: " . $wp_version . "\n";
-        echo "WooCommerce: " . (class_exists('WooCommerce') ? WC()->version : 'Not Installed') . "\n";
-        echo "Cirrusly Commerce: " . CIRRUSLY_COMMERCE_VERSION . "\n";
-        echo "PHP Version: " . phpversion() . "\n";
-        echo "Server Software: " . esc_html( $_SERVER['SERVER_SOFTWARE'] ) . "\n";
-        echo "Active Plugins:\n";
-        $plugins = get_option('active_plugins');
-        foreach($plugins as $p) { echo "- " . esc_html( $p ) . "\n"; }
-
     }
 
     /**
