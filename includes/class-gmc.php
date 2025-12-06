@@ -9,7 +9,7 @@ class Cirrusly_Commerce_GMC {
     /**
      * Initialize GMC integration by registering WordPress and WooCommerce hooks and filters.
      */
-public function __construct() {
+    public function __construct() {
         add_action( 'woocommerce_product_options_inventory_product_data', array( $this, 'render_gmc_product_settings' ) );
         add_action( 'woocommerce_process_product_meta', array( $this, 'save_product_meta' ) );
         add_filter( 'manage_edit-product_columns', array( $this, 'add_gmc_admin_columns' ) );
@@ -96,12 +96,12 @@ public function __construct() {
     private function fetch_google_real_statuses() {
         // 1. Check API Connection
         $client = self::get_google_client();
-    if ( is_wp_error( $client ) ) {
-        if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
-            error_log( 'Cirrusly Commerce: Failed to get Google client - ' . $client->get_error_message() );
+        if ( is_wp_error( $client ) ) {
+            if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+                error_log( 'Cirrusly Commerce: Failed to get Google client - ' . $client->get_error_message() );
+            }
+            return array();
         }
-        return array();
-    }
 
         // 2. Get Merchant ID
         $scan_config = get_option( 'cirrusly_scan_config', array() );
@@ -155,10 +155,10 @@ public function __construct() {
             } while ( null !== $pageToken );
 
         } catch ( Exception $e ) {
-        if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
-            error_log( 'Cirrusly Commerce: Google API error in fetch_google_real_statuses - ' . $e->getMessage() );
+            if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+                error_log( 'Cirrusly Commerce: Google API error in fetch_google_real_statuses - ' . $e->getMessage() );
+            }
         }
-    }
 
         return $google_issues;
     }
@@ -195,17 +195,17 @@ public function __construct() {
     private function get_monitored_terms() {
         return array(
             'promotional' => array(
-                'free shipping' => array('severity' => 'Medium', 'scope' => 'title', 'reason' => 'Allowed in descriptions but prohibited in titles.'),
+                'free shipping' => array('severity' => 'Medium', 'scope' => 'title', 'reason' => 'Allowed in descriptions, but prohibited in titles.'),
                 'sale'          => array('severity' => 'Medium', 'scope' => 'title', 'reason' => 'Prohibited in titles. Use the "Sale Price" field instead.'),
-                'buy one'       => array('severity' => 'Medium', 'scope' => 'title', 'reason' => 'Promotional text. Use GMC Promotions feed for BOGO offers.'),
-                'best price'    => array('severity' => 'High',   'scope' => 'title', 'reason' => 'Subjective claim. Google may flag this as "Misrepresentation".'),
-                'cheapest'      => array('severity' => 'High',   'scope' => 'title', 'reason' => 'Subjective claim. Highly likely to cause "Misrepresentation" suspension.'),
+                'buy one'       => array('severity' => 'Medium', 'scope' => 'title', 'reason' => 'Considered promotional text. Use GMC Promotions feed for BOGO offers.'),
+                'best price'    => array('severity' => 'High',   'scope' => 'title', 'reason' => 'A subjective claim, which may flagged as "Misrepresentation".'),
+                'cheapest'      => array('severity' => 'High',   'scope' => 'title', 'reason' => 'A subjective claim, and a frequent cause of "Misrepresentation" suspension.'),
             ),
             'medical' => array( 
-                'cure'        => array('severity' => 'Critical', 'scope' => 'all', 'reason' => 'Medical claim. Strictly prohibited for non-pharmacies.'),
-                'heal'        => array('severity' => 'Critical', 'scope' => 'all', 'reason' => 'Medical claim. Implies permanent fix.'),
-                'virus'       => array('severity' => 'Critical', 'scope' => 'all', 'reason' => 'Medical claim. Do not claim to prevent or treat viruses.'),
-                'covid'       => array('severity' => 'Critical', 'scope' => 'all', 'reason' => 'Sensitive event policy. Strictly regulated.'),
+                'cure'        => array('severity' => 'Critical', 'scope' => 'all', 'reason' => 'Medical claim, DO NOT use in non-medical situations without clear evidence.'),
+                'heal'        => array('severity' => 'Critical', 'scope' => 'all', 'reason' => 'Medical claim that implies a permanent fix.'),
+                'virus'       => array('severity' => 'Critical', 'scope' => 'all', 'reason' => 'Medical claim. Google prohibits claims of the prevention or treatment of viruses.'),
+                'covid'       => array('severity' => 'Critical', 'scope' => 'all', 'reason' => 'This term is considered a sensitive event, and is monitored closely.'),
                 'guaranteed'  => array('severity' => 'Medium',   'scope' => 'all', 'reason' => 'If you say "Guaranteed", you must have a clear money-back policy linked.')
             )
         );
@@ -349,6 +349,27 @@ public function __construct() {
                     } else {
                         if ( preg_match($pattern, $title . ' ' . $content) ) $found = true;
                     }
+
+                    // --- NLP Context Check ---
+                    // If a keyword is found locally, verify context with NLP to rule out false positives
+                    if ( $found ) {
+                        // Only run expensive NLP calls if a keyword trigger was found and user is Pro
+                        if ( Cirrusly_Commerce_Core::cirrusly_is_pro() ) {
+                            $nlp_result = $this->analyze_text_with_nlp( $title . ' ' . $content );
+                            
+                            if ( ! is_wp_error( $nlp_result ) ) {
+                                $entities = $nlp_result->getEntities();
+                                foreach ( $entities as $entity ) {
+                                    // Logic: If the found word matches an entity classified as "SOFTWARE" (e.g. "Computer Virus")
+                                    // we consider it safe and unset the flag.
+                                    if ( strcasecmp( $entity->getName(), $word ) === 0 && $entity->getType() === 'SOFTWARE' ) {
+                                        $found = false; 
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    // -------------------------
 
                     if ( $found ) {
                         $found_terms[] = array('word' => $word, 'reason' => $rules['reason'], 'severity' => $rules['severity']);
@@ -1038,6 +1059,7 @@ public function run_gmc_scan_logic() {
             $client->setAuthConfig( $auth_config );
             $client->setScopes([
                 'https://www.googleapis.com/auth/content',
+                'https://www.googleapis.com/auth/cloud-language' // Added Scope for NLP
             ]);
             
             return $client;
@@ -1304,4 +1326,44 @@ public function run_gmc_scan_logic() {
         }
     }
    
+    /**
+     * Analyze text using Google Cloud NLP API.
+     * @param string $text The content to analyze.
+     * @return Google\Service\CloudNaturalLanguage\AnnotateTextResponse|WP_Error Analysis results or error.
+     */
+    private function analyze_text_with_nlp( $text ) {
+        $client = self::get_google_client();
+        if ( is_wp_error( $client ) ) {
+            return $client;
+        }
+
+        // Initialize the NLP Service
+        $service = new Google\Service\CloudNaturalLanguage( $client );
+        
+        // Prepare the document
+        $document = new Google\Service\CloudNaturalLanguage\Document();
+        $document->setType( 'PLAIN_TEXT' );
+        $document->setContent( $text );
+
+        // Configure features (Entity Analysis to detect context)
+        $features = new Google\Service\CloudNaturalLanguage\AnnotateTextRequestFeatures();
+        $features->setExtractEntities( true );
+        // You can also enable sentiment analysis if needed:
+        // $features->setAnalyzeSentiment( true ); 
+
+        $request = new Google\Service\CloudNaturalLanguage\AnnotateTextRequest();
+        $request->setDocument( $document );
+        $request->setFeatures( $features );
+
+        try {
+            return $service->documents->annotateText( $request );
+        } catch ( Exception $e ) {
+            // Log error for debugging but return WP_Error so the scan doesn't crash
+            if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+                error_log( 'Cirrusly Commerce NLP Error: ' . $e->getMessage() );
+            }
+            return new WP_Error( 'nlp_error', $e->getMessage() );
+        }
+    }
+
 }
