@@ -41,7 +41,30 @@ class Cirrusly_Commerce_GMC {
         $instance->render_gmc_hub_page();
     }
 
-/**
+    /**
+     * NEW: Fetch account-level issues (Policy/Suspensions) from Google Content API.
+     */
+    private function fetch_google_account_issues() {
+        $client = Cirrusly_Commerce_Core::get_google_client();
+        if ( is_wp_error( $client ) ) return null;
+
+        $scan_config = get_option( 'cirrusly_scan_config' );
+        $merchant_id = isset( $scan_config['merchant_id_pro'] ) ? $scan_config['merchant_id_pro'] : get_option( 'cirrusly_gmc_merchant_id', '' );
+        
+        if ( empty( $merchant_id ) ) return null;
+
+        $service = new Google\Service\ShoppingContent( $client );
+        
+        try {
+            // accountstatuses.get requires merchantId and accountId. Use merchant_id for both for single accounts.
+            $status = $service->accountstatuses->get( $merchant_id, $merchant_id );
+            return $status;
+        } catch ( Exception $e ) {
+            return null;
+        }
+    }
+
+    /**
      * NEW: Fetch actual product statuses from Google Content API.
      */
     private function fetch_google_real_statuses() {
@@ -161,12 +184,49 @@ class Cirrusly_Commerce_GMC {
         );
     }
 
-    /**
-     * Renders the Site Content Audit UI.
+/**
+     * Renders the Site Content Audit UI with Pro Account Check.
      */
     private function render_content_scan_view() {
+        $is_pro = Cirrusly_Commerce_Core::cirrusly_is_pro();
+        
+        // --- 1. PRO: GOOGLE ACCOUNT STATUS ---
+        echo '<div class="cc-settings-card ' . ( $is_pro ? '' : 'cc-pro-feature' ) . '" style="margin-bottom:20px; border:1px solid #c3c4c7; padding:0;">';
+        
+        if ( ! $is_pro ) {
+            echo '<div class="cc-pro-overlay"><a href="' . esc_url( function_exists('cc_fs') ? cc_fs()->get_upgrade_url() : '#' ) . '" class="cc-upgrade-btn"><span class="dashicons dashicons-lock cc-lock-icon"></span> Check Account Bans</a></div>';
+        }
+
+        echo '<div class="cc-card-header" style="background:#f8f9fa; border-bottom:1px solid #ddd; padding:15px;">
+                <h3 style="margin:0;">Google Account Status <span class="cc-pro-badge">PRO</span></h3>
+              </div>';
+        
+        echo '<div class="cc-card-body" style="padding:15px;">';
+        
+        if ( $is_pro ) {
+            $account_status = $this->fetch_google_account_issues();
+            if ( $account_status ) {
+                $issues = $account_status->getAccountLevelIssues();
+                if ( empty( $issues ) ) {
+                    echo '<div class="notice notice-success inline"><p><strong>Account Healthy:</strong> No account-level policy issues detected.</p></div>';
+                } else {
+                    echo '<div class="notice notice-error inline"><p><strong>Attention Needed:</strong></p><ul style="list-style:disc; margin-left:20px;">';
+                    foreach ( $issues as $issue ) {
+                        echo '<li><strong>' . esc_html( $issue->getTitle() ) . ':</strong> ' . esc_html( $issue->getDetail() ) . '</li>';
+                    }
+                    echo '</ul></div>';
+                }
+            } else {
+                echo '<p><em>Could not fetch account status. Check API connection.</em></p>';
+            }
+        } else {
+            echo '<p>View real-time suspension status and policy violations directly from Google.</p>';
+        }
+        echo '</div></div>';
+
+        // --- 2. EXISTING: LOCAL SCAN EXPLANATION ---
         echo '<div class="cc-manual-helper">
-            <h4>Site Content Audit</h4>
+            <h4>Site Content Audit (Local)</h4>
             <p>This tool scans your site pages and product descriptions to ensure compliance with Google Merchant Center policies. It checks for:</p>
             <ul style="list-style:disc; margin-left:20px; font-size:12px;">
                 <li><strong>Required Policies:</strong> Verifies the existence of Refund, Privacy, and Terms of Service pages.</li>
@@ -199,7 +259,7 @@ class Cirrusly_Commerce_GMC {
         }
         echo '</div>';
 
-        // --- 2. RESTRICTED TERMS SCAN ---
+        // --- 3. RESTRICTED TERMS SCAN ---
         echo '<div style="background:#fff; padding:20px; border:1px solid #c3c4c7; margin-bottom:20px; margin-top:20px;">
             <div style="display:flex; justify-content:space-between; align-items:center;">
                 <h3 style="margin:0;">Restricted Terms Scan</h3>
