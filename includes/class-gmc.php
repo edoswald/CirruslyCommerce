@@ -675,23 +675,46 @@ public function run_gmc_scan_logic() {
     /****
      * Prevent publishing of products that contain critical (medical) terms.
      */
-    public function check_compliance_on_save( $post_id, $post, $update ) {
-        // Only run if option enabled
-        $scan_cfg = get_option('cirrusly_scan_config', array());
-        if ( empty($scan_cfg['block_on_critical']) || $scan_cfg['block_on_critical'] !== 'yes' ) return;
-        if ( defined('DOING_AUTOSAVE') && DOING_AUTOSAVE ) return;
-        if ( $post->post_type !== 'product' ) return;
+public function check_compliance_on_save( $post_id, $post, $update ) {
+    // 1. Basic Checks
+    $scan_cfg = get_option('cirrusly_scan_config', array());
+    if ( empty($scan_cfg['block_on_critical']) || $scan_cfg['block_on_critical'] !== 'yes' ) return;
+    
+    // Avoid running on autosaves or non-product post types
+    if ( defined('DOING_AUTOSAVE') && DOING_AUTOSAVE ) return;
+    if ( $post->post_type !== 'product' ) return;
 
-        // Quick check for banned words
-        $monitored = $this->get_monitored_terms();
-        foreach($monitored['medical'] as $word => $data) {
-             if ( stripos($post->post_title, $word) !== false ) {
-                 // Force post_status back to draft to prevent publishing.
-                 $post->post_status = 'draft';
-                 wp_update_post( $post );
-             }
-        }
+    // 2. Scan for Critical Terms
+    $monitored = $this->get_monitored_terms();
+    $violation_found = false;
+
+    foreach( $monitored['medical'] as $word => $data ) {
+         if ( stripos( $post->post_title, $word ) !== false ) {
+             $violation_found = true;
+             break; 
+         }
     }
+
+    // 3. Force Draft if Violation Found
+    // Only proceed if the post is currently published or pending (don't loop on drafts)
+    if ( $violation_found && in_array( $post->post_status, array( 'publish', 'pending', 'future' ) ) ) {
+        
+        // CRITICAL FIX: Unhook to prevent infinite loop
+        remove_action( 'save_post_product', array( $this, 'check_compliance_on_save' ), 10 );
+        
+        // Force status to draft
+        wp_update_post( array(
+            'ID'          => $post_id,
+            'post_status' => 'draft'
+        ) );
+
+        // Optional: Add an admin notice transient so the user knows WHY it reverted to draft
+        set_transient( 'cc_gmc_blocked_save_' . get_current_user_id(), 'Product reverted to Draft due to restricted medical terms.', 30 );
+
+        // Re-hook (good practice, though script execution usually ends shortly after)
+        add_action( 'save_post_product', array( $this, 'check_compliance_on_save' ), 10, 3 );
+    }
+}
 
     /**
      * Removes configured banned medical terms from a product's title and content.
