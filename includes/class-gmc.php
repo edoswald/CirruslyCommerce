@@ -9,7 +9,7 @@ class Cirrusly_Commerce_GMC {
     /**
      * Initialize GMC integration by registering WordPress and WooCommerce hooks and filters.
      */
-    public function __construct() {
+public function __construct() {
         add_action( 'woocommerce_product_options_inventory_product_data', array( $this, 'render_gmc_product_settings' ) );
         add_action( 'woocommerce_process_product_meta', array( $this, 'save_product_meta' ) );
         add_filter( 'manage_edit-product_columns', array( $this, 'add_gmc_admin_columns' ) );
@@ -25,6 +25,9 @@ class Cirrusly_Commerce_GMC {
         // Block Save on Critical Error (Pro Feature)
         add_action( 'save_post_product', array( $this, 'check_compliance_on_save' ), 10, 3 );
         
+        // NEW: Display Blocked Save Notice
+        add_action( 'admin_notices', array( $this, 'render_blocked_save_notice' ) );
+
         // NEW: Auto-strip Banned Words (Pro Feature)
         add_filter( 'wp_insert_post_data', array( $this, 'handle_auto_strip_on_save' ), 10, 2 );
 
@@ -842,6 +845,34 @@ public function run_gmc_scan_logic() {
 
             // Re-hook (good practice, though script execution usually ends shortly after)
             add_action( 'save_post_product', array( $this, 'check_compliance_on_save' ), 10, 3 );
+        }
+    }
+
+    /**
+     * Display an admin notice if a product save was blocked by compliance checks.
+     * Checks for a specific transient set during the save_post hook.
+     */
+    public function render_blocked_save_notice() {
+        // Only show to users who can likely trigger this
+        if ( ! is_admin() || ! current_user_can( 'edit_products' ) ) {
+            return;
+        }
+
+        $user_id = get_current_user_id();
+        $transient_key = 'cc_gmc_blocked_save_' . $user_id;
+        $msg = get_transient( $transient_key );
+
+        if ( $msg ) {
+            ?>
+            <div class="notice notice-error is-dismissible">
+                <p>
+                    <strong><?php esc_html_e( 'Cirrusly Commerce Alert:', 'cirrusly-commerce' ); ?></strong> 
+                    <?php echo esc_html( $msg ); ?>
+                </p>
+            </div>
+            <?php
+            // Delete transient so the message only appears once
+            delete_transient( $transient_key );
         }
     }
 
