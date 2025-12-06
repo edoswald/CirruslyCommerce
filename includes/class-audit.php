@@ -13,9 +13,9 @@ class Cirrusly_Commerce_Audit {
         add_action( 'admin_init', array( __CLASS__, 'handle_export' ) );
     }
 
-/**
+    /**
      * Generate or retrieve cached per-product audit data used for the admin audit table and CSV export.
-     * * UPDATED: Now includes MAP, Google Min, and MSRP.
+     * UPDATED: Now fetches MAP, Google Min, and MSRP for the export.
      */
     public static function get_compiled_data( $force_refresh = false ) {
         $cache_key = 'cw_audit_data';
@@ -51,11 +51,11 @@ class Cirrusly_Commerce_Audit {
                 
                 $is_shipping_exempt = $p->is_virtual() || $p->is_downloadable();
                 
-                // Financials
+                // --- Financials ---
                 $cost = (float)$p->get_meta('_cogs_total_value');
                 $ship_cost = (float)$p->get_meta('_cw_est_shipping');
                 
-                // Custom Pricing Fields
+                // --- Custom Pricing Fields (New) ---
                 $map = (float)$p->get_meta('_cirrusly_map_price');
                 $min_price = (float)$p->get_meta('_auto_pricing_min_price');
                 $msrp = (float)$p->get_meta('_alg_msrp');
@@ -113,7 +113,7 @@ class Cirrusly_Commerce_Audit {
                     'alerts' => $alerts,
                     'is_in_stock' => $p->is_in_stock(),
                     'cats' => wp_get_post_terms($pid, 'product_cat', array('fields'=>'slugs')),
-                    // New Fields
+                    // Export Data
                     'map' => $map,
                     'min_price' => $min_price,
                     'msrp' => $msrp
@@ -219,9 +219,9 @@ class Cirrusly_Commerce_Audit {
         );
     }
 
-    /**
+/**
      * Outputs a CSV file of the compiled audit data when the audit admin page requests an export.
-     * * UPDATED: Appends MAP, Google Min, and MSRP columns.
+     * UPDATED: Appends MAP, Google Min, and MSRP columns.
      */
     public static function handle_export() {
         if ( isset($_GET['page']) && $_GET['page'] === 'cirrusly-audit' && isset($_GET['action']) && $_GET['action'] === 'export_csv' ) {
@@ -237,7 +237,7 @@ class Cirrusly_Commerce_Audit {
             header('Content-Disposition: attachment; filename="store-audit-' . date('Y-m-d') . '.csv"');
             
             $fp = fopen('php://output', 'w');
-            // Updated Headers
+            // Headers match indices: 0..7 are standard, 8=MAP, 9=Min, 10=MSRP
             fputcsv($fp, array('ID', 'Product Name', 'Type', 'Cost (COGS)', 'Shipping Cost', 'Price', 'Net Profit', 'Margin %', 'MAP', 'Google Min', 'MSRP'));
             
             foreach ( $data as $row ) {
@@ -250,7 +250,7 @@ class Cirrusly_Commerce_Audit {
                     $row['price'],
                     $row['net'],
                     number_format($row['margin'], 2) . '%',
-                    // New Data
+                    // New Columns
                     $row['map'] > 0 ? $row['map'] : '',
                     $row['min_price'] > 0 ? $row['min_price'] : '',
                     $row['msrp'] > 0 ? $row['msrp'] : ''
@@ -263,8 +263,7 @@ class Cirrusly_Commerce_Audit {
 
     /**
      * Process an uploaded CSV to bulk-import product COGS and extra pricing fields.
-     * * UPDATED: Now supports importing MAP, Google Min, and MSRP if columns are present.
-     * Expected Columns: ID(0), Name(1), Type(2), Cost(3), Ship(4), Price(5), Net(6), Margin(7), MAP(8), Google Min(9), MSRP(10)
+     * UPDATED: Refactored loop to support MAP (col 8), Google Min (col 9), and MSRP (col 10).
      */
     public static function handle_import() {
         if ( isset($_FILES['csv_import']) && current_user_can('edit_products') ) {
@@ -285,21 +284,21 @@ class Cirrusly_Commerce_Audit {
             fgetcsv($handle);
             
             while (($row = fgetcsv($handle)) !== FALSE) {
+                // Check if row has a valid ID at index 0
                 if ( empty($row[0]) ) continue;
                 
                 $pid = intval($row[0]);
                 if ( ! $pid ) continue;
-
-                $product = wc_get_product($pid);
+                
+                $product = wc_get_product( $pid );
                 if ( ! $product ) continue;
                 
                 $updated = false;
 
                 // 1. Cost (Index 3)
-                // Preserving existing logic: check if index 3 exists and > 0 (or we can allow 0 updates if desired)
                 if ( isset($row[3]) && is_numeric($row[3]) ) {
                     $cost = floatval($row[3]);
-                    // Only update if positive to avoid accidental wipes, or allow 0 if that's valid intent
+                    // Only update if positive to avoid accidental wipes of COGS
                     if ( $cost > 0 ) {
                         update_post_meta($pid, '_cogs_total_value', $cost);
                         $updated = true;
@@ -307,19 +306,19 @@ class Cirrusly_Commerce_Audit {
                 }
 
                 // 2. MAP (Index 8)
-                if ( isset($row[8]) && $row[8] !== '' && is_numeric($row[8]) ) {
+                if ( isset($row[8]) && $row[8] !== '' ) {
                     update_post_meta($pid, '_cirrusly_map_price', wc_format_decimal($row[8]));
                     $updated = true;
                 }
 
                 // 3. Google Min (Index 9)
-                if ( isset($row[9]) && $row[9] !== '' && is_numeric($row[9]) ) {
+                if ( isset($row[9]) && $row[9] !== '' ) {
                     update_post_meta($pid, '_auto_pricing_min_price', wc_format_decimal($row[9]));
                     $updated = true;
                 }
 
                 // 4. MSRP (Index 10)
-                if ( isset($row[10]) && $row[10] !== '' && is_numeric($row[10]) ) {
+                if ( isset($row[10]) && $row[10] !== '' ) {
                     update_post_meta($pid, '_alg_msrp', wc_format_decimal($row[10]));
                     $updated = true;
                 }
