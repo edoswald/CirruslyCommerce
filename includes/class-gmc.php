@@ -43,8 +43,8 @@ public function __construct() {
         $instance = new self();
         $instance->render_gmc_hub_page();
     }
-
-/**
+    
+    /**
      * NEW: Fetch account-level issues (Policy/Suspensions) from Google Content API.
      * Returns Google_Service_ShoppingContent_AccountStatus object, or WP_Error on failure.
      */
@@ -57,16 +57,33 @@ public function __construct() {
         }
 
         $scan_config = get_option( 'cirrusly_scan_config' );
-        $merchant_id = isset( $scan_config['merchant_id_pro'] ) ? $scan_config['merchant_id_pro'] : get_option( 'cirrusly_gmc_merchant_id', '' );
         
+        // 1. Get Merchant ID (Aggregator/Auth Scope)
+        $merchant_id = isset( $scan_config['merchant_id_pro'] ) ? $scan_config['merchant_id_pro'] : get_option( 'cirrusly_gmc_merchant_id', '' );
         if ( empty( $merchant_id ) ) {
-            return new WP_Error( 'missing_id', 'Merchant ID not configured in settings.' );
+            return new WP_Error( 'missing_merchant_id', 'Merchant ID not configured in settings.' );
+        }
+
+        // 2. Get Account ID (The specific account to query)
+        // Derive distinct account ID (e.g. for Multi-Client Accounts)
+        $account_id = isset( $scan_config['account_id'] ) ? $scan_config['account_id'] : '';
+        
+        // Validate Account ID
+        if ( empty( $account_id ) ) {
+            // Fallback for single accounts: use merchant_id if account_id is not explicitly set
+            // (Remove this fallback if you want to strictly enforce separate IDs)
+            $account_id = $merchant_id; 
+        }
+
+        if ( empty( $account_id ) ) {
+            return new WP_Error( 'missing_account_id', 'Target Account ID not configured.' );
         }
 
         $service = new Google\Service\ShoppingContent( $client );
         
         try {
-            $status = $service->accountstatuses->get( $merchant_id, $merchant_id );
+            // Updated Call: Pass distinct Merchant ID and Account ID
+            $status = $service->accountstatuses->get( $merchant_id, $account_id );
             return $status;
         } catch ( Exception $e ) {
             // Catch API errors (e.g. 401 Unauthorized, 404 Not Found)
