@@ -33,7 +33,6 @@ public function __construct() {
 
         // NEW: AJAX for Promo Submit & List
         add_action( 'wp_ajax_cc_submit_promo_to_gmc', array( $this, 'handle_promo_api_submit' ) );
-        add_action( 'wp_ajax_cc_list_promos_gmc', array( $this, 'handle_promo_api_list' ) );
     }
 
     /**
@@ -470,7 +469,7 @@ public function __construct() {
                 
                 $.post(ajaxurl, {
                     action: 'cc_list_promos_gmc',
-                    security: '<?php echo wp_create_nonce("cc_promo_api_submit"); ?>', // Reusing existing nonce context
+                    security: '<?php echo wp_create_nonce("cc_promo_api_list"); ?>',
                     force_refresh: forceRefresh ? 1 : 0
                 }, function(res) {
                     $btn.prop('disabled', false).html('<span class="dashicons dashicons-update"></span> Sync from Google');
@@ -1169,7 +1168,7 @@ public function run_gmc_scan_logic() {
      * Supports caching to prevent excessive API calls. Pass 'force_refresh' in POST to bypass cache.
      */
     public function handle_promo_api_list() {
-        check_ajax_referer( 'cc_promo_api_submit', 'security' );
+        check_ajax_referer( 'cc_promo_api_list', 'security' );
 
         if ( ! current_user_can( 'manage_woocommerce' ) ) {
             wp_send_json_error( 'Insufficient permissions.' );
@@ -1279,8 +1278,8 @@ public function run_gmc_scan_logic() {
                         if ( $end_timestamp > 0 && $end_timestamp < time() ) {
                             $status = 'expired';
                         } else {
-                            // Only show 'new' if it's not expired
-                            $status = 'pending (new)';
+                            // Default to pending for new promotions
+                            $status = 'pending';
                         }
                     }
 
