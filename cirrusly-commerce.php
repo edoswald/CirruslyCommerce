@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Cirrusly Commerce
  * Description: All-in-one suite: GMC Assistant, Promotion Manager, Pricing Engine, and Store Financial Audit that doesn't cost an arm and a leg.
- * Version: 1.2.0
+ * Version: 1.2.1
  * Author: Cirrusly Weather
  * Author URI: https://cirruslyweather.com
  * Text Domain: cirrusly-commerce
@@ -23,7 +23,7 @@ if ( file_exists( plugin_dir_path( __FILE__ ) . 'vendor/autoload.php' ) ) {
 }
 
 // Define Constants
-define( 'CIRRUSLY_COMMERCE_VERSION', '1.2.0' );
+define( 'CIRRUSLY_COMMERCE_VERSION', '1.2.1' );
 define( 'CIRRUSLY_COMMERCE_PATH', plugin_dir_path( __FILE__ ) );
 define( 'CIRRUSLY_COMMERCE_URL', plugin_dir_url( __FILE__ ) );
 

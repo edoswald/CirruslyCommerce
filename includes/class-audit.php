@@ -323,23 +323,6 @@ class Cirrusly_Commerce_Audit {
 
                  $map[ $key ] = $index;
              }
-            // Normalize headers (trim spaces) and strip possible UTF‑8 BOM from the first column.
-            $map = array();
-            foreach ( $header as $index => $col_name ) {
-                $col_name = (string) $col_name;
-
-                if ( 0 === $index ) {
-                    // Remove UTF‑8 BOM if present.
-                    $col_name = preg_replace( '/^\xEF\xBB\xBF/', '', $col_name );
-                }
-
-                $key = trim( $col_name );
-                if ( '' === $key ) {
-                    continue; // Ignore blank header cells.
-                }
-
-                $map[ $key ] = $index;
-            }
 
             // Ensure we at least have an ID column
             if ( ! isset($map['ID']) ) {
@@ -389,17 +372,8 @@ class Cirrusly_Commerce_Audit {
         }
     }
 
-    /**
-     * Render the Store Financial Audit admin page and handle related import/export actions.
-     *
-     * Displays the audit dashboard: metrics, filters, paginated product table, export/import controls,
-     * and (when Pro) inline editing behaviour. Handles import submissions when a valid nonce is present,
-     * refreshes cached audit data when requested, and enforces the current user's 'edit_products' capability.
-     *
-     * Side effects: outputs HTML/JS directly to the admin page, may call self::handle_import(), and may
-     * terminate execution via wp_die() if the current user lacks permission.
-     *
-     * @return void
+/**
+     * Render the Store Financial Audit admin page.
      */
     public static function render_page() {
         if ( ! current_user_can( 'edit_products' ) ) wp_die( 'No permission' );
@@ -437,52 +411,34 @@ class Cirrusly_Commerce_Audit {
         $pro_class = $is_pro ? '' : 'cc-pro-feature';
         $disabled_attr = $is_pro ? '' : 'disabled';
 
+        // DASHBOARD GRID
         ?>
-        <div class="cc-dash-grid" style="grid-template-columns: 1fr; margin-bottom: 20px;">
-            <div class="cc-dash-card cc-full-width" style="border-top-color: #2271b1;">
-                <div class="cc-stat-block">
-                    <span class="cc-big-num"><?php echo esc_html( $total_skus ); ?></span>
-                    <span class="cc-label">Audited SKUs</span>
-                </div>
-                <div class="cc-stat-block">
-                    <span class="cc-big-num" style="color:#d63638;"><?php echo esc_html( $loss_count ); ?></span>
-                    <span class="cc-label">Loss Makers (Net &lt; 0)</span>
-                </div>
-                <div class="cc-stat-block">
-                    <span class="cc-big-num" style="color:#dba617;"><?php echo esc_html( $alert_count ); ?></span>
-                    <span class="cc-label">Data Alerts</span>
-                </div>
-                <div class="cc-stat-block">
-                    <span class="cc-big-num"><?php echo esc_html( $low_margin_count ); ?></span>
-                    <span class="cc-label">Low Margin (&lt; 15%)</span>
-                </div>
-                
-                <div style="flex:2; display:flex; gap:10px; justify-content:center; align-items:center; border-left:1px solid #eee; padding-left:20px; position:relative;">
-                    
-                    <div class="<?php echo esc_attr($pro_class); ?>">
-                        <a href="<?php echo esc_url( add_query_arg('action', 'export_csv') ); ?>" class="button button-secondary" <?php echo esc_attr($disabled_attr); ?>>
-                            <span class="dashicons dashicons-download"></span> Export CSV
-                        </a>
-                    </div>
-                    
-                    <div class="<?php echo esc_attr($pro_class); ?>">
-                        <form method="post" enctype="multipart/form-data" style="display:inline;">
-                            <?php wp_nonce_field('cc_import_action', 'cc_import_nonce'); ?>
-                            <label class="button button-secondary" style="cursor:pointer;">
-                                <span class="dashicons dashicons-upload"></span> Bulk Import COGS
-                                <input type="file" name="csv_import" style="display:none;" onchange="this.form.submit()" <?php echo esc_attr($disabled_attr); ?>>
-                            </label>
-                        </form>
-                    </div>
-
-                    <?php if(!$is_pro): ?>
-                    <div class="cc-pro-overlay">
-                        <a href="<?php echo esc_url( function_exists('cc_fs') ? cc_fs()->get_upgrade_url() : '#' ); ?>" class="cc-upgrade-btn button-small" style="font-size:11px;">
-                            <span class="dashicons dashicons-lock" style="font-size:14px; line-height:1.5;"></span> Unlock Pro Tools
-                        </a>
-                    </div>
-                    <?php endif; ?>
-                </div>
+        <div style="display:flex; gap:20px; align-items:flex-start;">
+            <div class="cc-dash-grid" style="flex:1; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 20px;">
+                 <div class="cc-dash-card" style="border-top-color: #2271b1; text-align: center;">
+                     <span class="cc-big-num"><?php echo esc_html( $total_skus ); ?></span>
+                     <span class="cc-label">Audited SKUs</span>
+                 </div>
+                 <div class="cc-dash-card" style="border-top-color: #d63638; text-align: center;">
+                     <span class="cc-big-num" style="color:#d63638;"><?php echo esc_html( $loss_count ); ?></span>
+                     <span class="cc-label">Loss Makers (Net &lt; 0)</span>
+                 </div>
+                 <div class="cc-dash-card" style="border-top-color: #dba617; text-align: center;">
+                     <span class="cc-big-num" style="color:#dba617;"><?php echo esc_html( $alert_count ); ?></span>
+                     <span class="cc-label">Data Alerts</span>
+                 </div>
+                 <div class="cc-dash-card" style="border-top-color: #008a20; text-align: center;">
+                     <span class="cc-big-num"><?php echo esc_html( $low_margin_count ); ?></span>
+                     <span class="cc-label">Low Margin (&lt; 15%)</span>
+                 </div>
+            </div>
+            <div style="width:250px; background:#fff; border:1px solid #c3c4c7; padding:15px; font-size:12px; color:#555;">
+                <strong>Dashboard Legend</strong>
+                <ul style="margin:5px 0 0 15px; list-style:disc;">
+                    <li><strong>Ship P/L:</strong> Shipping Charged - Shipping Cost. Positive is good.</li>
+                    <li><strong>Net Profit:</strong> Gross Profit - Payment Fees.</li>
+                    <li><strong>Margin:</strong> (Gross Profit / Price) * 100.</li>
+                </ul>
             </div>
         </div>
         <?php
@@ -617,6 +573,35 @@ class Cirrusly_Commerce_Audit {
         echo '</tbody></table>';
 
         echo '<div class="tablenav bottom">' . wp_kses_post( $pagination_html ) . '</div>';
+
+        // NEW: PRO TOOLS CARD (Moved to Bottom)
+        echo '<div class="cc-settings-card '.esc_attr($pro_class).'" style="margin-top:30px; border:1px solid #c3c4c7;">';
+        if(!$is_pro) echo '<div class="cc-pro-overlay"><a href="'.esc_url( function_exists('cc_fs') ? cc_fs()->get_upgrade_url() : '#' ).'" class="cc-upgrade-btn"><span class="dashicons dashicons-lock cc-lock-icon"></span> Unlock Bulk Data Tools</a></div>';
+        
+        echo '<div class="cc-card-header" style="background:#f8f9fa; border-bottom:1px solid #ddd;">
+                <h3>Data Management <span class="cc-pro-badge">PRO</span></h3>
+              </div>
+              <div class="cc-card-body" style="display:flex; gap:20px; align-items:center;">
+                 <div>
+                    <h4>Export Data</h4>
+                    <p>Download your full financial audit as a CSV file.</p>
+                    <a href="'.esc_url( add_query_arg('action', 'export_csv') ).'" class="button button-secondary" '.esc_attr($disabled_attr).'>
+                        <span class="dashicons dashicons-download"></span> Download CSV
+                    </a>
+                 </div>
+                 <div style="border-left:1px solid #eee; padding-left:20px;">
+                    <h4>Bulk Import COGS</h4>
+                    <p>Update Cost of Goods and Pricing map via CSV.</p>
+                    <form method="post" enctype="multipart/form-data">
+                        '.wp_nonce_field('cc_import_action', 'cc_import_nonce', true, false).'
+                        <label class="button button-secondary" style="cursor:pointer;">
+                            <span class="dashicons dashicons-upload"></span> Upload CSV
+                            <input type="file" name="csv_import" style="display:none;" onchange="this.form.submit()" '.esc_attr($disabled_attr).'>
+                        </label>
+                    </form>
+                 </div>
+              </div>';
+        echo '</div>';
 
         if($is_pro) {
             ?>

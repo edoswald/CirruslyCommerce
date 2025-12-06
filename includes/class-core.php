@@ -1042,11 +1042,6 @@ public function register_admin_menus() {
 
     /**
      * Render the General settings section of the Cirrusly Commerce admin.
-     *
-     * Outputs the Integrations, Automation, Frontend Display, Content API Connection (PRO),
-     * and Advanced Alerts (PRO) panels and their form controls into the settings page.
-     *
-     * @return void
      */
     private function render_general_settings() {
         // Retrieve values
@@ -1078,7 +1073,9 @@ public function register_admin_menus() {
 
         echo '<div class="cc-settings-grid">';
         
-        // Card: Integrations (Reviews)
+        // --- ROW 1: CORE FREE FEATURES ---
+
+        // Card 1: Integrations (Reviews)
         echo '<div class="cc-settings-card">
             <div class="cc-card-header">
                 <h3>Integrations</h3>
@@ -1098,7 +1095,26 @@ public function register_admin_menus() {
             </div>
         </div>';
 
-        // Card: Automation
+        // Card 2: Frontend Display (MSRP) - MOVED UP
+        echo '<div class="cc-settings-card">
+            <div class="cc-card-header">
+                <h3>Frontend Display</h3>
+                <span class="dashicons dashicons-store"></span>
+            </div>
+            <div class="cc-card-body">
+                <table class="form-table cc-settings-table">
+                    <tr>
+                        <th scope="row">MSRP Price</th>
+                        <td><label><input type="checkbox" name="cirrusly_msrp_config[enable_display]" value="yes" '.checked('yes', $msrp_enable, false).'> Show Strikethrough MSRP on Product Pages</label></td>
+                    </tr>
+                </table>
+                <p class="description">For custom placement, use the <strong>MSRP Display</strong> block in the Gutenberg editor.</p>
+            </div>
+        </div>';
+
+        // --- ROW 2: MIXED / PRO FEATURES ---
+
+        // Card 3: Automation
         echo '<div class="cc-settings-card">
             <div class="cc-card-header">
                 <h3>Automation</h3>
@@ -1120,7 +1136,7 @@ public function register_admin_menus() {
             </div>
         </div>';
 
-        // Card: Promotions (Countdown)
+        // Card 4: Promotions (Countdown) - PRO
         echo '<div class="cc-settings-card '.esc_attr($pro_class).'">';
             if(!$is_pro) echo '<div class="cc-pro-overlay"><a href="'.esc_url( function_exists('cc_fs') ? cc_fs()->get_upgrade_url() : '#' ).'" class="cc-upgrade-btn"><span class="dashicons dashicons-lock cc-lock-icon"></span> Unlock Smart Rules</a></div>';
 
@@ -1152,24 +1168,9 @@ public function register_admin_menus() {
             </div>
         </div>';
 
-        // Card: Frontend Display (MSRP)
-        echo '<div class="cc-settings-card">
-            <div class="cc-card-header">
-                <h3>Frontend Display</h3>
-                <span class="dashicons dashicons-store"></span>
-            </div>
-            <div class="cc-card-body">
-                <table class="form-table cc-settings-table">
-                    <tr>
-                        <th scope="row">MSRP Price</th>
-                        <td><label><input type="checkbox" name="cirrusly_msrp_config[enable_display]" value="yes" '.checked('yes', $msrp_enable, false).'> Show Strikethrough MSRP on Product Pages</label></td>
-                    </tr>
-                </table>
-                <p class="description">For custom placement, use the <strong>MSRP Display</strong> block in the Gutenberg editor.</p>
-            </div>
-        </div>';
+        // --- ROW 3: ADVANCED PRO FEATURES ---
 
-        // PRO: API Connection
+        // Card 5: API Connection - PRO
         echo '<div class="cc-settings-card '.esc_attr($pro_class).'">';
         if(!$is_pro) echo '<div class="cc-pro-overlay"><a href="'.esc_url( function_exists('cc_fs') ? cc_fs()->get_upgrade_url() : '#' ).'" class="cc-upgrade-btn"><span class="dashicons dashicons-lock cc-lock-icon"></span> Upgrade to Connect API</a></div>';
         echo '<div class="cc-card-header">
@@ -1188,7 +1189,7 @@ public function register_admin_menus() {
             </div>
         </div>';
 
-        // PRO: Advanced Alerting
+        // Card 6: Advanced Alerting - PRO
         echo '<div class="cc-settings-card '.esc_attr($pro_class).'">';
         if(!$is_pro) echo '<div class="cc-pro-overlay"><a href="'.esc_url( function_exists('cc_fs') ? cc_fs()->get_upgrade_url() : '#' ).'" class="cc-upgrade-btn"><span class="dashicons dashicons-lock cc-lock-icon"></span> Unlock Alerts</a></div>';
         echo '<div class="cc-card-header">
@@ -1204,16 +1205,8 @@ public function register_admin_menus() {
         echo '</div>'; // End Grid
     }
 
-    /**
-     * Render the Badge Manager settings UI for the Cirrusly Commerce admin settings page.
-     *
-     * Outputs the settings form controls for enabling badges, badge sizing and calculation base,
-     * "new" badge age, Smart Dynamic Badges (Inventory, Performance, Scheduler) with PRO gating,
-     * and a repeatable table for custom tag-based badges (tag slug, image URL, tooltip, width).
-     *
-     * The UI is populated from the `cirrusly_badge_config` option and respects the plugin's PRO
-     * status when enabling/enforcing Smart Badges controls. This method prints HTML directly and
-     * does not return a value.
+/**
+     * Render the Badge Manager settings UI.
      */
     private function render_badges_settings() {
         $cfg = get_option( 'cirrusly_badge_config', array() );
@@ -1236,46 +1229,57 @@ public function register_admin_menus() {
         $pro_class = $is_pro ? '' : 'cc-pro-feature';
         $disabled_attr = $is_pro ? '' : 'disabled';
 
-        echo '<div class="cc-settings-card"><div class="cc-card-header"><h3>Badge Manager</h3><p>Automatically replace default WooCommerce sale badges.</p></div>';
-        echo '<div class="cc-card-body"><table class="form-table cc-settings-table">
-            <tr><th scope="row">Enable Module</th><td><label><input type="checkbox" name="cirrusly_badge_config[enable_badges]" value="yes" '.checked('yes', $enabled, false).'> Activate</label></td></tr>
-            <tr><th scope="row">Badge Size</th><td><select name="cirrusly_badge_config[badge_size]"><option value="small" '.selected('small', $size, false).'>Small</option><option value="medium" '.selected('medium', $size, false).'>Medium</option><option value="large" '.selected('large', $size, false).'>Large</option></select></td></tr>
-            <tr><th scope="row">Discount Base</th><td><select name="cirrusly_badge_config[calc_from]"><option value="msrp" '.selected('msrp', $calc_from, false).'>MSRP</option><option value="regular" '.selected('regular', $calc_from, false).'>Regular Price</option></select></td></tr>
-            <tr><th scope="row">"New" Badge</th><td><input type="number" name="cirrusly_badge_config[new_days]" value="'.esc_attr($new_days).'" style="width:70px;"> days <span class="description">Products created within this many days get a "NEW" badge.</span></td></tr>
-        </table>';
+        // CARD 1: Core Configuration (Free)
+        echo '<div class="cc-settings-card">
+            <div class="cc-card-header">
+                <h3>Badge Manager</h3>
+                <p>Automatically replace default WooCommerce sale badges.</p>
+            </div>';
+            
+        echo '<div class="cc-card-body">
+            <table class="form-table cc-settings-table">
+                <tr><th scope="row">Enable Module</th><td><label><input type="checkbox" name="cirrusly_badge_config[enable_badges]" value="yes" '.checked('yes', $enabled, false).'> Activate</label></td></tr>
+                <tr><th scope="row">Badge Size</th><td><select name="cirrusly_badge_config[badge_size]"><option value="small" '.selected('small', $size, false).'>Small</option><option value="medium" '.selected('medium', $size, false).'>Medium</option><option value="large" '.selected('large', $size, false).'>Large</option></select></td></tr>
+                <tr><th scope="row">Discount Base</th><td><select name="cirrusly_badge_config[calc_from]"><option value="msrp" '.selected('msrp', $calc_from, false).'>MSRP</option><option value="regular" '.selected('regular', $calc_from, false).'>Regular Price</option></select></td></tr>
+                <tr><th scope="row">"New" Badge</th><td><input type="number" name="cirrusly_badge_config[new_days]" value="'.esc_attr($new_days).'" style="width:70px;"> days <span class="description">Products created within this many days get a "NEW" badge.</span></td></tr>
+            </table>
 
-    // UPDATED: Smart Badges Section
-    echo '<div class="'.esc_attr($pro_class).'" style="margin-top:20px; border:1px dashed #ccc; padding:15px;">';
-    if(!$is_pro) echo '<div class="cc-pro-overlay" style="background:rgba(255,255,255,0.8);"><a href="#upgrade-to-pro" class="cc-upgrade-btn">Unlock Smart Badges</a></div>';
-    
-    echo '<h4>Smart Dynamic Badges <span class="cc-pro-badge">PRO</span></h4>
-        <label><input type="checkbox" name="cirrusly_badge_config[smart_inventory]" value="yes" '.checked('yes', $smart_inv, false).' '.esc_attr($disabled_attr).'> <strong>Inventory:</strong> Show "Low Stock" badge when qty < 5</label><br>
-        <label><input type="checkbox" name="cirrusly_badge_config[smart_performance]" value="yes" '.checked('yes', $smart_perf, false).' '.esc_attr($disabled_attr).'> <strong>Performance:</strong> Show "Best Seller" for top selling products</label><br>
-        
-        <div style="margin-top:10px;">
-            <label><input type="checkbox" name="cirrusly_badge_config[smart_scheduler]" value="yes" '.checked('yes', $smart_sched, false).' '.esc_attr($disabled_attr).'> <strong>Scheduler:</strong> Show "Event" badge between dates:</label><br>
-            <input type="date" name="cirrusly_badge_config[scheduler_start]" value="'.esc_attr($sched_start).'" '.esc_attr($disabled_attr).'> to 
-            <input type="date" name="cirrusly_badge_config[scheduler_end]" value="'.esc_attr($sched_end).'" '.esc_attr($disabled_attr).'>
-            <p class="description">Use this for store-wide events like "Black Friday".</p>
-        </div>
-    </div>';
-
-        echo '<hr style="margin:20px 0; border:0; border-top:1px solid #eee;">
-        <h4>Custom Tag Badges</h4><p class="description">Show specific images when a product has a certain tag.</p>
-        <table class="widefat striped cc-settings-table"><thead><tr><th>Tag Slug</th><th>Badge Image</th><th>Tooltip</th><th>Width</th><th></th></tr></thead><tbody id="cc-badge-rows">';
-        if(!empty($custom_badges)) {
-            foreach($custom_badges as $idx => $badge) {
-                echo '<tr><td><input type="text" name="cirrusly_badge_config[custom_badges]['.esc_attr($idx).'][tag]" value="'.esc_attr($badge['tag']).'"></td><td><input type="text" name="cirrusly_badge_config[custom_badges]['.esc_attr($idx).'][url]" class="regular-text" value="'.esc_attr($badge['url']).'"> <button type="button" class="button cc-upload-btn">Upload</button></td><td><input type="text" name="cirrusly_badge_config[custom_badges]['.esc_attr($idx).'][tooltip]" value="'.esc_attr($badge['tooltip']).'"></td><td><input type="number" name="cirrusly_badge_config[custom_badges]['.esc_attr($idx).'][width]" value="'.esc_attr($badge['width']).'" style="width:60px"> px</td><td><button type="button" class="button cc-remove-row"><span class="dashicons dashicons-trash"></span></button></td></tr>';
+            <hr style="margin:20px 0; border:0; border-top:1px solid #eee;">
+            <h4>Custom Tag Badges</h4><p class="description">Show specific images when a product has a certain tag.</p>
+            <table class="widefat striped cc-settings-table"><thead><tr><th>Tag Slug</th><th>Badge Image</th><th>Tooltip</th><th>Width</th><th></th></tr></thead><tbody id="cc-badge-rows">';
+            if(!empty($custom_badges)) {
+                foreach($custom_badges as $idx => $badge) {
+                    echo '<tr><td><input type="text" name="cirrusly_badge_config[custom_badges]['.esc_attr($idx).'][tag]" value="'.esc_attr($badge['tag']).'"></td><td><input type="text" name="cirrusly_badge_config[custom_badges]['.esc_attr($idx).'][url]" class="regular-text" value="'.esc_attr($badge['url']).'"> <button type="button" class="button cc-upload-btn">Upload</button></td><td><input type="text" name="cirrusly_badge_config[custom_badges]['.esc_attr($idx).'][tooltip]" value="'.esc_attr($badge['tooltip']).'"></td><td><input type="number" name="cirrusly_badge_config[custom_badges]['.esc_attr($idx).'][width]" value="'.esc_attr($badge['width']).'" style="width:60px"> px</td><td><button type="button" class="button cc-remove-row"><span class="dashicons dashicons-trash"></span></button></td></tr>';
+                }
             }
-        }
-        echo '</tbody></table><button type="button" class="button" id="cc-add-badge-row" style="margin-top:10px;">+ Add Badge Rule</button></div></div>';
+            echo '</tbody></table><button type="button" class="button" id="cc-add-badge-row" style="margin-top:10px;">+ Add Badge Rule</button>
+        </div>
+        </div>'; // End Card 1
+
+        // CARD 2: Smart Badges (Pro) - MOVED TO BOTTOM
+        echo '<div class="cc-settings-card '.esc_attr($pro_class).'">';
+        if(!$is_pro) echo '<div class="cc-pro-overlay"><a href="'.esc_url( function_exists('cc_fs') ? cc_fs()->get_upgrade_url() : '#' ).'" class="cc-upgrade-btn"><span class="dashicons dashicons-lock cc-lock-icon"></span> Unlock Smart Badges</a></div>';
+        
+        echo '<div class="cc-card-header">
+                <h3>Smart Dynamic Badges <span class="cc-pro-badge">PRO</span></h3>
+                <span class="dashicons dashicons-awards"></span>
+            </div>
+            <div class="cc-card-body">
+                <label><input type="checkbox" name="cirrusly_badge_config[smart_inventory]" value="yes" '.checked('yes', $smart_inv, false).' '.esc_attr($disabled_attr).'> <strong>Inventory:</strong> Show "Low Stock" badge when qty < 5</label><br>
+                <label><input type="checkbox" name="cirrusly_badge_config[smart_performance]" value="yes" '.checked('yes', $smart_perf, false).' '.esc_attr($disabled_attr).'> <strong>Performance:</strong> Show "Best Seller" for top selling products</label><br>
+                
+                <div style="margin-top:10px;">
+                    <label><input type="checkbox" name="cirrusly_badge_config[smart_scheduler]" value="yes" '.checked('yes', $smart_sched, false).' '.esc_attr($disabled_attr).'> <strong>Scheduler:</strong> Show "Event" badge between dates:</label><br>
+                    <input type="date" name="cirrusly_badge_config[scheduler_start]" value="'.esc_attr($sched_start).'" '.esc_attr($disabled_attr).'> to 
+                    <input type="date" name="cirrusly_badge_config[scheduler_end]" value="'.esc_attr($sched_end).'" '.esc_attr($disabled_attr).'>
+                    <p class="description">Use this for store-wide events like "Black Friday".</p>
+                </div>
+            </div>
+        </div>';
     }
 
     /**
-     * Render the Profit Engine settings UI shown on the Shipping / Profit Engine admin settings page.
-     *
-     * Outputs form controls and panels for configuring payment processor fees, multi-gateway profile settings,
-     * shipping revenue tiers, internal shipping cost per shipping class, and scenario matrix multipliers.
+     * Render the Profit Engine settings UI.
      */
     private function render_profit_engine_settings() {
         $config = $this->get_global_config();
@@ -1285,7 +1289,6 @@ public function register_admin_menus() {
         
         $payment_pct = isset($config['payment_pct']) ? $config['payment_pct'] : 2.9;
         $payment_flat = isset($config['payment_flat']) ? $config['payment_flat'] : 0.30;
-        // Fix: Added profile mode retrieval
         $profile_mode = isset($config['profile_mode']) ? $config['profile_mode'] : 'single';
 
         if ( ! is_array( $revenue_tiers ) ) $revenue_tiers = array();
@@ -1300,7 +1303,37 @@ public function register_admin_menus() {
 
         echo '<div class="cc-manual-helper"><h4>Profit Engine Configuration</h4><p>These settings drive the real-time margin calculations on your product edit pages. Accurate data here ensures you don\'t lose money on shipping.</p></div>';
 
-        // Payment Processor Settings
+        // 1. Revenue Tiers (Was #2) - MOVED TO TOP
+        echo '<div class="cc-settings-card"><div class="cc-card-header"><h3>1. Shipping Revenue</h3><p>How much do you charge the customer for shipping?</p></div>';
+        echo '<div class="cc-card-body">
+        <p class="description">Define tiers based on product price. (e.g., Items $0-$10 charge $3.99 shipping).</p>
+        <table class="widefat striped cc-settings-table" style="max-width:100%;"><thead><tr><th>Min Price ($)</th><th>Max Price ($)</th><th>Charge Amount ($)</th><th></th></tr></thead><tbody id="cc-revenue-rows">';
+        if( !empty($revenue_tiers) ) {
+            foreach($revenue_tiers as $idx => $tier) {
+                echo '<tr>
+                    <td><input type="number" step="0.01" name="cirrusly_shipping_config[revenue_tiers]['.esc_attr($idx).'][min]" value="'.esc_attr($tier['min']).'"></td>
+                    <td><input type="number" step="0.01" name="cirrusly_shipping_config[revenue_tiers]['.esc_attr($idx).'][max]" value="'.esc_attr($tier['max']).'"></td>
+                    <td><input type="number" step="0.01" name="cirrusly_shipping_config[revenue_tiers]['.esc_attr($idx).'][charge]" value="'.esc_attr($tier['charge']).'"></td>
+                    <td><button type="button" class="button cc-remove-row"><span class="dashicons dashicons-trash"></span></button></td>
+                </tr>';
+            }
+        }
+        echo '</tbody></table><button type="button" class="button" id="cc-add-revenue-row" style="margin-top:10px;">+ Add Tier</button></div></div>';
+
+        // 2. Class Costs (Was #3) - MOVED UP
+        echo '<div class="cc-settings-card"><div class="cc-card-header"><h3>2. Internal Shipping Cost</h3><p>How much does it cost YOU to ship this item?</p></div>';
+        echo '<div class="cc-card-body">
+        <p class="description">Set a base cost for each shipping class. This is deducted from your revenue to calculate margin.</p>
+        <table class="widefat striped cc-settings-table" style="max-width:600px;"><thead><tr><th>Shipping Class</th><th>Your Cost ($)</th></tr></thead><tbody>';
+        foreach ( $all_classes as $slug => $name ) {
+            $val = isset( $class_costs[$slug] ) ? $class_costs[$slug] : 0.00;
+            if ( $slug === 'default' && !isset( $class_costs['default'] ) ) $val = 10.00;
+            echo '<tr><td><strong>'.esc_html($name).'</strong><br><small style="color:#888;">'.esc_html($slug).'</small></td>
+                <td><input type="number" step="0.01" name="cirrusly_shipping_config[class_costs]['.esc_attr($slug).']" value="'.esc_attr($val).'"></td></tr>';
+        }
+        echo '</tbody></table></div></div>';
+
+        // 3. Payment Processor Settings (Was #1) - MOVED DOWN
         echo '<div class="cc-settings-card"><div class="cc-card-header"><h3>Payment Processor Fees</h3><p>Accurate fee calculation.</p></div>
         <div class="cc-card-body">
             <table class="form-table cc-settings-table">
@@ -1329,37 +1362,7 @@ public function register_admin_menus() {
             </div>
         </div></div>';
 
-        // 1. Revenue Tiers
-        echo '<div class="cc-settings-card"><div class="cc-card-header"><h3>1. Shipping Revenue</h3><p>How much do you charge the customer for shipping?</p></div>';
-        echo '<div class="cc-card-body">
-        <p class="description">Define tiers based on product price. (e.g., Items $0-$10 charge $3.99 shipping).</p>
-        <table class="widefat striped cc-settings-table" style="max-width:100%;"><thead><tr><th>Min Price ($)</th><th>Max Price ($)</th><th>Charge Amount ($)</th><th></th></tr></thead><tbody id="cc-revenue-rows">';
-        if( !empty($revenue_tiers) ) {
-            foreach($revenue_tiers as $idx => $tier) {
-                echo '<tr>
-                    <td><input type="number" step="0.01" name="cirrusly_shipping_config[revenue_tiers]['.esc_attr($idx).'][min]" value="'.esc_attr($tier['min']).'"></td>
-                    <td><input type="number" step="0.01" name="cirrusly_shipping_config[revenue_tiers]['.esc_attr($idx).'][max]" value="'.esc_attr($tier['max']).'"></td>
-                    <td><input type="number" step="0.01" name="cirrusly_shipping_config[revenue_tiers]['.esc_attr($idx).'][charge]" value="'.esc_attr($tier['charge']).'"></td>
-                    <td><button type="button" class="button cc-remove-row"><span class="dashicons dashicons-trash"></span></button></td>
-                </tr>';
-            }
-        }
-        echo '</tbody></table><button type="button" class="button" id="cc-add-revenue-row" style="margin-top:10px;">+ Add Tier</button></div></div>';
-
-        // 2. Class Costs
-        echo '<div class="cc-settings-card"><div class="cc-card-header"><h3>2. Internal Shipping Cost</h3><p>How much does it cost YOU to ship this item?</p></div>';
-        echo '<div class="cc-card-body">
-        <p class="description">Set a base cost for each shipping class. This is deducted from your revenue to calculate margin.</p>
-        <table class="widefat striped cc-settings-table" style="max-width:600px;"><thead><tr><th>Shipping Class</th><th>Your Cost ($)</th></tr></thead><tbody>';
-        foreach ( $all_classes as $slug => $name ) {
-            $val = isset( $class_costs[$slug] ) ? $class_costs[$slug] : 0.00;
-            if ( $slug === 'default' && !isset( $class_costs['default'] ) ) $val = 10.00;
-            echo '<tr><td><strong>'.esc_html($name).'</strong><br><small style="color:#888;">'.esc_html($slug).'</small></td>
-                <td><input type="number" step="0.01" name="cirrusly_shipping_config[class_costs]['.esc_attr($slug).']" value="'.esc_attr($val).'"></td></tr>';
-        }
-        echo '</tbody></table></div></div>';
-
-        // 3. Matrix Multipliers
+        // 4. Matrix Multipliers
         echo '<div class="cc-settings-card"><div class="cc-card-header"><h3>3. Scenario Matrix</h3><p>Model expensive shipping scenarios.</p></div>';
         echo '<div class="cc-card-body">
         <p class="description">Define scenarios (like Overnight Shipping) and their cost multiplier to see if you stay profitable.</p>
