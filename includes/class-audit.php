@@ -13,29 +13,9 @@ class Cirrusly_Commerce_Audit {
         add_action( 'admin_init', array( __CLASS__, 'handle_export' ) );
     }
 
-    /**
+/**
      * Generate or retrieve cached per-product audit data used for the admin audit table and CSV export.
-     *
-     * When not forcing a refresh, returns a cached dataset (stored for one hour). Each entry contains
-     * computed commercial metrics and metadata for a single product or variation.
-     *
-     * @param bool $force_refresh If true, bypass the cache and regenerate the dataset.
-     * @return array[] Array of item arrays. Each item contains the keys:
-     *                 - id: (int) Product ID.
-     *                 - name: (string) Product name.
-     *                 - type: (string) Product type (e.g., 'simple', 'variation').
-     *                 - parent_id: (int) Parent product ID for variations.
-     *                 - cost: (float) Total cost (COGS + shipping).
-     *                 - item_cost: (float) COGS value.
-     *                 - ship_cost: (float) Estimated or class-derived shipping cost.
-     *                 - ship_charge: (float) Shipping revenue charged to customer.
-     *                 - ship_pl: (float) Shipping profit/loss (ship_charge - ship_cost).
-     *                 - price: (float) Product price.
-     *                 - net: (float) Net profit after fees.
-     *                 - margin: (float) Margin percentage relative to price.
-     *                 - alerts: (string[]) Array of HTML alert badges for the product.
-     *                 - is_in_stock: (bool) Stock status.
-     *                 - cats: (string[]) Array of product category slugs.
+     * * UPDATED: Now includes MAP, Google Min, and MSRP.
      */
     public static function get_compiled_data( $force_refresh = false ) {
         $cache_key = 'cw_audit_data';
@@ -47,17 +27,14 @@ class Cirrusly_Commerce_Audit {
             $revenue_tiers = json_decode( $config['revenue_tiers_json'], true );
             $class_costs = json_decode( $config['class_costs_json'], true );
             
-            // Payment Fee Logic (Supports Blended Rate)
+            // Payment Fee Logic
             $mode = isset($config['profile_mode']) ? $config['profile_mode'] : 'single';
-            
             $pay_pct = isset($config['payment_pct']) ? ($config['payment_pct'] / 100) : 0.029;
             $pay_flat = isset($config['payment_flat']) ? $config['payment_flat'] : 0.30;
-            
             $pay_pct_2 = isset($config['payment_pct_2']) ? ($config['payment_pct_2'] / 100) : 0.0349;
             $pay_flat_2 = isset($config['payment_flat_2']) ? $config['payment_flat_2'] : 0.49;
             $split = isset($config['profile_split']) ? ($config['profile_split'] / 100) : 1.0;
 
-            // Helper: Get Ship Revenue (Closure)
             $get_rev = function($p_price) use ($revenue_tiers) { 
                 if($revenue_tiers) {
                     foreach($revenue_tiers as $t) if($p_price>=$t['min'] && $p_price<=$t['max']) return $t['charge']; 
@@ -72,11 +49,16 @@ class Cirrusly_Commerce_Audit {
             foreach($ids as $pid) {
                 $p = wc_get_product($pid); if(!$p) continue;
                 
-                // --- LOGIC FIX: Downloadable/Virtual are Shipping Exempt ---
                 $is_shipping_exempt = $p->is_virtual() || $p->is_downloadable();
                 
+                // Financials
                 $cost = (float)$p->get_meta('_cogs_total_value');
                 $ship_cost = (float)$p->get_meta('_cw_est_shipping');
+                
+                // Custom Pricing Fields
+                $map = (float)$p->get_meta('_cirrusly_map_price');
+                $min_price = (float)$p->get_meta('_auto_pricing_min_price');
+                $msrp = (float)$p->get_meta('_alg_msrp');
                 
                 // Fallback Ship Cost Logic
                 if($ship_cost <= 0 && !$is_shipping_exempt) {
@@ -89,8 +71,6 @@ class Cirrusly_Commerce_Audit {
                 }
                 
                 $price = (float)$p->get_price();
-                
-                // Rev Logic: Exempt products get 0 shipping revenue
                 $rev = $is_shipping_exempt ? 0 : $get_rev($price);
                 
                 $total_inc = $price + $rev;
@@ -101,23 +81,18 @@ class Cirrusly_Commerce_Audit {
                     $gross = $total_inc - $total_cost;
                     $margin = ($gross/$price)*100;
                     
-                    // Fee Calculation (Single vs Multi)
                     if ( $mode === 'multi' ) {
-                        // Weighted average of two gateways
                         $fee1 = ($total_inc * $pay_pct) + $pay_flat;
                         $fee2 = ($total_inc * $pay_pct_2) + $pay_flat_2;
                         $fee = ($fee1 * $split) + ($fee2 * (1 - $split));
                     } else {
                         $fee = ($total_inc * $pay_pct) + $pay_flat;
                     }
-                    
                     $net = $gross - $fee;
                 }
                 
                 $alerts = array();
                 if($cost <= 0) $alerts[] = '<a href="'.esc_url(get_edit_post_link($pid)).'" target="_blank" class="gmc-badge" style="background:#d63638;color:#fff;text-decoration:none;">Add Cost</a>';
-                
-                // Logic Fix: Only alert on weight if shippable
                 if( !$is_shipping_exempt && (float)$p->get_weight() <= 0) $alerts[] = '<span class="gmc-badge" style="background:#dba617;color:#000;">0 Weight</span>';
                 
                 $ship_pl = $rev - $ship_cost;
@@ -137,7 +112,11 @@ class Cirrusly_Commerce_Audit {
                     'margin' => $margin,
                     'alerts' => $alerts,
                     'is_in_stock' => $p->is_in_stock(),
-                    'cats' => wp_get_post_terms($pid, 'product_cat', array('fields'=>'slugs'))
+                    'cats' => wp_get_post_terms($pid, 'product_cat', array('fields'=>'slugs')),
+                    // New Fields
+                    'map' => $map,
+                    'min_price' => $min_price,
+                    'msrp' => $msrp
                 );
             }
             set_transient( $cache_key, $data, 1 * HOUR_IN_SECONDS );
@@ -242,8 +221,7 @@ class Cirrusly_Commerce_Audit {
 
     /**
      * Outputs a CSV file of the compiled audit data when the audit admin page requests an export.
-     *
-     * Checks that the current user can edit products and that Pro features are enabled; if Pro is not enabled the request is terminated with wp_die. When invoked via the audit page export action, the method generates or loads the compiled audit data, sends CSV headers and the CSV payload to the client, and terminates execution.
+     * * UPDATED: Appends MAP, Google Min, and MSRP columns.
      */
     public static function handle_export() {
         if ( isset($_GET['page']) && $_GET['page'] === 'cirrusly-audit' && isset($_GET['action']) && $_GET['action'] === 'export_csv' ) {
@@ -253,14 +231,14 @@ class Cirrusly_Commerce_Audit {
                 wp_die('Export is a Pro feature.');
             }
 
-            // Fix: Generate data if transient is missing (don't redirect)
             $data = self::get_compiled_data();
 
             header('Content-Type: text/csv');
             header('Content-Disposition: attachment; filename="store-audit-' . date('Y-m-d') . '.csv"');
             
             $fp = fopen('php://output', 'w');
-            fputcsv($fp, array('ID', 'Product Name', 'Type', 'Cost (COGS)', 'Shipping Cost', 'Price', 'Net Profit', 'Margin %'));
+            // Updated Headers
+            fputcsv($fp, array('ID', 'Product Name', 'Type', 'Cost (COGS)', 'Shipping Cost', 'Price', 'Net Profit', 'Margin %', 'MAP', 'Google Min', 'MSRP'));
             
             foreach ( $data as $row ) {
                 fputcsv($fp, array(
@@ -271,7 +249,11 @@ class Cirrusly_Commerce_Audit {
                     $row['ship_cost'],
                     $row['price'],
                     $row['net'],
-                    number_format($row['margin'], 2) . '%'
+                    number_format($row['margin'], 2) . '%',
+                    // New Data
+                    $row['map'] > 0 ? $row['map'] : '',
+                    $row['min_price'] > 0 ? $row['min_price'] : '',
+                    $row['msrp'] > 0 ? $row['msrp'] : ''
                 ));
             }
             fclose($fp);
@@ -280,16 +262,9 @@ class Cirrusly_Commerce_Audit {
     }
 
     /**
-     * Process an uploaded CSV to bulk-import product COGS and refresh cached audit data.
-     *
-     * Reads the uploaded 'csv_import' file (skipping the CSV header) and updates each row's product meta
-     * key `_cogs_total_value` when a valid product ID and positive cost are present. Requires the current
-     * user to have the `edit_products` capability and the plugin's Pro features enabled. Clears the
-     * compiled audit transient after import and registers a settings notice with the count of updated products.
-     *
-     * Notes:
-     * - Handles legacy Mac line endings on PHP versions prior to 8.1.
-     * - Expected CSV export format: ID(0), Name(1), Type(2), Cost(3).
+     * Process an uploaded CSV to bulk-import product COGS and extra pricing fields.
+     * * UPDATED: Now supports importing MAP, Google Min, and MSRP if columns are present.
+     * Expected Columns: ID(0), Name(1), Type(2), Cost(3), Ship(4), Price(5), Net(6), Margin(7), MAP(8), Google Min(9), MSRP(10)
      */
     public static function handle_import() {
         if ( isset($_FILES['csv_import']) && current_user_can('edit_products') ) {
@@ -298,7 +273,6 @@ class Cirrusly_Commerce_Audit {
                 return;
             }
 
-            // Fix: Handle Mac line endings in CSVs (deprecated in PHP 8.1+)
             if ( version_compare( PHP_VERSION, '8.1.0', '<' ) ) {
                 ini_set('auto_detect_line_endings', true);
             }
@@ -311,24 +285,47 @@ class Cirrusly_Commerce_Audit {
             fgetcsv($handle);
             
             while (($row = fgetcsv($handle)) !== FALSE) {
-                // Check if row has data
                 if ( empty($row[0]) ) continue;
                 
                 $pid = intval($row[0]);
-                // Fix: Ensure we are grabbing valid data. 
-                // Export format: ID(0), Name(1), Type(2), Cost(3)
-                $cost = isset($row[3]) ? floatval($row[3]) : 0;
+                if ( ! $pid ) continue;
                 
-                if ( $pid && $cost > 0 ) {
-                    $product = wc_get_product( $pid );
-                    if ( ! $product ) continue;
-                    update_post_meta($pid, '_cogs_total_value', $cost);
-                    $count++;
+                $updated = false;
+
+                // 1. Cost (Index 3)
+                // Preserving existing logic: check if index 3 exists and > 0 (or we can allow 0 updates if desired)
+                if ( isset($row[3]) && is_numeric($row[3]) ) {
+                    $cost = floatval($row[3]);
+                    // Only update if positive to avoid accidental wipes, or allow 0 if that's valid intent
+                    if ( $cost > 0 ) {
+                        update_post_meta($pid, '_cogs_total_value', $cost);
+                        $updated = true;
+                    }
                 }
+
+                // 2. MAP (Index 8)
+                if ( isset($row[8]) && $row[8] !== '' ) {
+                    update_post_meta($pid, '_cirrusly_map_price', wc_format_decimal($row[8]));
+                    $updated = true;
+                }
+
+                // 3. Google Min (Index 9)
+                if ( isset($row[9]) && $row[9] !== '' ) {
+                    update_post_meta($pid, '_auto_pricing_min_price', wc_format_decimal($row[9]));
+                    $updated = true;
+                }
+
+                // 4. MSRP (Index 10)
+                if ( isset($row[10]) && $row[10] !== '' ) {
+                    update_post_meta($pid, '_alg_msrp', wc_format_decimal($row[10]));
+                    $updated = true;
+                }
+
+                if ( $updated ) $count++;
             }
             fclose($handle);
-            delete_transient( 'cw_audit_data' ); // Clear cache to show new data
-            add_settings_error('cirrusly_audit', 'import_success', "Imported costs for $count products.", 'success');
+            delete_transient( 'cw_audit_data' ); 
+            add_settings_error('cirrusly_audit', 'import_success', "Updated data for $count products.", 'success');
         }
     }
 
