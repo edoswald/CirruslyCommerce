@@ -41,6 +41,52 @@ class Cirrusly_Commerce_GMC {
         $instance->render_gmc_hub_page();
     }
 
+    /**
+ * NEW: Fetch actual product statuses from Google Content API.
+ */
+private function fetch_google_real_statuses() {
+    // 1. Check API Connection
+    $client = Cirrusly_Commerce_Core::get_google_client();
+    if ( is_wp_error( $client ) ) return array(); // Fail silently or log error
+
+    // 2. Get Merchant ID
+    $scan_config = get_option( 'cirrusly_scan_config' );
+    $merchant_id = isset( $scan_config['merchant_id_pro'] ) ? $scan_config['merchant_id_pro'] : get_option( 'cirrusly_gmc_merchant_id', '' );
+    
+    if ( empty( $merchant_id ) ) return array();
+
+    $service = new Google\Service\ShoppingContent( $client );
+    $google_issues = array();
+
+    try {
+        // Fetch statuses in batch (page size 100 is standard max)
+        $params = array( 'maxResults' => 100 ); 
+        $statuses = $service->productstatuses->listProductstatuses( $merchant_id, $params );
+
+        foreach ( $statuses->getResources() as $status ) {
+            // Google ID format is usually "online:en:US:123" -> We need "123"
+            $parts = explode( ':', $status->getProductId() );
+            $wc_id = end( $parts ); 
+
+            // Check for Item Level Issues (The "Why" it is disapproved)
+            $issues = $status->getItemLevelIssues();
+            if ( ! empty( $issues ) ) {
+                foreach ( $issues as $issue ) {
+                    $google_issues[ $wc_id ][] = array(
+                        'msg'    => '[Google API] ' . $issue->getDescription(),
+                        'reason' => $issue->getDetail(),
+                        'type'   => ($issue->getServability() === 'disapproved') ? 'critical' : 'warning'
+                    );
+                }
+            }
+        }
+    } catch ( Exception $e ) {
+        // Log error if needed
+    }
+
+    return $google_issues;
+}
+
     public function render_gmc_hub_page() {
         // phpcs:ignore WordPress.Security.NonceVerification.Recommended
         $tab = isset( $_GET['tab'] ) ? sanitize_text_field( wp_unslash( $_GET['tab'] ) ) : 'scan';
@@ -559,47 +605,59 @@ class Cirrusly_Commerce_GMC {
     /**
      * Scan published products for GMC-related issues.
      */
-    public function run_gmc_scan_logic() {
-        $issues_found = array();
-        $args = array( 'post_type' => 'product', 'posts_per_page' => -1, 'post_status' => 'publish' );
-        $products = get_posts( $args );
-        $monitored = $this->get_monitored_terms();
+public function run_gmc_scan_logic() {
+    $issues_found = array();
+    $args = array( 'post_type' => 'product', 'posts_per_page' => -1, 'post_status' => 'publish' );
+    $products = get_posts( $args );
+    $monitored = $this->get_monitored_terms();
 
-        foreach ( $products as $post ) {
-            $p_issues = array();
-            $pid = $post->ID;
-            $title = $post->post_title;
-            
-            // 1. Check GTIN
-            $is_custom = get_post_meta( $pid, '_gla_identifier_exists', true );
-            
-            if ( 'no' !== $is_custom ) {
-                $gtin = get_post_meta( $pid, '_gtin', true ); 
-                if ( empty( $gtin ) ) {
-                    $p_issues[] = array( 'type' => 'critical', 'msg' => 'Missing GTIN', 'reason' => 'Product is not marked as Custom (Identifier Exists) but lacks a GTIN.' );
-                }
-            }
+    // --- NEW: Fetch Real API Data ---
+    $api_data = array();
+    if ( Cirrusly_Commerce_Core::cirrusly_is_pro() ) {
+        $api_data = $this->fetch_google_real_statuses();
+    }
+    // --------------------------------
 
-            // 2. Check Banned Words in Title (using word boundaries)
-            foreach ( $monitored['medical'] as $word => $rules ) {
-                $pattern = '/\b' . preg_quote($word, '/') . '\b/i';
-                if ( preg_match( $pattern, $title ) ) {
-                    $p_issues[] = array( 'type' => 'critical', 'msg' => 'Restricted: ' . $word, 'reason' => $rules['reason'] );
-                }
-            }
-            foreach ( $monitored['promotional'] as $word => $rules ) {
-                $pattern = '/\b' . preg_quote($word, '/') . '\b/i';
-                if ( $rules['scope'] === 'title' && preg_match( $pattern, $title ) ) {
-                    $p_issues[] = array( 'type' => 'warning', 'msg' => 'Promo: ' . $word, 'reason' => $rules['reason'] );
-                }
-            }
+    foreach ( $products as $post ) {
+        $p_issues = array();
+        $pid = $post->ID;
+        $title = $post->post_title;
+        
+        // 1. API Issues (Real Data)
+        // If we found issues for this ID via the API, add them first
+        if ( isset( $api_data[ $pid ] ) ) {
+            $p_issues = array_merge( $p_issues, $api_data[ $pid ] );
+        }
 
-            if ( ! empty( $p_issues ) ) {
-                $issues_found[] = array( 'product_id' => $pid, 'issues' => $p_issues );
+        // 2. Local Check: GTIN
+        $is_custom = get_post_meta( $pid, '_gla_identifier_exists', true );
+        if ( 'no' !== $is_custom ) {
+            $gtin = get_post_meta( $pid, '_gtin', true ); 
+            if ( empty( $gtin ) ) {
+                $p_issues[] = array( 'type' => 'critical', 'msg' => 'Missing GTIN', 'reason' => 'Local Check: Product lacks GTIN but is not marked Custom.' );
             }
         }
-        return $issues_found;
+
+        // 3. Local Check: Banned Words
+        foreach ( $monitored['medical'] as $word => $rules ) {
+            $pattern = '/\b' . preg_quote($word, '/') . '\b/i';
+            if ( preg_match( $pattern, $title ) ) {
+                $p_issues[] = array( 'type' => 'critical', 'msg' => 'Restricted: ' . $word, 'reason' => $rules['reason'] );
+            }
+        }
+        foreach ( $monitored['promotional'] as $word => $rules ) {
+            $pattern = '/\b' . preg_quote($word, '/') . '\b/i';
+            if ( $rules['scope'] === 'title' && preg_match( $pattern, $title ) ) {
+                $p_issues[] = array( 'type' => 'warning', 'msg' => 'Promo: ' . $word, 'reason' => $rules['reason'] );
+            }
+        }
+
+        if ( ! empty( $p_issues ) ) {
+            $issues_found[] = array( 'product_id' => $pid, 'issues' => $p_issues );
+        }
     }
+    return $issues_found;
+}
 
     /**
      * Marks a product as a custom product (no GTIN) and redirects back to the GMC scan tab.
