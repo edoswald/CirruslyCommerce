@@ -689,7 +689,8 @@ public function check_compliance_on_save( $post_id, $post, $update ) {
     $violation_found = false;
 
     foreach( $monitored['medical'] as $word => $data ) {
-         if ( stripos( $post->post_title, $word ) !== false ) {
+         $pattern = '/\b' . preg_quote( $word, '/' ) . '\b/i';
+         if ( preg_match( $pattern, $post->post_title ) ) {
              $violation_found = true;
              break; 
          }
