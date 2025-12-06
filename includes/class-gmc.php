@@ -9,7 +9,7 @@ class Cirrusly_Commerce_GMC {
     /**
      * Initialize GMC integration by registering WordPress and WooCommerce hooks and filters.
      */
-    public function __construct() {
+public function __construct() {
         add_action( 'woocommerce_product_options_inventory_product_data', array( $this, 'render_gmc_product_settings' ) );
         add_action( 'woocommerce_process_product_meta', array( $this, 'save_product_meta' ) );
         add_filter( 'manage_edit-product_columns', array( $this, 'add_gmc_admin_columns' ) );
@@ -25,6 +25,9 @@ class Cirrusly_Commerce_GMC {
         // Block Save on Critical Error (Pro Feature)
         add_action( 'save_post_product', array( $this, 'check_compliance_on_save' ), 10, 3 );
         
+        // NEW: Display Blocked Save Notice
+        add_action( 'admin_notices', array( $this, 'render_blocked_save_notice' ) );
+
         // NEW: Auto-strip Banned Words (Pro Feature)
         add_filter( 'wp_insert_post_data', array( $this, 'handle_auto_strip_on_save' ), 10, 2 );
 
@@ -39,6 +42,126 @@ class Cirrusly_Commerce_GMC {
     public static function render_page() {
         $instance = new self();
         $instance->render_gmc_hub_page();
+    }
+    
+    /**
+     * NEW: Fetch account-level issues (Policy/Suspensions) from Google Content API.
+     * Returns Google_Service_ShoppingContent_AccountStatus object, or WP_Error on failure.
+     */
+    private function fetch_google_account_issues() {
+        $client = self::get_google_client();
+        
+        // Return the specific error (e.g., "Google Library not loaded")
+        if ( is_wp_error( $client ) ) {
+            return $client; 
+        }
+
+        $scan_config = get_option( 'cirrusly_scan_config' );
+        
+        // 1. Get Merchant ID (Aggregator/Auth Scope)
+        $merchant_id = isset( $scan_config['merchant_id_pro'] ) ? $scan_config['merchant_id_pro'] : get_option( 'cirrusly_gmc_merchant_id', '' );
+        if ( empty( $merchant_id ) ) {
+            return new WP_Error( 'missing_merchant_id', 'Merchant ID not configured in settings.' );
+        }
+
+        // 2. Get Account ID (The specific account to query)
+        // Derive distinct account ID (e.g. for Multi-Client Accounts)
+        $account_id = isset( $scan_config['account_id'] ) ? $scan_config['account_id'] : '';
+        
+        // Validate Account ID
+        if ( empty( $account_id ) ) {
+            // Fallback for single accounts: use merchant_id if account_id is not explicitly set
+            // (Remove this fallback if you want to strictly enforce separate IDs)
+            $account_id = $merchant_id; 
+        }
+
+        if ( empty( $account_id ) ) {
+            return new WP_Error( 'missing_account_id', 'Target Account ID not configured.' );
+        }
+
+        $service = new Google\Service\ShoppingContent( $client );
+        
+        try {
+            // Updated Call: Pass distinct Merchant ID and Account ID
+            $status = $service->accountstatuses->get( $merchant_id, $account_id );
+            return $status;
+        } catch ( Exception $e ) {
+            // Catch API errors (e.g. 401 Unauthorized, 404 Not Found)
+            return new WP_Error( 'api_error', 'Google API Error: ' . $e->getMessage() );
+        }
+    }
+
+    /**
+     * NEW: Fetch actual product statuses from Google Content API.
+     */
+    private function fetch_google_real_statuses() {
+        // 1. Check API Connection
+        $client = self::get_google_client();
+    if ( is_wp_error( $client ) ) {
+        if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+            error_log( 'Cirrusly Commerce: Failed to get Google client - ' . $client->get_error_message() );
+        }
+        return array();
+    }
+
+        // 2. Get Merchant ID
+        $scan_config = get_option( 'cirrusly_scan_config', array() );
+        $merchant_id = isset( $scan_config['merchant_id_pro'] ) ? $scan_config['merchant_id_pro'] : get_option( 'cirrusly_gmc_merchant_id', '' );
+        
+        if ( empty( $merchant_id ) ) return array();
+
+        $service = new Google\Service\ShoppingContent( $client );
+        $google_issues = array();
+
+        try {
+            // Fetch statuses in batch (page size 100 is standard max)
+            // UPDATED: Now supports pagination loop
+            $params = array( 'maxResults' => 100 );
+            $pageToken = null;
+
+            do {
+                // Add page token to params if it exists from previous iteration
+                if ( $pageToken ) {
+                    $params['pageToken'] = $pageToken;
+                }
+
+                $statuses = $service->productstatuses->listProductstatuses( $merchant_id, $params );
+
+                foreach ( $statuses->getResources() as $status ) {
+                    // Google ID format is usually "online:en:US:123" -> We need "123"
+                    $parts = explode( ':', $status->getProductId() );
+                    $wc_id = end( $parts );
+                    
+                    // Validate this is a numeric ID that could be a WC product
+                    if ( ! is_numeric( $wc_id ) ) {
+                        continue;
+                    } 
+
+                    // Check for Item Level Issues (The "Why" it is disapproved)
+                    $issues = $status->getItemLevelIssues();
+                    if ( ! empty( $issues ) ) {
+                        foreach ( $issues as $issue ) {
+                            $google_issues[ $wc_id ][] = array(
+                                'msg'    => '[Google API] ' . $issue->getDescription(),
+                                'reason' => $issue->getDetail(),
+                                'type'   => ($issue->getServability() === 'disapproved') ? 'critical' : 'warning'
+                            );
+                        }
+                    }
+                }
+
+                // Check for next page
+                $pageToken = $statuses->getNextPageToken();
+
+            } while ( null !== $pageToken );
+
+        } catch ( Exception $e ) {
+        if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+            error_log( 'Cirrusly Commerce: Google API error in fetch_google_real_statuses - ' . $e->getMessage() );
+        }
+    }
+
+        return $google_issues;
     }
 
     public function render_gmc_hub_page() {
@@ -89,17 +212,57 @@ class Cirrusly_Commerce_GMC {
         );
     }
 
-    /**
-     * Renders the Site Content Audit UI.
+/**
+     * Renders the Site Content Audit UI with Pro Account Check.
+     */
+/**
+     * Renders the Site Content Audit UI with Pro Account Check.
      */
     private function render_content_scan_view() {
+        $is_pro = Cirrusly_Commerce_Core::cirrusly_is_pro();
+        
+        // --- 1. PRO: GOOGLE ACCOUNT STATUS ---
+        echo '<div class="cc-settings-card ' . ( $is_pro ? '' : 'cc-pro-feature' ) . '" style="margin-bottom:20px; border:1px solid #c3c4c7; padding:0;">';
+        
+        if ( ! $is_pro ) {
+            echo '<div class="cc-pro-overlay"><a href="' . esc_url( function_exists('cc_fs') ? cc_fs()->get_upgrade_url() : '#' ) . '" class="cc-upgrade-btn"><span class="dashicons dashicons-lock cc-lock-icon"></span> Check Account Bans</a></div>';
+        }
+
+        echo '<div class="cc-card-header" style="background:#f8f9fa; border-bottom:1px solid #ddd; padding:15px;">
+                <h3 style="margin:0;">Google Account Status <span class="cc-pro-badge">PRO</span></h3>
+              </div>';
+        
+        echo '<div class="cc-card-body" style="padding:15px;">';
+        
+        if ( $is_pro ) {
+            $account_status = $this->fetch_google_account_issues();
+            
+            // ERROR HANDLING
+            if ( is_wp_error( $account_status ) ) {
+                echo '<div class="notice notice-error inline" style="margin:0;"><p><strong>Connection Failed:</strong> ' . esc_html( $account_status->get_error_message() ) . '</p></div>';
+            } 
+            // SUCCESS
+            elseif ( $account_status ) {
+                $issues = $account_status->getAccountLevelIssues();
+                if ( empty( $issues ) ) {
+                    echo '<div class="notice notice-success inline" style="margin:0;"><p><strong>Account Healthy:</strong> No account-level policy issues detected.</p></div>';
+                } else {
+                    echo '<div class="notice notice-error inline" style="margin:0;"><p><strong>Attention Needed:</strong></p><ul style="list-style:disc; margin-left:20px;">';
+                    foreach ( $issues as $issue ) {
+                        echo '<li><strong>' . esc_html( $issue->getTitle() ) . ':</strong> ' . esc_html( $issue->getDetail() ) . '</li>';
+                    }
+                    echo '</ul></div>';
+                }
+            }
+        } else {
+            echo '<p>View real-time suspension status and policy violations directly from Google.</p>';
+        }
+        echo '</div></div>';
+
+        // --- 2. EXISTING: LOCAL SCAN EXPLANATION ---
         echo '<div class="cc-manual-helper">
-            <h4>Site Content Audit</h4>
-            <p>This tool scans your site pages and product descriptions to ensure compliance with Google Merchant Center policies. It checks for:</p>
-            <ul style="list-style:disc; margin-left:20px; font-size:12px;">
-                <li><strong>Required Policies:</strong> Verifies the existence of Refund, Privacy, and Terms of Service pages.</li>
-                <li><strong>Restricted Terms:</strong> Detects medical claims or prohibited promotional text that may cause account suspension.</li>
-            </ul>
+            <h4>Site Content Audit (Local)</h4>
+            <p>This tool scans your site pages and product descriptions to ensure compliance with Google Merchant Center policies.</p>
         </div>';
         
         $all_pages = get_pages();
@@ -127,7 +290,7 @@ class Cirrusly_Commerce_GMC {
         }
         echo '</div>';
 
-        // --- 2. RESTRICTED TERMS SCAN ---
+        // --- 3. RESTRICTED TERMS SCAN ---
         echo '<div style="background:#fff; padding:20px; border:1px solid #c3c4c7; margin-bottom:20px; margin-top:20px;">
             <div style="display:flex; justify-content:space-between; align-items:center;">
                 <h3 style="margin:0;">Restricted Terms Scan</h3>
@@ -559,47 +722,70 @@ class Cirrusly_Commerce_GMC {
     /**
      * Scan published products for GMC-related issues.
      */
-    public function run_gmc_scan_logic() {
-        $issues_found = array();
-        $args = array( 'post_type' => 'product', 'posts_per_page' => -1, 'post_status' => 'publish' );
+public function run_gmc_scan_logic() {
+    $issues_found = array();
+    $monitored = $this->get_monitored_terms();
+
+    // --- NEW: Fetch Real API Data ---
+    $api_data = array();
+    if ( Cirrusly_Commerce_Core::cirrusly_is_pro() ) {
+        $api_data = $this->fetch_google_real_statuses();
+    }
+    // --------------------------------
+    $batch_size = 100;
+    $paged = 1;
+    do {
+        $args = array(
+            'post_type'      => 'product',
+            'posts_per_page' => $batch_size,
+            'post_status'    => 'publish',
+            'paged'          => $paged,
+        );
         $products = get_posts( $args );
-        $monitored = $this->get_monitored_terms();
+    foreach ( $products as $post ) {
+        $p_issues = array();
+        $pid = $post->ID;
+        $title = $post->post_title;
+        
+        // 1. API Issues (Real Data)
+        // If we found issues for this ID via the API, add them first
+        if ( isset( $api_data[ $pid ] ) ) {
+            $p_issues = array_merge( $p_issues, $api_data[ $pid ] );
+        }
 
-        foreach ( $products as $post ) {
-            $p_issues = array();
-            $pid = $post->ID;
-            $title = $post->post_title;
-            
-            // 1. Check GTIN
-            $is_custom = get_post_meta( $pid, '_gla_identifier_exists', true );
-            
-            if ( 'no' !== $is_custom ) {
-                $gtin = get_post_meta( $pid, '_gtin', true ); 
-                if ( empty( $gtin ) ) {
-                    $p_issues[] = array( 'type' => 'critical', 'msg' => 'Missing GTIN', 'reason' => 'Product is not marked as Custom (Identifier Exists) but lacks a GTIN.' );
-                }
-            }
-
-            // 2. Check Banned Words in Title (using word boundaries)
-            foreach ( $monitored['medical'] as $word => $rules ) {
-                $pattern = '/\b' . preg_quote($word, '/') . '\b/i';
-                if ( preg_match( $pattern, $title ) ) {
-                    $p_issues[] = array( 'type' => 'critical', 'msg' => 'Restricted: ' . $word, 'reason' => $rules['reason'] );
-                }
-            }
-            foreach ( $monitored['promotional'] as $word => $rules ) {
-                $pattern = '/\b' . preg_quote($word, '/') . '\b/i';
-                if ( $rules['scope'] === 'title' && preg_match( $pattern, $title ) ) {
-                    $p_issues[] = array( 'type' => 'warning', 'msg' => 'Promo: ' . $word, 'reason' => $rules['reason'] );
-                }
-            }
-
-            if ( ! empty( $p_issues ) ) {
-                $issues_found[] = array( 'product_id' => $pid, 'issues' => $p_issues );
+        // 2. Local Check: GTIN
+        $is_custom = get_post_meta( $pid, '_gla_identifier_exists', true );
+        if ( 'no' !== $is_custom ) {
+            $gtin = get_post_meta( $pid, '_gtin', true ); 
+            if ( empty( $gtin ) ) {
+                $p_issues[] = array( 'type' => 'critical', 'msg' => 'Missing GTIN', 'reason' => 'Local Check: Product lacks GTIN but is not marked Custom.' );
             }
         }
-        return $issues_found;
-    }
+
+        // 3. Local Check: Banned Words
+        foreach ( $monitored['medical'] as $word => $rules ) {
+            $pattern = '/\b' . preg_quote($word, '/') . '\b/i';
+            if ( preg_match( $pattern, $title ) ) {
+                $p_issues[] = array( 'type' => 'critical', 'msg' => 'Restricted: ' . $word, 'reason' => $rules['reason'] );
+            }
+        }
+        foreach ( $monitored['promotional'] as $word => $rules ) {
+            $pattern = '/\b' . preg_quote($word, '/') . '\b/i';
+            if ( $rules['scope'] === 'title' && preg_match( $pattern, $title ) ) {
+                $p_issues[] = array( 'type' => 'warning', 'msg' => 'Promo: ' . $word, 'reason' => $rules['reason'] );
+            }
+        }
+
+        if ( ! empty( $p_issues ) ) {
+            $issues_found[] = array( 'product_id' => $pid, 'issues' => $p_issues );
+        }
+            }
+        
+        $paged++;
+    } while ( count( $products ) === $batch_size );
+    
+    return $issues_found;
+}
 
     /**
      * Marks a product as a custom product (no GTIN) and redirects back to the GMC scan tab.
@@ -614,24 +800,96 @@ class Cirrusly_Commerce_GMC {
         exit;
     }
 
-    /****
+/****
      * Prevent publishing of products that contain critical (medical) terms.
      */
     public function check_compliance_on_save( $post_id, $post, $update ) {
-        // Only run if option enabled
+        // PRO: Guard clause to ensure this only runs for Pro versions
+        if ( ! Cirrusly_Commerce_Core::cirrusly_is_pro() ) {
+            return;
+        }
+
+        // Fix unused variable warning
+        unset( $update );
+
+        // 1. Basic Checks
         $scan_cfg = get_option('cirrusly_scan_config', array());
         if ( empty($scan_cfg['block_on_critical']) || $scan_cfg['block_on_critical'] !== 'yes' ) return;
+        
+        // Avoid running on autosaves or non-product post types
         if ( defined('DOING_AUTOSAVE') && DOING_AUTOSAVE ) return;
         if ( $post->post_type !== 'product' ) return;
 
-        // Quick check for banned words
+        // 2. Scan for Critical Terms
         $monitored = $this->get_monitored_terms();
-        foreach($monitored['medical'] as $word => $data) {
-             if ( stripos($post->post_title, $word) !== false ) {
-                 // Force post_status back to draft to prevent publishing.
-                 $post->post_status = 'draft';
-                 wp_update_post( $post );
+        $violation_found = false;
+
+        foreach( $monitored['medical'] as $word => $rules ) {
+             // Only enforce Critical rules
+             if ( ! isset( $rules['severity'] ) || 'Critical' !== $rules['severity'] ) {
+                 continue;
              }
+
+             $pattern = '/\b' . preg_quote( $word, '/' ) . '\b/i';
+             
+             // Check scope: if 'all', check content + title, otherwise just title
+             $content_to_scan = $post->post_title;
+             if ( isset( $rules['scope'] ) && 'all' === $rules['scope'] ) {
+                 $content_to_scan .= ' ' . wp_strip_all_tags( $post->post_content );
+             }
+
+             if ( preg_match( $pattern, $content_to_scan ) ) {
+                 $violation_found = true;
+                 break; 
+             }
+        }
+
+        // 3. Force Draft if Violation Found
+        // Only proceed if the post is currently published or pending (don't loop on drafts)
+        if ( $violation_found && in_array( $post->post_status, array( 'publish', 'pending', 'future' ) ) ) {
+            
+            // CRITICAL FIX: Unhook to prevent infinite loop
+            remove_action( 'save_post_product', array( $this, 'check_compliance_on_save' ), 10 );
+            
+            // Force status to draft
+            wp_update_post( array(
+                'ID'          => $post_id,
+                'post_status' => 'draft'
+            ) );
+
+            // Optional: Add an admin notice transient so the user knows WHY it reverted to draft
+            set_transient( 'cc_gmc_blocked_save_' . get_current_user_id(), 'Product reverted to Draft due to restricted medical terms.', 30 );
+
+            // Re-hook (good practice, though script execution usually ends shortly after)
+            add_action( 'save_post_product', array( $this, 'check_compliance_on_save' ), 10, 3 );
+        }
+    }
+
+    /**
+     * Display an admin notice if a product save was blocked by compliance checks.
+     * Checks for a specific transient set during the save_post hook.
+     */
+    public function render_blocked_save_notice() {
+        // Only show to users who can likely trigger this
+        if ( ! is_admin() || ! current_user_can( 'edit_products' ) ) {
+            return;
+        }
+
+        $user_id = get_current_user_id();
+        $transient_key = 'cc_gmc_blocked_save_' . $user_id;
+        $msg = get_transient( $transient_key );
+
+        if ( $msg ) {
+            ?>
+            <div class="notice notice-error is-dismissible">
+                <p>
+                    <strong><?php esc_html_e( 'Cirrusly Commerce Alert:', 'cirrusly-commerce' ); ?></strong> 
+                    <?php echo esc_html( $msg ); ?>
+                </p>
+            </div>
+            <?php
+            // Delete transient so the message only appears once
+            delete_transient( $transient_key );
         }
     }
 
