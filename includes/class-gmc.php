@@ -771,7 +771,12 @@ class Cirrusly_Commerce_GMC {
             // Fix: Decrypt the key using the Core method
             $json_raw = Cirrusly_Commerce_Core::decrypt_data( $json_key );
             // Fallback: If decryption fails (returns false), try using the original key 
-            if ( ! $json_raw ) $json_raw = $json_key;
+            if ( ! $json_raw ) {
+                if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+                    error_log( 'Cirrusly Commerce: Decryption returned false, using raw key as fallback.' );
+                }
+                $json_raw = $json_key;
+            }
 
             $auth_config = json_decode( $json_raw, true );
             if ( ! is_array( $auth_config ) ) {
@@ -793,6 +798,10 @@ class Cirrusly_Commerce_GMC {
      */
     public function handle_promo_api_submit() {
         check_ajax_referer( 'cc_promo_api_submit', 'security' );
+
+        if ( ! current_user_can( 'manage_woocommerce' ) ) {
+            wp_send_json_error( 'Insufficient permissions.' );
+        }
         
         if ( ! Cirrusly_Commerce_Core::cirrusly_is_pro() ) {
             wp_send_json_error( 'Pro version required for API access.' );
@@ -805,6 +814,11 @@ class Cirrusly_Commerce_GMC {
         $scan_config = get_option( 'cirrusly_scan_config' );
         $merchant_id = isset( $scan_config['merchant_id_pro'] ) ? $scan_config['merchant_id_pro'] : '';
         
+        // Fallback for legacy installs
+        if ( empty( $merchant_id ) ) {
+            $merchant_id = get_option( 'cirrusly_gmc_merchant_id', '' );
+        }
+
         if ( empty( $merchant_id ) ) {
             wp_send_json_error( 'Merchant ID not configured.' );
         }
@@ -827,8 +841,10 @@ class Cirrusly_Commerce_GMC {
             $promo = new Google\Service\ShoppingContent\Promotion();
             $promo->setPromotionId( $id );
             $promo->setLongTitle( $title );
-            $promo->setContentLanguage( 'en' ); // Should ideally be dynamic
-            $promo->setTargetCountry( 'US' );   // Should ideally be dynamic
+            $content_lang = isset( $scan_config['content_language'] ) ? $scan_config['content_language'] : substr( get_locale(), 0, 2 );
+            $target_country = isset( $scan_config['target_country'] ) ? $scan_config['target_country'] : WC()->countries->get_base_country();
+            $promo->setContentLanguage( $content_lang );
+            $promo->setTargetCountry( $target_country );
             $promo->setRedemptionChannel( array( 'ONLINE' ) );
 
             // 1. Parse Dates (Format: YYYY-MM-DD/YYYY-MM-DD) received from JS
@@ -839,10 +855,32 @@ class Cirrusly_Commerce_GMC {
                 if ( ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $start_str ) || ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $end_str ) ) {
                   wp_send_json_error( 'Invalid date format. Expected YYYY-MM-DD/YYYY-MM-DD.' );
                 }
-                // FIX: Use TimePeriod + setStartTime/EndTime (Fixes Critical Error)
+                
+                // FIX: Calculate UTC times based on Site Timezone
+                $tz_string = get_option( 'timezone_string' );
+                if ( ! $tz_string ) {
+                    $offset  = get_option( 'gmt_offset' );
+                    $hours   = (int) $offset;
+                    $minutes = abs( ( $offset - $hours ) * 60 );
+                    $tz_string = sprintf( '%+03d:%02d', $hours, $minutes );
+                }
+
+                try {
+                    $site_tz = new DateTimeZone( $tz_string );
+                } catch ( Exception $e ) {
+                    $site_tz = new DateTimeZone( 'UTC' );
+                }
+                $utc_tz = new DateTimeZone( 'UTC' );
+
+                $dt_start = new DateTime( $start_str . ' 00:00:00', $site_tz );
+                $dt_end   = new DateTime( $end_str . ' 23:59:59', $site_tz );
+
+                $dt_start->setTimezone( $utc_tz );
+                $dt_end->setTimezone( $utc_tz );
+
                 $period = new Google\Service\ShoppingContent\TimePeriod();
-                $period->setStartTime( $start_str . 'T00:00:00Z' );
-                $period->setEndTime( $end_str . 'T23:59:59Z' );
+                $period->setStartTime( $dt_start->format( 'Y-m-d\TH:i:s\Z' ) );
+                $period->setEndTime( $dt_end->format( 'Y-m-d\TH:i:s\Z' ) );
                 $promo->setPromotionEffectiveTimePeriod( $period );
             }
 
@@ -877,6 +915,10 @@ class Cirrusly_Commerce_GMC {
      */
     public function handle_promo_api_list() {
         check_ajax_referer( 'cc_promo_api_submit', 'security' ); // reuse same nonce scope
+
+        if ( ! current_user_can( 'manage_woocommerce' ) ) {
+            wp_send_json_error( 'Insufficient permissions.' );
+        }
         
         if ( ! Cirrusly_Commerce_Core::cirrusly_is_pro() ) {
             wp_send_json_error( 'Pro version required.' );
@@ -897,6 +939,12 @@ class Cirrusly_Commerce_GMC {
         // Fix: Merchant ID from Settings
         $scan_config = get_option( 'cirrusly_scan_config' );
         $merchant_id = isset( $scan_config['merchant_id_pro'] ) ? $scan_config['merchant_id_pro'] : '';
+        
+        // Fallback for legacy installs
+        if ( empty( $merchant_id ) ) {
+            $merchant_id = get_option( 'cirrusly_gmc_merchant_id', '' );
+        }
+
         if ( empty( $merchant_id ) ) wp_send_json_error( 'Merchant ID missing.' );
 
         $service = new Google\Service\ShoppingContent( $client );
@@ -959,7 +1007,7 @@ class Cirrusly_Commerce_GMC {
                             } else {
                                 // FALLBACK: If status is unknown but we have data, show the raw first status
                                 if ( !empty($found_statuses) ) {
-                                    $status = strtolower($found_statuses[0]) . ' (raw)';
+                                    $status = strtolower($found_statuses[0]);
                                 }
                             }
                         } else {
