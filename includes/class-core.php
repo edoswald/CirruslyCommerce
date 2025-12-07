@@ -1439,7 +1439,7 @@ public function register_admin_menus() {
         echo '</div>';
     }
 
-    /**
+/**
      * Perform the scheduled Google Merchant Center health scan and persist the results.
      *
      * Runs the GMC scan, updates the `woo_gmc_scan_data` option with a timestamped result set, and — when the cirrusly scan configuration has `enable_email_report` set to `"yes"` and the scan returned issues — sends an HTML summary email to the configured `email_recipient` (or the site admin email when none is configured).
@@ -1490,6 +1490,13 @@ public function register_admin_menus() {
 
             // Set HTML Content Type using headers parameter instead
             $headers = array( 'Content-Type: text/html; charset=UTF-8' );
+            
+            // FIX: Set "From" header to match Site Title and Admin Email
+            // This ensures Gmail sees the email as authenticated (if the server allows sending as this address)
+            $admin_email = get_option( 'admin_email' );
+            $site_title  = wp_specialchars_decode( get_option( 'blogname' ), ENT_QUOTES );
+            $headers[]   = "From: $site_title <$admin_email>";
+
             wp_mail( $to, $subject, $message, $headers );
         }
     }
