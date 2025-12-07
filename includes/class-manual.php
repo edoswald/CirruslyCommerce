@@ -2,6 +2,14 @@
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 class Cirrusly_Commerce_Manual {
+    /**
+     * Render the Cirrusly Commerce user manual page in the WordPress admin.
+     *
+     * Outputs a self-contained HTML page (including inline CSS, navigation, and content sections)
+     * that documents plugin features, admin workflows, and developer meta keys. Inserts the
+     * current plugin version from CIRRUSLY_COMMERCE_VERSION. This method is purely presentational
+     * and does not alter application state or persistent data.
+     */
     public static function render_page() {
         echo '<div class="wrap">';
         Cirrusly_Commerce_Core::render_global_header( 'User Manual' );

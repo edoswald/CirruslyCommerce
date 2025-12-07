@@ -207,12 +207,12 @@ class Cirrusly_Commerce_Core {
     }
 
     /**
-     * Determine whether PRO features are enabled for the current context.
-     *
-     * Checks a developer override (when WP_DEBUG is true and the current user can manage options, via the `cc_dev_mode` query parameter) and the Freemius license state.
-     *
-     * @return bool `true` if PRO features are active, `false` otherwise.
-     */
+         * Determine if PRO features are active for the current request.
+         *
+         * Honors a secure developer override when WP_DEBUG is enabled and the current user can manage options via the `cc_dev_mode` query parameter (`pro` or `free`), otherwise checks the Freemius license state.
+         *
+         * @return bool `true` if PRO features are active, `false` otherwise.
+         */
     public static function cirrusly_is_pro() {
         // 1. Secure Developer Override
         if ( defined('WP_DEBUG') && WP_DEBUG && current_user_can('manage_options') ) {
@@ -233,7 +233,12 @@ class Cirrusly_Commerce_Core {
         return false; 
     }
 
-    public function force_enable_cogs() { return 'yes'; }
+    /**
+ * Force-enable the WooCommerce Cost of Goods Sold (COGS) setting.
+ *
+ * @return string The literal value 'yes' indicating COGS should be enabled.
+ */
+public function force_enable_cogs() { return 'yes'; }
     /**
  * Clears the cached dashboard metrics.
  *
@@ -1377,11 +1382,11 @@ public function register_admin_menus() {
     }
 
     /**
-     * Render the Cirrusly Commerce overview widget content for the WordPress dashboard.
+     * Render the Cirrusly Commerce overview widget in the WordPress dashboard.
      *
-     * Outputs a compact widget that displays the last 7 days revenue and orders, average margin,
-     * a two‑cell health grid (Google Merchant Center status and loss makers), and a button
-     * linking to the full Cirrusly Commerce dashboard.
+     * Displays a compact overview including last 7 days revenue and orders, average margin,
+     * Google Merchant Center health, loss makers, missing cost count, and a button linking
+     * to the full Cirrusly Commerce dashboard.
      */
     public function render_wp_dashboard_widget() {
         $m = self::get_dashboard_metrics();
