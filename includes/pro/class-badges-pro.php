@@ -51,12 +51,12 @@ class Cirrusly_Commerce_Badges_Pro {
 
         // 4. SMART: SENTIMENT (NLP)
         // Check for cached sentiment or run analysis
-    if ( ! empty($badge_cfg['smart_sentiment']) && $badge_cfg['smart_sentiment'] === 'yes' ) {
-        $sentiment_html = self::get_sentiment_badge( $product );
-        if ( $sentiment_html ) {
-            $output .= $sentiment_html;
+        if ( ! empty($badge_cfg['smart_sentiment']) && $badge_cfg['smart_sentiment'] === 'yes' ) {
+            $sentiment_html = self::get_sentiment_badge( $product );
+            if ( $sentiment_html ) {
+                $output .= $sentiment_html;
+            }
         }
-    }
 
         return $output;
     }
@@ -134,6 +134,10 @@ class Cirrusly_Commerce_Badges_Pro {
                 return $html;
             }
 
+        } catch ( Google\Service\Exception $e ) {
+            if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+                error_log( 'Cirrusly Sentiment API Error: ' . $e->getMessage() );
+            }
         } catch ( Exception $e ) {
             if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
                 error_log( 'Cirrusly Sentiment Analysis Error: ' . $e->getMessage() );
