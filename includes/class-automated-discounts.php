@@ -11,7 +11,6 @@ class Cirrusly_Commerce_Automated_Discounts {
 
     public function __construct() {
         // 1. Settings (Register in existing GMC settings group)
-        // FIXED: Changed from add_filter to add_action to match the do_action hook
         add_action( 'cirrusly_commerce_scan_settings_ui', array( $this, 'render_settings_field' ) );
         
         // 2. Listener (Capture URL Token)
@@ -29,7 +28,7 @@ class Cirrusly_Commerce_Automated_Discounts {
         add_action( 'send_headers', array( $this, 'prevent_caching_if_active' ) );
     }
 
-/**
+    /**
      * Render the checkbox in the existing GMC Health Check > Settings area.
      * Updated to include Merchant ID and Public Key fields.
      */
@@ -40,7 +39,6 @@ class Cirrusly_Commerce_Automated_Discounts {
         $merchant_id = isset($scan_cfg['merchant_id']) ? esc_attr($scan_cfg['merchant_id']) : '';
         $public_key = isset($scan_cfg['google_public_key']) ? esc_textarea($scan_cfg['google_public_key']) : '';
         
-        // Added styling and Header to distinguish from the checkboxes above it
         ?>
         <div class="cirrusly-ad-settings" style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #c3c4c7;">
             <h4 style="margin: 0 0 10px 0;">Google Automated Discounts</h4>
@@ -76,7 +74,6 @@ class Cirrusly_Commerce_Automated_Discounts {
         if ( is_admin() || ! isset( $_GET[ self::TOKEN_PARAM ] ) ) return;
 
         // Check if feature enabled
-        // Use default array() to avoid array-offset warnings if option is missing/false
         $cfg = get_option('cirrusly_scan_config', array());
         if ( empty($cfg['enable_automated_discounts']) || $cfg['enable_automated_discounts'] !== 'yes' ) return;
 
@@ -110,7 +107,6 @@ class Cirrusly_Commerce_Automated_Discounts {
             $client = new Google\Client();
             
             // Verify Signature using the specific Public Key (ES256)
-            // Fix: Pass public key as an array as required by verifySignedJwt
             $payload = $client->verifySignedJwt( $token, array( $public_key ) );
             
             if ( ! $payload ) return false;
@@ -121,26 +117,24 @@ class Cirrusly_Commerce_Automated_Discounts {
                 return false;
             }
 
-
-            // 2. Validate Merchant ID (Claim 'm') - STRICT REQUIREMENT
+            // 3. Validate Merchant ID (Claim 'm') - STRICT REQUIREMENT
             $stored_merchant_id = isset( $cfg['merchant_id'] ) ? $cfg['merchant_id'] : get_option( 'cirrusly_gmc_merchant_id' );
             if ( empty( $stored_merchant_id ) ) {
                 error_log( 'Cirrusly Commerce JWT Fail: No Merchant ID configured for Automated Discounts.' );
                 return false;
             }
             
-            // Fix: Enforce presence of 'm' and exact match
             if ( ! isset( $payload['m'] ) || (string) $payload['m'] !== (string) $stored_merchant_id ) {
                 error_log( 'Cirrusly Commerce JWT Fail: Merchant ID mismatch or missing.' );
                 return false; 
             }
 
-            // 3. Validate Currency (Claim 'c')
+            // 4. Validate Currency (Claim 'c')
             if ( isset( $payload['c'] ) && $payload['c'] !== get_woocommerce_currency() ) {
                 return false;
             }
 
-            // 4. Validate Additional Claims
+            // 5. Validate Additional Claims
             if ( ! isset( $payload['dc'] ) || ! isset( $payload['dp'] ) ) {
                  return false;
             }
@@ -165,7 +159,6 @@ class Cirrusly_Commerce_Automated_Discounts {
         $price    = isset( $payload['p'] ) ? floatval( $payload['p'] ) : 0;
         $expiry   = isset( $payload['exp'] ) ? (int) $payload['exp'] : time() + ( 48 * HOUR_IN_SECONDS );
 
-
         if ( ! $offer_id || $price <= 0 ) return;
 
         // We need to map Offer ID (which might be SKU) to Product ID
@@ -176,13 +169,13 @@ class Cirrusly_Commerce_Automated_Discounts {
         }
 
         if ( $product_id ) {
-        // Verify product exists
-        $product = wc_get_product( $product_id );
-        if ( ! $product ) return;
-        
-        // Optional: Verify discount is actually lower than regular price
-        $regular_price = $product->get_regular_price();
-        if ( $regular_price && $price >= $regular_price ) return;
+            // Verify product exists
+            $product = wc_get_product( $product_id );
+            if ( ! $product ) return;
+            
+            // Optional: Verify discount is actually lower than regular price
+            $regular_price = $product->get_regular_price();
+            if ( $regular_price && $price >= $regular_price ) return;
 
             $data = array(
                 'price' => $price,
@@ -196,9 +189,9 @@ class Cirrusly_Commerce_Automated_Discounts {
     /**
      * Frontend Logic: Override the displayed price string (e.g. "<del>$20</del> $18")
      */
-
     public function override_price_display( $price_html, $product ) {
-        $discount = $this->get_active_discount( $product->get_id() );
+        // UPDATED: Use static call
+        $discount = self::get_active_discount( $product->get_id() );
         if ( ! $discount ) return $price_html;
 
         // Handle Variable Products: get_regular_price() returns a range string, which breaks wc_format_sale_price
@@ -216,7 +209,8 @@ class Cirrusly_Commerce_Automated_Discounts {
      * Logic: Override the raw price value (used by plugins/sorting)
      */
     public function override_price_value( $price, $product ) {
-        $discount = $this->get_active_discount( $product->get_id() );
+        // UPDATED: Use static call
+        $discount = self::get_active_discount( $product->get_id() );
         if ( $discount ) {
             return $discount['price'];
         }
@@ -235,7 +229,8 @@ class Cirrusly_Commerce_Automated_Discounts {
             $variation_id = $cart_item['variation_id']; // Handle variations if applicable
 
             // specific discount for variation? or parent?
-            $discount = $this->get_active_discount( $variation_id ? $variation_id : $product_id );
+            // UPDATED: Use static call
+            $discount = self::get_active_discount( $variation_id ? $variation_id : $product_id );
 
             if ( $discount ) {
                 $cart_item['data']->set_price( $discount['price'] );
@@ -245,8 +240,9 @@ class Cirrusly_Commerce_Automated_Discounts {
 
     /**
      * Helper: Retrieve active discount from session if valid.
+     * UPDATED: Changed from private to public static for Block access.
      */
-    private function get_active_discount( $product_id ) {
+    public static function get_active_discount( $product_id ) {
         if ( ! isset( WC()->session ) ) return false;
         
         $data = WC()->session->get( self::SESSION_KEY_PREFIX . $product_id );

@@ -11,49 +11,22 @@ if ( ! defined( 'ABSPATH' ) ) {
 class Cirrusly_Commerce_Countdown {
 
     /**
-     * Initialize the countdown feature by registering the shortcode and attaching WordPress/WooCommerce hooks.
-     *
-     * Registers the [cw_countdown] shortcode, hooks the countdown injection into the single product summary,
-     * and registers actions to enqueue inline assets and render the frontend worker script.
+     * Initialize the countdown feature.
      */
     public function __construct() {
-        // Register Shortcode
         add_shortcode( 'cw_countdown', array( $this, 'render_shortcode' ) );
-
-        // Auto-Inject on Product Page
         add_action( 'woocommerce_single_product_summary', array( $this, 'inject_countdown' ), 11 );
-
-        // Load Assets (CSS/JS)
         add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_assets' ) );
         add_action( 'wp_footer', array( $this, 'render_worker_script' ) );
     }
 
-    /**
-     * Retrieve configured Smart Rules for the countdown pro feature when the pro plugin is active.
-     *
-     * Returns the array of rule definitions stored in the 'cirrusly_countdown_rules' option. If the
-     * Cirrusly pro core is not present or pro is not active, an empty array is returned.
-     *
-     * @return array The configured smart rules as an associative array, or an empty array if no rules exist or pro is inactive.
-     */
-    private function get_smart_rules() {
-        // Only return rules if PRO is active
+    private static function get_smart_rules() {
         if ( ! class_exists( 'Cirrusly_Commerce_Core' ) || ! Cirrusly_Commerce_Core::cirrusly_is_pro() ) {
             return array();
         }
-
         return get_option( 'cirrusly_countdown_rules', array() ); 
     }
 
-    /**
-     * Render a countdown timer based on shortcode attributes.
-     *
-     * @param array $atts Shortcode attributes. Supported keys:
-     *                    - 'end'   (string) Required. Target date/time as a parsable date string.
-     *                    - 'label' (string) Optional. Text label shown with the timer.
-     *                    - 'align' (string) Optional. One of 'left', 'center', 'right' (default 'left').
-     * @return string HTML markup for the countdown timer, or an empty string if `end` is missing or the target is not in the future.
-     */
     public function render_shortcode( $atts ) {
         $a = shortcode_atts( array(
             'end'   => '',
@@ -63,71 +36,59 @@ class Cirrusly_Commerce_Countdown {
 
         if ( empty( $a['end'] ) ) return '';
 
-        return $this->generate_timer_html( $a['end'], $a['label'], $a['align'] );
+        return self::generate_timer_html( $a['end'], $a['label'], $a['align'] );
     }
 
     /**
-     * Injects a countdown timer into WooCommerce single product pages when applicable.
-     *
-     * Checks for a per-product manual end date first; if a valid future date is found,
-     * outputs the timer HTML and stops. If no manual end date is present, evaluates
-     * configured smart rules and outputs the timer for the first matching rule whose
-     * end date is in the future. When a timer is output it is echoed directly (along
-     * with a small spacer).
-     *
-     * This method only takes effect on single product pages.
-     *
-     * @return void
+     * Helper to find the active configuration for a product.
+     * Returns array('end' => string, 'label' => string, 'align' => string) or false.
      */
-    public function inject_countdown() {
-        if ( ! is_product() ) return;
-        global $product;
+    public static function get_smart_countdown_config( $product ) {
+        if ( ! is_object( $product ) ) return false;
         $pid = $product->get_id();
 
-        // --- PRIORITY 1: Manual Product Meta (Free Feature) ---
-        // We will save this meta in class-pricing.php
+        // --- PRIORITY 1: Manual Product Meta ---
         $manual_end = get_post_meta( $pid, '_cw_sale_end', true );
-        
-        if ( ! empty( $manual_end ) ) {
-            // Check if date is valid and in future
-            if ( $this->is_date_future( $manual_end ) ) {
-                echo wp_kses_post( $this->generate_timer_html( $manual_end, 'Sale Ends In:', 'left' ) );
-                echo '<div style="margin-bottom: 15px;"></div>';
-                return; // Stop processing if manual override exists
-            }
+        if ( ! empty( $manual_end ) && self::is_date_future( $manual_end ) ) {
+            return array(
+                'end'   => $manual_end,
+                'label' => 'Sale Ends In:',
+                'align' => 'left'
+            );
         }
 
         // --- PRIORITY 2: Smart Rules (Pro Feature) ---
-        $rules = $this->get_smart_rules();
+        $rules = self::get_smart_rules();
         foreach ( $rules as $rule ) {
-            // Safety checks for rule structure
             if ( empty($rule['term']) || empty($rule['taxonomy']) || empty($rule['end']) ) continue;
 
             if ( has_term( $rule['term'], $rule['taxonomy'], $pid ) ) {
-                 if ( $this->is_date_future( $rule['end'] ) ) {
-                    $align = isset($rule['align']) ? $rule['align'] : 'left';
-                    $label = isset($rule['label']) ? $rule['label'] : 'Ends in:';
-                    echo wp_kses_post( $this->generate_timer_html( $rule['end'], $label, $align ) );
-                    echo '<div style="margin-bottom: 15px;"></div>';
-                    break; // Apply first matching rule
+                 if ( self::is_date_future( $rule['end'] ) ) {
+                    return array(
+                        'end'   => $rule['end'],
+                        'label' => isset($rule['label']) ? $rule['label'] : 'Ends in:',
+                        'align' => isset($rule['align']) ? $rule['align'] : 'left',
+                    );
                  }
             }
         }
+        return false;
     }
 
-    /**
-     * Build a CLS-friendly countdown timer HTML for a given end date.
-     *
-     * Generates markup pre-populated with days, hours, minutes, and seconds remaining
-     * and includes a data-end attribute (milliseconds) for client-side updates.
-     *
-     * @param string $end_date End date/time string parseable by DateTime or strtotime.
-     * @param string $label Optional label shown before the timer; empty to omit.
-     * @param string $align Alignment for the timer content: 'left', 'center', or 'right'.
-     * @return string The rendered HTML for the countdown, or an empty string if the end date is past or invalid.
-     */
-    private function generate_timer_html( $end_date, $label, $align ) {
-        // 1. Timezone & Target Calc
+    public function inject_countdown() {
+        if ( ! is_product() ) return;
+        global $product;
+        
+        // Fetch full config (date + styles)
+        $config = self::get_smart_countdown_config( $product );
+        
+        if ( $config && is_array( $config ) ) {
+            echo wp_kses_post( self::generate_timer_html( $config['end'], $config['label'], $config['align'] ) );
+            echo '<div style="margin-bottom: 15px;"></div>';
+        }
+    }
+
+    public static function generate_timer_html( $end_date, $label, $align ) {
         $timezone_string = get_option( 'timezone_string' ) ?: 'America/New_York';
         try {
             $dt = new DateTime( $end_date, new DateTimeZone( $timezone_string ) );
@@ -137,9 +98,8 @@ class Cirrusly_Commerce_Countdown {
         }
 
         $now = time();
-        if ( $target_timestamp < $now ) return ''; // Expired
+        if ( $target_timestamp < $now ) return ''; 
 
-        // 2. Pre-Calculate for CLS
         $diff = $target_timestamp - $now;
         $days = floor($diff / (60 * 60 * 24));
         $hours = floor(($diff % (60 * 60 * 24)) / (60 * 60));
@@ -181,15 +141,7 @@ class Cirrusly_Commerce_Countdown {
         return ob_get_clean();
     }
 
-    /**
-     * Determines whether a date/time string represents a future moment relative to the site's timezone.
-     *
-     * Uses the WordPress `timezone_string` option (defaults to "America/New_York") when parsing the input.
-     *
-     * @param string $date_str A date/time string parseable by DateTime (in the site's timezone).
-     * @return bool `true` if the parsed date/time is later than the current time, `false` otherwise or on parse failure.
-     */
-    private function is_date_future( $date_str ) {
+    private static function is_date_future( $date_str ) {
         $timezone_string = get_option( 'timezone_string' ) ?: 'America/New_York';
         try {
             $dt = new DateTime( $date_str, new DateTimeZone( $timezone_string ) );
@@ -197,16 +149,8 @@ class Cirrusly_Commerce_Countdown {
         } catch (Exception $e) { return false; }
     }
 
-    /**
-     * Enqueues and registers the inline CSS used by the countdown timer on WooCommerce product pages.
-     *
-     * The method does nothing when not on a single product page; when on a product page it registers
-     * a minimal stylesheet handle and attaches the countdown component's CSS via inline styles.
-     */
     public function enqueue_assets() {
         if ( ! is_product() ) return;
-        
-        // Inline CSS for performance (as requested)
         $css = "
         .cw-countdown-wrapper { display: flex; align-items: center; font-family: inherit; font-weight: 700; color: #000; gap: 8px; line-height: 1.2; flex-wrap: wrap; min-height: 42px; box-sizing: border-box; }
         .cw-timer-label { font-size: 16px; margin-right: 5px; white-space: nowrap; }
@@ -216,19 +160,11 @@ class Cirrusly_Commerce_Countdown {
         .cw-time-group { display: flex; flex-direction: column; align-items: center; }
         .cw-sep { font-size: 20px; font-weight: 800; color: #000; position: relative; top: -4px; }
         ";
-        // Register a minimal handle to attach inline styles
         wp_register_style( 'cw-countdown-style', false );
         wp_enqueue_style( 'cw-countdown-style' );
         wp_add_inline_style( 'cw-countdown-style', $css );
     }
 
-    /**
-     * Injects an inline JavaScript worker that updates countdown timers on product pages.
-     *
-     * Finds elements with the classes `cw-countdown-wrapper cw-init-needed`, initializes each by
-     * reading the `data-end` timestamp (milliseconds since epoch), then updates days/hours/minutes/seconds
-     * display values every second. When a timer reaches its end, the script hides that timer.
-     */
     public function render_worker_script() {
         if ( ! is_product() ) return;
         ?>
