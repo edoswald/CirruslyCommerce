@@ -55,7 +55,7 @@ class Cirrusly_Commerce_Pricing {
         }
     }
 
-    public function init_frontend_msrp() {
+public function init_frontend_msrp() {
         $msrp_cfg = get_option( 'cirrusly_msrp_config', array() );
         
         if ( empty($msrp_cfg['enable_display']) || $msrp_cfg['enable_display'] !== 'yes' ) return;
@@ -63,24 +63,41 @@ class Cirrusly_Commerce_Pricing {
         $pos_prod = isset($msrp_cfg['position_product']) ? $msrp_cfg['position_product'] : 'before_price';
         $pos_loop = isset($msrp_cfg['position_loop']) ? $msrp_cfg['position_loop'] : 'before_price';
 
+        // Product Page Logic
         if ( 'inline' === $pos_prod ) {
             add_filter( 'woocommerce_get_price_html', array( $this, 'cw_render_msrp_inline' ), 100, 2 );
         } else {
             $hook = 'woocommerce_single_product_summary';
-            $prio = 9; 
-            if ( $pos_prod === 'before_title' ) $prio = 4;
-            if ( $pos_prod === 'after_price' ) $prio = 11;
-            if ( $pos_prod === 'before_add_to_cart' ) $prio = 25;
+            $prio = 9; // Default: before_price
+            
+            switch ( $pos_prod ) {
+                case 'before_title':       $prio = 4;  break;
+                case 'after_price':        $prio = 11; break;
+                case 'after_excerpt':      $prio = 21; break;
+                case 'before_add_to_cart': $prio = 25; break;
+                case 'after_add_to_cart':  $prio = 31; break;
+                case 'after_meta':         $prio = 41; break;
+                case 'before_price':       $prio = 9;  break; // Explicit default position
+                default:
+                    // Invalid value - log and use safe default
+                    if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+                        error_log( sprintf( 'Cirrusly Commerce: Invalid MSRP position "%s", using default', $pos_prod ) );
+                    }
+                    $prio = 9;
+                    break;
+            }
+
             add_action( $hook, array( $this, 'cw_render_msrp_block_hook' ), $prio );
         }
 
+        // Loop/Catalog Logic
         if ( 'inline' === $pos_loop ) {
             if ( 'inline' !== $pos_prod ) { 
                 add_filter( 'woocommerce_get_price_html', array( $this, 'cw_render_msrp_inline_loop_check' ), 100, 2 );
             }
         } else {
             $hook = 'woocommerce_after_shop_loop_item_title';
-            $prio = 9;
+            $prio = 9; // Default: before_price
             if ( $pos_loop === 'after_price' ) $prio = 11;
             add_action( $hook, array( $this, 'cw_render_msrp_block_hook' ), $prio );
         }
