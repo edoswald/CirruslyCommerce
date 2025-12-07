@@ -8,7 +8,7 @@ class Cirrusly_Commerce_Google_API_Client {
         if ( ! $stored_data ) return new WP_Error( 'no_creds', 'Service Account JSON not uploaded.' );
 
         // 1. Try to decrypt
-        $json_raw = self::decrypt_data( $stored_data );
+        $json_raw = Cirrusly_Commerce_Security::decrypt_data( $stored_data );
 
         // 2. Fallback: Check if it's legacy plaintext (backward compatibility)
         if ( ! $json_raw ) {
