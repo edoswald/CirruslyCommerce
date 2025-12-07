@@ -90,7 +90,7 @@ class Cirrusly_Commerce_GMC {
         }
     }
 
-    /**
+/**
      * NEW: Fetch actual product statuses from Google Content API.
      */
     private function fetch_google_real_statuses() {
@@ -139,12 +139,33 @@ class Cirrusly_Commerce_GMC {
                     // Check for Item Level Issues (The "Why" it is disapproved)
                     $issues = $status->getItemLevelIssues();
                     if ( ! empty( $issues ) ) {
+                        // Ensure the array for this product ID exists
+                        if ( ! isset( $google_issues[ $wc_id ] ) ) {
+                            $google_issues[ $wc_id ] = array();
+                        }
+
                         foreach ( $issues as $issue ) {
-                            $google_issues[ $wc_id ][] = array(
-                                'msg'    => '[Google API] ' . $issue->getDescription(),
-                                'reason' => $issue->getDetail(),
-                                'type'   => ($issue->getServability() === 'disapproved') ? 'critical' : 'warning'
-                            );
+                            $msg = '[Google API] ' . $issue->getDescription();
+                            
+                            // CHECK FOR DUPLICATES:
+                            // Because one product can be targeted to multiple countries (e.g., US, CA),
+                            // the API returns multiple status objects for the same WC ID.
+                            // We scan existing issues to prevent adding the same error twice.
+                            $already_exists = false;
+                            foreach ( $google_issues[ $wc_id ] as $existing_issue ) {
+                                if ( $existing_issue['msg'] === $msg ) {
+                                    $already_exists = true;
+                                    break;
+                                }
+                            }
+
+                            if ( ! $already_exists ) {
+                                $google_issues[ $wc_id ][] = array(
+                                    'msg'    => $msg,
+                                    'reason' => $issue->getDetail(),
+                                    'type'   => ($issue->getServability() === 'disapproved') ? 'critical' : 'warning'
+                                );
+                            }
                         }
                     }
                 }
