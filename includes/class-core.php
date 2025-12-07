@@ -1481,14 +1481,9 @@ public function register_admin_menus() {
             $message .= '<p style="margin-top:20px;">You can view the full report in your <a href="' . admin_url('admin.php?page=cirrusly-gmc') . '">GMC Hub Dashboard</a>.</p>';
 
             // Set HTML Content Type using headers parameter instead
-            $headers = array( 'Content-Type: text/html; charset=UTF-8' );
-            
-            // FIX: Set "From" header to match Site Title and Admin Email
-            // This ensures Gmail sees the email as authenticated (if the server allows sending as this address)
-            $admin_email = get_option( 'admin_email' );
-            $site_title  = wp_specialchars_decode( get_option( 'blogname' ), ENT_QUOTES );
-            // Add From header for email authentication  
-            $headers = Cirrusly_Commerce_Core::get_email_from_header();  
+            // Set HTML Content Type and From header for email authentication
+            $headers = Cirrusly_Commerce_Core::get_email_from_header();
+            $headers[] = 'Content-Type: text/html; charset=UTF-8';
             wp_mail( $to, $subject, $message, $headers );
         }
     }
