@@ -179,7 +179,8 @@ class Cirrusly_Commerce_Blocks {
 
         $html = '';
         if ( class_exists( 'Cirrusly_Commerce_Badges' ) ) {
-            $html = Cirrusly_Commerce_Badges::get_badge_html( $product );
+            $badges = new Cirrusly_Commerce_Badges();
+            $html = $badges->get_badge_html( $product );
         }
 
         if ( empty( $html ) ) {
