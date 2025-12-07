@@ -15,14 +15,12 @@ class Cirrusly_Commerce_Reports {
     }
 
     /**
-     * Generate and send a weekly profit email report summarizing the last 7 days of orders.
+     * Sends the weekly profit report email summarizing the last 7 days of store performance.
      *
-     * This method checks reporting configuration and Pro status, aggregates completed and processing
-     * orders from the previous 7 days to compute gross revenue, estimated COGS, estimated shipping,
-     * estimated payment processor fees, net profit, and net margin, then builds an HTML summary and
-     * emails it to the configured recipient (or the site admin email). The method exits without
-     * sending if reporting is disabled, the Pro feature is not active, or there are no orders in the
-     * period.
+     * Gathers completed and processing orders from the last seven days, estimates COGS, shipping,
+     * and payment fees, computes net profit and margin, and emails an HTML report to the configured
+     * recipient (or the site admin). The method aborts without sending if reports are disabled in
+     * settings, the site is not Pro, or there are no qualifying orders.
      */
     public static function send_weekly_email() {
         // 1. Check if enabled
@@ -123,8 +121,11 @@ class Cirrusly_Commerce_Reports {
         // Store filter callback for proper removal
         $html_filter = function() { return 'text/html'; };
         
++        // Add From header for email authentication  
++        $headers = Cirrusly_Commerce_Core::get_email_from_header();  
+
         add_filter( 'wp_mail_content_type', $html_filter );
-        wp_mail( $to, $subject, $message );
+        wp_mail( $to, $subject, $message, $headers );
         remove_filter( 'wp_mail_content_type', $html_filter );
     }
 }

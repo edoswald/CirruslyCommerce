@@ -23,9 +23,6 @@ class Cirrusly_Commerce_Core {
         // Audit Inline Save (AJAX)
         add_action( 'wp_ajax_cc_audit_save', array( $this, 'handle_audit_inline_save' ) );
         
-        // Hide Upsells CSS Hook
-        add_action( 'admin_head', array( $this, 'cirrusly_hide_upsells_css' ) );
-
         // Scheduled Scan Hook
         add_action( 'cirrusly_gmc_daily_scan', array( $this, 'execute_scheduled_scan' ) );
         
@@ -210,12 +207,12 @@ class Cirrusly_Commerce_Core {
     }
 
     /**
-     * Determine whether PRO features are enabled for the current context.
-     *
-     * Checks a developer override (when WP_DEBUG is true and the current user can manage options, via the `cc_dev_mode` query parameter) and the Freemius license state.
-     *
-     * @return bool `true` if PRO features are active, `false` otherwise.
-     */
+         * Determine if PRO features are active for the current request.
+         *
+         * Honors a secure developer override when WP_DEBUG is enabled and the current user can manage options via the `cc_dev_mode` query parameter (`pro` or `free`), otherwise checks the Freemius license state.
+         *
+         * @return bool `true` if PRO features are active, `false` otherwise.
+         */
     public static function cirrusly_is_pro() {
         // 1. Secure Developer Override
         if ( defined('WP_DEBUG') && WP_DEBUG && current_user_can('manage_options') ) {
@@ -237,22 +234,11 @@ class Cirrusly_Commerce_Core {
     }
 
     /**
-     * Outputs admin CSS to hide PRO/upsell UI on Cirrusly admin pages when configured.
-     *
-     * Checks the Cirrusly scan settings and, if the 'hide_upsells' option is set to 'yes',
-     * injects a small style block that hides elements with the `.cc-pro-feature` class.
-     */
-    public function cirrusly_hide_upsells_css() {
-        // Only run on plugin pages
-        if ( ! isset( $_GET['page'] ) || strpos( $_GET['page'], 'cirrusly-' ) === false ) return;
-
-        $general = get_option( 'cirrusly_scan_config', array() ); 
-        if ( ! empty( $general['hide_upsells'] ) && $general['hide_upsells'] === 'yes' ) {
-            echo '<style>.cc-pro-feature { display: none !important; }</style>';
-        }
-    }
-
-    public function force_enable_cogs() { return 'yes'; }
+ * Force-enable the WooCommerce Cost of Goods Sold (COGS) setting.
+ *
+ * @return string The literal value 'yes' indicating COGS should be enabled.
+ */
+public function force_enable_cogs() { return 'yes'; }
     /**
  * Clears the cached dashboard metrics.
  *
@@ -935,7 +921,18 @@ public function register_admin_menus() {
 
             <div class="cc-dash-card" style="border-top-color: #d63638;">
                 <div class="cc-card-head"><span>GMC Health</span> <span class="dashicons dashicons-google"></span></div>
-                <div class="cc-stat-row"><span>Critical Issues</span><span class="cc-stat-val <?php echo $m['gmc_critical'] > 0 ? 'cc-val-bad' : 'cc-val-good'; ?>"><?php echo esc_html( $m['gmc_critical'] ); ?></span></div>
+                
+                <div class="cc-stat-row">
+                    <span>Critical Issues</span>
+                    <span class="cc-stat-val <?php echo $m['gmc_critical'] > 0 ? 'cc-val-bad' : 'cc-val-good'; ?>"><?php echo esc_html( $m['gmc_critical'] ); ?></span>
+                </div>
+                
+                <div class="cc-stat-row">
+                    <span>Warnings</span>
+                    <span class="cc-stat-val" style="<?php echo $m['gmc_warnings'] > 0 ? 'color:#dba617;' : 'color:#008a20;'; ?>">
+                        <?php echo esc_html( $m['gmc_warnings'] ); ?>
+                    </span>
+                </div>
                 
                 <div class="cc-stat-row">
                     <span>Content Policy</span>
@@ -1022,7 +1019,6 @@ public function register_admin_menus() {
 
         $scan = get_option( 'cirrusly_scan_config', array() );
         $daily = isset($scan['enable_daily_scan']) ? $scan['enable_daily_scan'] : '';
-        $hide_upsells = isset($scan['hide_upsells']) ? $scan['hide_upsells'] : '';
         
         // Pro field values
         $merchant_id_pro = isset($scan['merchant_id_pro']) ? $scan['merchant_id_pro'] : '';
@@ -1122,10 +1118,6 @@ public function register_admin_menus() {
                 <br>
                 <label><input type="checkbox" name="cirrusly_scan_config[enable_email_report]" value="yes" '.checked('yes', isset($scan['enable_email_report']) ? $scan['enable_email_report'] : '', false).'> <strong>Receive Email Reports</strong></label>
                 <p class="description">Send scan results and weekly profit summaries to the admin email.</p>
-                
-                <hr style="border:0; border-top:1px solid #eee; margin:15px 0;">
-                <label><input type="checkbox" name="cirrusly_scan_config[hide_upsells]" value="yes" '.checked('yes', $hide_upsells, false).'> Hide Pro Features</label>
-                <p class="description">Enable this to hide grayed-out Pro features from the interface.</p>
             </div>
         </div>';
 
@@ -1390,11 +1382,11 @@ public function register_admin_menus() {
     }
 
     /**
-     * Render the Cirrusly Commerce overview widget content for the WordPress dashboard.
+     * Render the Cirrusly Commerce overview widget in the WordPress dashboard.
      *
-     * Outputs a compact widget that displays the last 7 days revenue and orders, average margin,
-     * a two‑cell health grid (Google Merchant Center status and loss makers), and a button
-     * linking to the full Cirrusly Commerce dashboard.
+     * Displays a compact overview including last 7 days revenue and orders, average margin,
+     * Google Merchant Center health, loss makers, missing cost count, and a button linking
+     * to the full Cirrusly Commerce dashboard.
      */
     public function render_wp_dashboard_widget() {
         $m = self::get_dashboard_metrics();
@@ -1439,7 +1431,7 @@ public function register_admin_menus() {
         echo '</div>';
     }
 
-    /**
+/**
      * Perform the scheduled Google Merchant Center health scan and persist the results.
      *
      * Runs the GMC scan, updates the `woo_gmc_scan_data` option with a timestamped result set, and — when the cirrusly scan configuration has `enable_email_report` set to `"yes"` and the scan returned issues — sends an HTML summary email to the configured `email_recipient` (or the site admin email when none is configured).
@@ -1489,7 +1481,9 @@ public function register_admin_menus() {
             $message .= '<p style="margin-top:20px;">You can view the full report in your <a href="' . admin_url('admin.php?page=cirrusly-gmc') . '">GMC Hub Dashboard</a>.</p>';
 
             // Set HTML Content Type using headers parameter instead
-            $headers = array( 'Content-Type: text/html; charset=UTF-8' );
+            // Set HTML Content Type and From header for email authentication
+            $headers = Cirrusly_Commerce_Core::get_email_from_header();
+            $headers[] = 'Content-Type: text/html; charset=UTF-8';
             wp_mail( $to, $subject, $message, $headers );
         }
     }
