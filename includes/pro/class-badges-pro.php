@@ -89,10 +89,16 @@ class Cirrusly_Commerce_Badges_Pro {
         }
 
         // Dependency Check
-        if ( ! class_exists( 'Cirrusly_Commerce_Google_API_Client' ) ) return '';
+        if ( ! class_exists( 'Cirrusly_Commerce_Google_API_Client' ) ) {
+            set_transient( $cache_key, '', DAY_IN_SECONDS );
+            return '';
+        }
         
         $client = Cirrusly_Commerce_Google_API_Client::get_client();
-        if ( is_wp_error( $client ) ) return '';
+        if ( is_wp_error( $client ) ) {
+            set_transient( $cache_key, '', DAY_IN_SECONDS );
+            return '';
+        }
     
         if ( ! class_exists( 'Google\Service\CloudNaturalLanguage' ) ) {
             if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
