@@ -130,7 +130,7 @@ class Cirrusly_Commerce_Dashboard_UI {
         // 1. Revenue Pulse (Mini)
         echo '<div style="border-bottom:1px solid #eee; padding-bottom:10px; display:flex; justify-content:space-between; align-items:end;">';
             echo '<div><span style="color:#777; font-size:11px; text-transform:uppercase;">Last 7 Days</span><br><span style="font-size:20px; font-weight:600; color:#008a20;">' . wc_price($m['weekly_revenue']) . '</span></div>';
-            echo '<div style="text-align:right;"><span style="font-size:12px; color:#555;">' . $m['weekly_orders'] . ' Orders</span><br><span style="font-size:12px; color:' . ($m['avg_margin'] < 15 ? '#d63638' : '#008a20') . ';">' . $m['avg_margin'] . '% Margin</span></div>';
+            echo '<div style="text-align:right;"><span style="font-size:12px; color:#555;">' . esc_html( $m['weekly_orders'] ) . ' Orders</span><br><span style="font-size:12px; color:' . ($m['avg_margin'] < 15 ? '#d63638' : '#008a20') . ';">' . esc_html( $m['avg_margin'] ) . '% Margin</span></div>';
         echo '</div>';
 
         // 2. Health Grid
