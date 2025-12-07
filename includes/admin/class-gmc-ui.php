@@ -78,7 +78,7 @@ class Cirrusly_Commerce_GMC_UI {
 
         if ( isset( $_POST['run_gmc_scan'] ) && check_admin_referer( 'cirrusly_gmc_scan', 'cc_gmc_scan_nonce' ) ) {
             $results = $this->run_gmc_scan_logic();
-            update_option( 'woo_gmc_scan_data', array( 'timestamp' => current_time( 'timestamp' ), 'results' => $results ), false );
+            update_option( 'woo_gmc_scan_data', array( 'timestamp' => time(), 'results' => $results ), false );
             echo '<div class="notice notice-success inline"><p>Scan Complete.</p></div>';
         }
         
