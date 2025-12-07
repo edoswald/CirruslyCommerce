@@ -108,7 +108,7 @@ class Cirrusly_Commerce_Core {
         }
     }
 
-    /**
+/**
      * Handle the AJAX request that saves an inline audit entry.
      *
      * Validates and processes data submitted via the `cc_audit_save` AJAX action, persists the audit result,
@@ -117,22 +117,26 @@ class Cirrusly_Commerce_Core {
      * @return void
      */
     public function handle_audit_inline_save() {
-        // 1. Verify Nonce and Permissions
+        // 1. Verify Nonce
         if ( ! check_ajax_referer( 'cc_audit_save', '_nonce', false ) ) {
             wp_send_json_error( 'Invalid security token' );
         }
 
-        if ( ! current_user_can( 'edit_products' ) ) {
+        // 2. Sanitize and Validate Inputs
+        // Extract PID early to perform specific capability checks
+        $pid = isset( $_POST['pid'] ) ? intval( $_POST['pid'] ) : 0;
+
+        // Security Fix: Check if user can edit this specific product (handles custom roles/capabilities)
+        if ( ! $pid || ! current_user_can( 'edit_post', $pid ) ) {
             wp_send_json_error( 'Permission denied' );
         }
 
-        // 2. Sanitize and Validate Inputs
-        $pid   = isset( $_POST['pid'] ) ? intval( $_POST['pid'] ) : 0;
-        $field = isset( $_POST['field'] ) ? sanitize_text_field( $_POST['field'] ) : '';
-        $value = isset( $_POST['value'] ) ? sanitize_text_field( $_POST['value'] ) : '';
+        // Sanitization Fix: Use wp_unslash before sanitize_text_field
+        $field = isset( $_POST['field'] ) ? sanitize_text_field( wp_unslash( $_POST['field'] ) ) : '';
+        $value = isset( $_POST['value'] ) ? sanitize_text_field( wp_unslash( $_POST['value'] ) ) : '';
 
-        if ( ! $pid || ! $field ) {
-            wp_send_json_error( 'Missing product ID or field' );
+        if ( ! $field ) {
+            wp_send_json_error( 'Missing field' );
         }
 
         // Allowed fields whitelist to prevent unauthorized meta updates

@@ -126,7 +126,12 @@ class Cirrusly_Commerce_Badges_Pro {
             $request->setDocument( $doc );
             
             $resp = $service->documents->analyzeSentiment( $request );
-            $score = $resp->getDocumentSentiment()->getScore();
+           $doc_sentiment = $resp->getDocumentSentiment();
+           if ( ! $doc_sentiment ) {
+               $score = 0.0;
+           } else {
+               $score = $doc_sentiment->getScore();
+           }
 
             if ( $score > 0.6 ) {
                 $html = '<span class="cw-badge-pill" style="background-color:#e0115f;">Customer Fave ❤️</span>';
