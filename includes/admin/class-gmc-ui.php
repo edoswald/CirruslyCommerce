@@ -351,7 +351,9 @@ class Cirrusly_Commerce_GMC_UI {
         global $wpdb;
         // ... (Bulk Action Logic) ...
         if ( isset( $_POST['gmc_promo_bulk_action'] ) && ! empty( $_POST['gmc_promo_products'] ) && check_admin_referer( 'cirrusly_promo_bulk', 'cc_promo_nonce' ) ) {
-            $new_promo_id = isset($_POST['gmc_new_promo_id']) ? sanitize_text_field( wp_unslash( $_POST['gmc_new_promo_id'] ) ) : '';
+            if ( ! current_user_can( 'edit_products' ) ) { // or 'manage_woocommerce'
+                wp_die( 'Unauthorized access.' );
+            }            $new_promo_id = isset($_POST['gmc_new_promo_id']) ? sanitize_text_field( wp_unslash( $_POST['gmc_new_promo_id'] ) ) : '';
             $action = sanitize_text_field( wp_unslash( $_POST['gmc_promo_bulk_action'] ) );
             $promo_products = isset($_POST['gmc_promo_products']) && is_array($_POST['gmc_promo_products']) ? array_map('intval', $_POST['gmc_promo_products']) : array();
 
@@ -718,7 +720,6 @@ class Cirrusly_Commerce_GMC_UI {
         
         // Flatten terms for searching
         $all_terms = array();
-        foreach ( $terms_map as $category => $list ) {
             foreach ( $list as $word => $meta ) {
                 $all_terms[$word] = $meta;
             }
