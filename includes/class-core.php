@@ -23,9 +23,6 @@ class Cirrusly_Commerce_Core {
         // Audit Inline Save (AJAX)
         add_action( 'wp_ajax_cc_audit_save', array( $this, 'handle_audit_inline_save' ) );
         
-        // Hide Upsells CSS Hook
-        add_action( 'admin_head', array( $this, 'cirrusly_hide_upsells_css' ) );
-
         // Scheduled Scan Hook
         add_action( 'cirrusly_gmc_daily_scan', array( $this, 'execute_scheduled_scan' ) );
         
@@ -234,22 +231,6 @@ class Cirrusly_Commerce_Core {
         }
 
         return false; 
-    }
-
-    /**
-     * Outputs admin CSS to hide PRO/upsell UI on Cirrusly admin pages when configured.
-     *
-     * Checks the Cirrusly scan settings and, if the 'hide_upsells' option is set to 'yes',
-     * injects a small style block that hides elements with the `.cc-pro-feature` class.
-     */
-    public function cirrusly_hide_upsells_css() {
-        // Only run on plugin pages
-        if ( ! isset( $_GET['page'] ) || strpos( $_GET['page'], 'cirrusly-' ) === false ) return;
-
-        $general = get_option( 'cirrusly_scan_config', array() ); 
-        if ( ! empty( $general['hide_upsells'] ) && $general['hide_upsells'] === 'yes' ) {
-            echo '<style>.cc-pro-feature { display: none !important; }</style>';
-        }
     }
 
     public function force_enable_cogs() { return 'yes'; }
@@ -935,7 +916,18 @@ public function register_admin_menus() {
 
             <div class="cc-dash-card" style="border-top-color: #d63638;">
                 <div class="cc-card-head"><span>GMC Health</span> <span class="dashicons dashicons-google"></span></div>
-                <div class="cc-stat-row"><span>Critical Issues</span><span class="cc-stat-val <?php echo $m['gmc_critical'] > 0 ? 'cc-val-bad' : 'cc-val-good'; ?>"><?php echo esc_html( $m['gmc_critical'] ); ?></span></div>
+                
+                <div class="cc-stat-row">
+                    <span>Critical Issues</span>
+                    <span class="cc-stat-val <?php echo $m['gmc_critical'] > 0 ? 'cc-val-bad' : 'cc-val-good'; ?>"><?php echo esc_html( $m['gmc_critical'] ); ?></span>
+                </div>
+                
+                <div class="cc-stat-row">
+                    <span>Warnings</span>
+                    <span class="cc-stat-val" style="<?php echo $m['gmc_warnings'] > 0 ? 'color:#dba617;' : 'color:#008a20;'; ?>">
+                        <?php echo esc_html( $m['gmc_warnings'] ); ?>
+                    </span>
+                </div>
                 
                 <div class="cc-stat-row">
                     <span>Content Policy</span>
@@ -1022,7 +1014,6 @@ public function register_admin_menus() {
 
         $scan = get_option( 'cirrusly_scan_config', array() );
         $daily = isset($scan['enable_daily_scan']) ? $scan['enable_daily_scan'] : '';
-        $hide_upsells = isset($scan['hide_upsells']) ? $scan['hide_upsells'] : '';
         
         // Pro field values
         $merchant_id_pro = isset($scan['merchant_id_pro']) ? $scan['merchant_id_pro'] : '';
@@ -1122,10 +1113,6 @@ public function register_admin_menus() {
                 <br>
                 <label><input type="checkbox" name="cirrusly_scan_config[enable_email_report]" value="yes" '.checked('yes', isset($scan['enable_email_report']) ? $scan['enable_email_report'] : '', false).'> <strong>Receive Email Reports</strong></label>
                 <p class="description">Send scan results and weekly profit summaries to the admin email.</p>
-                
-                <hr style="border:0; border-top:1px solid #eee; margin:15px 0;">
-                <label><input type="checkbox" name="cirrusly_scan_config[hide_upsells]" value="yes" '.checked('yes', $hide_upsells, false).'> Hide Pro Features</label>
-                <p class="description">Enable this to hide grayed-out Pro features from the interface.</p>
             </div>
         </div>';
 
