@@ -141,7 +141,10 @@ class Cirrusly_Commerce_Blocks {
         // Priority 1: Smart / Meta (if enabled)
         if ( ! empty( $attributes['useMeta'] ) ) {
              if ( class_exists( 'Cirrusly_Commerce_Countdown' ) ) {
-                 $end_date = Cirrusly_Commerce_Countdown::get_smart_end_date( $product );
+                 $config = Cirrusly_Commerce_Countdown::get_smart_countdown_config( $product );
+                 if ( $config && ! empty( $config['end'] ) ) {
+                     $end_date = $config['end'];
+                 }
              }
         }
         // Priority 2: Manual Override
