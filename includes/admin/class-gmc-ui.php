@@ -393,7 +393,8 @@ class Cirrusly_Commerce_GMC_UI {
            'meta_key'       => '_gmc_promotion_id', 
             'meta_value'     => $filter_promo 
         ) );
-        // Add pagination UI below the table            echo '<hr><h3>Managing: '.esc_html($filter_promo).'</h3>';
+        // Add pagination UI below the table            
+            echo '<hr><h3>Managing: '.esc_html($filter_promo).'</h3>';
             echo '<form method="post">';
             wp_nonce_field( 'cirrusly_promo_bulk', 'cc_promo_nonce' );
             echo '<div style="background:#e5e5e5; padding:10px; margin-bottom:10px;">With Selected: <input type="text" name="gmc_new_promo_id" placeholder="New ID"> <button type="submit" name="gmc_promo_bulk_action" value="update" class="button">Move</button> <button type="submit" name="gmc_promo_bulk_action" value="remove" class="button">Remove</button></div>';
@@ -457,6 +458,9 @@ class Cirrusly_Commerce_GMC_UI {
         echo '</form></div>';
 
         if ( isset( $_POST['run_content_scan'] ) && check_admin_referer( 'cirrusly_content_scan', 'cc_content_scan_nonce' ) ) {
+            if ( ! current_user_can( 'manage_woocommerce' ) ) {
+                wp_die( 'Unauthorized access.' );
+            }
             $issues = $this->execute_content_scan_logic();
             update_option( 'cirrusly_content_scan_data', array( 'timestamp' => time(), 'issues' => $issues ), false );
             echo '<div class="notice notice-success inline" style="margin-top:10px;"><p>Scan Complete. Results saved.</p></div>';
@@ -751,10 +755,10 @@ class Cirrusly_Commerce_GMC_UI {
         $products = get_posts( array( 
             'post_type'      => 'product', 
             'posts_per_page' => 500,
-            'fields'         => 'ids',
             'no_found_rows'  => true
         ) );
-        // Add pagination or Action Scheduler for background processing        foreach ( $products as $prod ) {
+        // Add pagination or Action Scheduler for background processing        
+            foreach ( $products as $prod ) {
             $found_in_prod = array();
             $content = $prod->post_title . ' ' . $prod->post_content;
 
