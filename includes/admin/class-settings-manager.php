@@ -92,7 +92,7 @@ class Cirrusly_Commerce_Settings_Manager {
         }
         
         // Handle File Upload (Service Account JSON)
-        if ( ! empty( $_FILES['cirrusly_service_account']['tmp_name'] ) ) {
+        if ( ! empty( $_FILES['cirrusly_service_account']['tmp_name'] ) && is_uploaded_file( $_FILES['cirrusly_service_account']['tmp_name'] ) ) {
             $file = $_FILES['cirrusly_service_account'];
 
             if ( $file['size'] > 65536 ) { // 64KB
@@ -103,8 +103,12 @@ class Cirrusly_Commerce_Settings_Manager {
             // MIME Check
             $is_valid_mime = false;
             $ext = strtolower( pathinfo( $file['name'], PATHINFO_EXTENSION ) );
-            if ( $ext === 'json' ) $is_valid_mime = true;
-
+            $finfo = finfo_open( FILEINFO_MIME_TYPE );
+            $mime_type = finfo_file( $finfo, $file['tmp_name'] );
+            finfo_close( $finfo );
+            if ( $ext === 'json' && in_array( $mime_type, array( 'application/json', 'text/plain' ), true ) ) {
+                $is_valid_mime = true;
+            }
             if ( ! $is_valid_mime ) {
                 add_settings_error( 'cirrusly_scan_config', 'mime_error', 'Invalid file type. JSON required.' );
                 return $this->sanitize_options_array( $input );

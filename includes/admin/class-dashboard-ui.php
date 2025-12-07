@@ -16,7 +16,7 @@ class Cirrusly_Commerce_Dashboard_UI {
 
     /**
      * Collects and caches store metrics used by the admin dashboard.
-     * * @return array Metrics data.
+     * @return array Metrics data.
      */
     public static function get_dashboard_metrics() {
         $metrics = get_transient( 'cirrusly_dashboard_metrics' );

@@ -123,7 +123,7 @@ class Cirrusly_Commerce_Pricing_UI {
                     <option value="">Reg Strategy...</option>
                     <optgroup label="From MSRP">
                         <option value="msrp_exact">Match MSRP</option>
-                        <option value="msrp_sub_05">5% < MSRP</option>
+                        <option value="msrp_sub_05">5% &lt; MSRP</option>
                     </optgroup>
                     <optgroup label="From Cost">
                         <option value="margin_15">Target 15% Margin</option>
