@@ -181,8 +181,8 @@ class Cirrusly_Commerce_Settings_Manager {
                     $clean_badges[] = array(
                         'tag' => sanitize_title( $badge['tag'] ),
                         'url' => esc_url_raw( $badge['url'] ),
-                        'tooltip' => sanitize_text_field( $badge['tooltip'] ),
-                        'width' => intval( $badge['width'] ) > 0 ? intval( $badge['width'] ) : 60
+                        'tooltip' => isset( $badge['tooltip'] ) ? sanitize_text_field( $badge['tooltip'] ) : '',
+                        'width' => isset( $badge['width'] ) && intval( $badge['width'] ) > 0 ? intval( $badge['width'] ) : 60
                     );
                 }
             }
