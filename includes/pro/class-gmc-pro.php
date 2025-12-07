@@ -478,7 +478,8 @@ class Cirrusly_Commerce_GMC_Pro {
              }
         }
 
-        if ( $violation_found && in_array( $post->post_status, array( 'publish', 'pending', 'future' ) ) ) {
+        $original_status = get_post_field( 'post_status', $post_id, 'raw' );
+        if ( $violation_found && in_array( $original_status, array( 'publish', 'pending', 'future' ) ) ) {
             
             // Remove hook to prevent infinite loop
             remove_action( 'save_post_product', array( $this, 'check_compliance_on_save' ), 10 );
@@ -489,8 +490,10 @@ class Cirrusly_Commerce_GMC_Pro {
                 'post_status' => 'draft'
             ) );
 
-            set_transient( 'cc_gmc_blocked_save_' . get_current_user_id(), 'Product reverted to Draft due to restricted medical terms.', 30 );
-
+    if ( $original_status !== 'draft' ) {
+        set_transient( 'cc_gmc_blocked_save_' . get_current_user_id(), 'Product reverted to Draft due to restricted medical terms.', 30 );
+    }
+    
             // Re-hook
             add_action( 'save_post_product', array( $this, 'check_compliance_on_save' ), 10, 3 );
         }

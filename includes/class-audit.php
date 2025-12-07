@@ -42,34 +42,36 @@ class Cirrusly_Commerce_Audit {
      *
      * @param bool $force_refresh If true, bypass cached data and recompute results.
      * @return array[] Array of associative arrays, one per product, with the following keys:
-     *                 - id: product ID
-     *                 - name: product name
-     *                 - type: product type
-     *                 - parent_id: parent product ID (for variations)
-     *                 - cost: total cost (item cost + shipping cost)
-     *                 - item_cost: item cost only
-     *                 - ship_cost: estimated shipping cost
-     *                 - ship_charge: shipping charge / revenue applied
-     *                 - ship_pl: shipping profit/loss (ship_charge - ship_cost)
-     *                 - price: product price
-     *                 - net: net profit after fees
-     *                 - margin: gross margin percentage
-     *                 - alerts: array of HTML badge strings for issues (e.g., missing cost/weight)
-     *                 - is_in_stock: boolean stock status
-     *                 - cats: array of product category slugs
-     *                 - map: MAP price meta
-     *                 - min_price: minimum auto-pricing value
-     *                 - msrp: MSRP meta
+     * - id: product ID
+     * - name: product name
+     * - type: product type
+     * - parent_id: parent product ID (for variations)
+     * - cost: total cost (item cost + shipping cost)
+     * - item_cost: item cost only
+     * - ship_cost: estimated shipping cost
+     * - ship_charge: shipping charge / revenue applied
+     * - ship_pl: shipping profit/loss (ship_charge - ship_cost)
+     * - price: product price
+     * - net: net profit after fees
+     * - margin: gross margin percentage
+     * - alerts: array of HTML badge strings for issues (e.g., missing cost/weight)
+     * - is_in_stock: boolean stock status
+     * - cats: array of product category slugs
+     * - map: MAP price meta
+     * - min_price: minimum auto-pricing value
+     * - msrp: MSRP meta
      */
     public static function get_compiled_data( $force_refresh = false ) {
         $cache_key = 'cw_audit_data';
         $data = get_transient( $cache_key );
         
         if ( false === $data || $force_refresh ) {
-            $core = new Cirrusly_Commerce_Core(); 
-            $config = $core->get_global_config();
-            $revenue_tiers = json_decode( $config['revenue_tiers_json'], true );
-            $class_costs = json_decode( $config['class_costs_json'], true );
+            // FIXED: Replaced unsafe/missing Core method call with direct option retrieval.
+            $config = get_option( 'cirrusly_scan_config', array() );
+            
+            // Added isset checks to prevent undefined index warnings
+            $revenue_tiers = isset($config['revenue_tiers_json']) ? json_decode( $config['revenue_tiers_json'], true ) : array();
+            $class_costs = isset($config['class_costs_json']) ? json_decode( $config['class_costs_json'], true ) : array();
             
             // Payment Fee Logic
             $mode = isset($config['profile_mode']) ? $config['profile_mode'] : 'single';
@@ -187,11 +189,12 @@ class Cirrusly_Commerce_Audit {
         $p = wc_get_product($pid);
         if(!$p) return false;
 
-        $core = new Cirrusly_Commerce_Core(); 
-        $config = $core->get_global_config();
+        // FIXED: Replaced unsafe/missing Core method call with direct option retrieval.
+        $config = get_option( 'cirrusly_scan_config', array() );
         
-        $revenue_tiers = json_decode( $config['revenue_tiers_json'], true );
-        $class_costs   = json_decode( $config['class_costs_json'], true );
+        $revenue_tiers = isset($config['revenue_tiers_json']) ? json_decode( $config['revenue_tiers_json'], true ) : array();
+        $class_costs   = isset($config['class_costs_json']) ? json_decode( $config['class_costs_json'], true ) : array();
+        
         $mode = isset($config['profile_mode']) ? $config['profile_mode'] : 'single';
         $pay_pct       = isset($config['payment_pct']) ? ($config['payment_pct'] / 100) : 0.029;
         $pay_flat      = isset($config['payment_flat']) ? $config['payment_flat'] : 0.30;

@@ -135,7 +135,7 @@ class Cirrusly_Commerce_Pricing_Frontend {
     public function cw_render_msrp_inline( $price_html, $product ) {
         $html = self::get_msrp_html( $product );
         if ( $html ) {
-            $html = str_replace( 'div', 'span', $html );
+            $html = str_replace( array( '<div', '</div>' ), array( '<span', '</span>' ), $html );
             $html = str_replace( 'margin-bottom:5px', 'margin-right:5px', $html );
             return $html . $price_html;
         }

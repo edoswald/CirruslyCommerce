@@ -72,7 +72,7 @@ class Cirrusly_Commerce_Automated_Discounts {
         }
     }
 
-    /**
+/**
      * Verifies a Google-signed JWT and returns its payload when valid.
      *
      * Validates the token using the configured Google public key, ensures the token is not expired,
@@ -94,7 +94,9 @@ class Cirrusly_Commerce_Automated_Discounts {
 
         try {
             $client = new Google\Client();
-            $payload = $client->verifySignedJwt( $token, array( $public_key ) );
+            
+            // FIXED: Added null for audience, issuer, and max_expiry to match the required 5-parameter signature.
+            $payload = $client->verifySignedJwt( $token, array( $public_key ), null, null, null );
             
             if ( ! $payload ) return false;
             if ( ! isset( $payload['exp'] ) || (int) $payload['exp'] <= time() ) return false;
