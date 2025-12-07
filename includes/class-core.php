@@ -3,11 +3,21 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 
 class Cirrusly_Commerce_Core {
 
+    /**
+     * Initialize the core system by loading required dependencies and registering hooks.
+     *
+     * Loads necessary classes and sets up actions and filters that drive the plugin's behavior.
+     */
     public function __construct() {
         $this->load_dependencies();
         $this->define_hooks();
     }
 
+    /**
+     * Loads plugin PHP dependencies required for different runtime contexts.
+     *
+     * Conditionally requires core utilities always, admin-only components when running in the admin area, and Pro-only libraries when the site has Pro enabled and the Pro files exist. 
+     */
     private function load_dependencies() {
         // Utilities (Always needed)
         require_once plugin_dir_path( __FILE__ ) . 'class-security.php';
@@ -26,6 +36,12 @@ class Cirrusly_Commerce_Core {
         }
     }
 
+    /**
+     * Register WordPress actions and filters used by the plugin.
+     *
+     * Initializes core modules, registers admin-only integrations (menus, settings, assets, dashboard UI),
+     * sets up AJAX and scheduled-scan handlers, and applies runtime filters and save-post hooks.
+     */
     private function define_hooks() {
         // Init other modules
         add_action('init', array('Cirrusly_Commerce_Audit', 'init'));
@@ -63,7 +79,12 @@ class Cirrusly_Commerce_Core {
     }
 
     /**
-     * Router to handle scans. If Pro class exists, use it.
+     * Delegate execution of scheduled scans to the Pro Google API client when available.
+     *
+     * If the `Cirrusly_Commerce_Google_API_Client` class is present, calls its
+     * static `execute_scheduled_scan()` method; otherwise performs no action.
+     *
+     * @return void
      */
     public function execute_scheduled_scan_router() {
         if ( class_exists('Cirrusly_Commerce_Google_API_Client') ) {
@@ -71,15 +92,37 @@ class Cirrusly_Commerce_Core {
         }
     }
 
+    /**
+     * Handle the AJAX request that saves an inline audit entry.
+     *
+     * Validates and processes data submitted via the `cc_audit_save` AJAX action, persists the audit result,
+     * and emits the appropriate AJAX response for the requester.
+     *
+     * @return void
+     */
     public function handle_audit_inline_save() {
         // (Keep the existing AJAX logic here, or move to Audit class)
         // ... existing code ...
     }
 
+    /**
+     * Clears the cached dashboard metrics.
+     *
+     * Deletes the 'cirrusly_dashboard_metrics' transient so dashboard metrics are regenerated on next request.
+     */
     public function clear_metrics_cache() {
         delete_transient( 'cirrusly_dashboard_metrics' );
     }
 
+    /**
+     * Determines whether Pro features are available for this installation.
+     *
+     * When WP_DEBUG is enabled and the current user can manage options, the `cc_dev_mode` query
+     * parameter overrides the status (value `'pro'` enables Pro). Otherwise, if the Freemius
+     * helper `cc_fs()` exists, its `can_use_premium_code()` result determines Pro availability.
+     *
+     * @return bool `true` if Pro features are available, `false` otherwise.
+     */
     public static function cirrusly_is_pro() {
         // (Keep existing Freemius check logic)
         if ( defined('WP_DEBUG') && WP_DEBUG && current_user_can('manage_options') && isset( $_GET['cc_dev_mode'] ) ) {

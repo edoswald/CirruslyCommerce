@@ -3,6 +3,11 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 
 class Cirrusly_Commerce_Dashboard_UI {
 
+    /**
+     * Registers the Cirrusly Commerce Overview dashboard widget for users with product edit permissions.
+     *
+     * Adds a WordPress dashboard widget titled "Cirrusly Commerce Overview" and hooks it to the widget renderer when the current user has the 'edit_products' capability.
+     */
     public function register_widget() {
         if ( current_user_can( 'edit_products' ) ) {
             wp_add_dashboard_widget( 'cirrusly_commerce_overview', 'Cirrusly Commerce Overview', array( $this, 'render_wp_dashboard_widget' ) );
@@ -161,27 +166,26 @@ class Cirrusly_Commerce_Dashboard_UI {
     }
 
     /**
-     * Heavy logic moved here.
-     * It is now only loaded when the class is instantiated (Admin Only)
-     * Collects and caches store metrics used by the admin dashboard.
+     * Collects and returns cached store metrics used by the admin dashboard.
      *
-     * Gathers Google Merchant Center scan counts, content scan issues, catalog and cost statistics,
-     * margin and loss-maker estimates, a 7-day revenue pulse, and active badge flags, then stores
-     * the result in a transient for one hour.
+     * If cached metrics are missing or incomplete, computes metrics (GMC scan counts,
+     * content issues, catalog and cost stats, margin and loss-maker estimates,
+     * 7-day revenue/orders pulse, and low-stock count) and stores the result in a
+     * transient for one hour.
      *
      * @return array{
-     * gmc_critical:int,
-     * gmc_warnings:int,
-     * content_issues:int,
-     * missing_cost:int,
-     * loss_makers:int,
-     * total_products:int,
-     * on_sale_count:int,
-     * avg_margin:float,
-     * weekly_revenue:float,
-     * weekly_orders:int,
-     * low_stock_count:int
-     * } Associative array of dashboard metrics.
+     *   gmc_critical:int,    // Number of critical Google Merchant Center issues.
+     *   gmc_warnings:int,    // Number of non-critical Google Merchant Center warnings.
+     *   content_issues:int,  // Count of content scan issues.
+     *   missing_cost:int,    // Count of products/variations missing cost data.
+     *   loss_makers:int,     // Estimated count of products with negative net (loss makers).
+     *   total_products:int,  // Total published products and product variations.
+     *   on_sale_count:int,   // Number of products currently on sale.
+     *   avg_margin:float,    // Average margin percentage across sampled products (rounded to 1 decimal).
+     *   weekly_revenue:float,// Total revenue from completed/processing orders in the last 7 days.
+     *   weekly_orders:int,   // Number of completed/processing orders in the last 7 days.
+     *   low_stock_count:int  // Count of published products/variations with stock > 0 and <= low-stock threshold.
+     * }
      */
     public static function get_dashboard_metrics() {
         $metrics = get_transient( 'cirrusly_dashboard_metrics' );

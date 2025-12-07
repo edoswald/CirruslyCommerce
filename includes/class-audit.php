@@ -4,7 +4,11 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 class Cirrusly_Commerce_Audit {
 
     /**
-     * Registers audit-related hooks and loads sub-modules.
+     * Registers audit hooks and loads audit sub-modules.
+     *
+     * When running in the admin area, loads the audit admin UI class. If the Pro
+     * edition is active and the Pro audit file exists, loads the Pro audit module
+     * and calls its initializer.
      */
     public static function init() {
         // 1. Load UI (Admin Only)
@@ -20,7 +24,7 @@ class Cirrusly_Commerce_Audit {
     }
 
     /**
-     * Forward render call to the UI class.
+     * Delegates rendering of the audit page to the audit UI if the UI class is available.
      */
     public static function render_page() {
         if ( class_exists( 'Cirrusly_Commerce_Audit_UI' ) ) {
@@ -29,8 +33,33 @@ class Cirrusly_Commerce_Audit {
     }
 
     /**
-     * CORE LOGIC: Build and return per-product financial audit data.
-     * Used by Admin Table (Free) and CSV Export (Pro).
+     * Build per-product financial audit data used by the admin table and CSV export.
+     *
+     * Reads cached results from the transient `cw_audit_data` and, if absent or when
+     * `$force_refresh` is true, recomputes per-product financial metrics (costs,
+     * shipping, revenue tiers, fees, margin, net, alerts, categories and pricing
+     * metadata) and caches the result for 1 hour.
+     *
+     * @param bool $force_refresh If true, bypass cached data and recompute results.
+     * @return array[] Array of associative arrays, one per product, with the following keys:
+     *                 - id: product ID
+     *                 - name: product name
+     *                 - type: product type
+     *                 - parent_id: parent product ID (for variations)
+     *                 - cost: total cost (item cost + shipping cost)
+     *                 - item_cost: item cost only
+     *                 - ship_cost: estimated shipping cost
+     *                 - ship_charge: shipping charge / revenue applied
+     *                 - ship_pl: shipping profit/loss (ship_charge - ship_cost)
+     *                 - price: product price
+     *                 - net: net profit after fees
+     *                 - margin: gross margin percentage
+     *                 - alerts: array of HTML badge strings for issues (e.g., missing cost/weight)
+     *                 - is_in_stock: boolean stock status
+     *                 - cats: array of product category slugs
+     *                 - map: MAP price meta
+     *                 - min_price: minimum auto-pricing value
+     *                 - msrp: MSRP meta
      */
     public static function get_compiled_data( $force_refresh = false ) {
         $cache_key = 'cw_audit_data';
@@ -140,7 +169,19 @@ class Cirrusly_Commerce_Audit {
     }
 
     /**
-     * CORE LOGIC: Compute key financial metrics for a single product ID.
+     * Compute core financial metrics for a single product.
+     *
+     * @param int $pid The product ID to evaluate.
+     * @return array|false An associative array of computed metrics, or `false` if the product does not exist.
+     *
+     * Returned array keys:
+     * - `net_val` (float): Net profit value after costs and fees.
+     * - `net_html` (string): Formatted net value using `wc_price`.
+     * - `net_style` (string): CSS style to apply to the net value (red for negative, green for positive).
+     * - `margin` (string): Margin percentage formatted to one decimal place.
+     * - `margin_val` (float): Margin percentage numeric value.
+     * - `ship_pl_html` (string): Formatted shipping profit/loss (revenue minus shipping cost) using `wc_price`.
+     * - `cost_html` (string): Formatted total cost (item cost plus shipping) using `wc_price`.
      */
     public static function get_single_metric( $pid ) {
         $p = wc_get_product($pid);

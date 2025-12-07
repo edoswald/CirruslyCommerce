@@ -31,7 +31,9 @@ define( 'CIRRUSLY_COMMERCE_URL', plugin_dir_url( __FILE__ ) );
 // -------------------------------------------------------------------------
 if ( ! function_exists( 'cc_fs' ) ) {
     /**
-     * Get the Freemius SDK instance for the plugin.
+     * Initializes and returns the Freemius SDK instance for the plugin.
+     *
+     * @return object The Freemius SDK instance.
      */
     function cc_fs() {
         global $cc_fs;
@@ -96,6 +98,11 @@ class Cirrusly_Commerce_Main {
 
     private static $instance = null;
 
+    / **
+     * Retrieve the singleton instance of the main plugin class, creating it if one does not already exist.
+     *
+     * @return Cirrusly_Commerce_Main The shared instance of the main plugin class.
+     */
     public static function instance() {
         if ( is_null( self::$instance ) ) {
             self::$instance = new self();
@@ -104,7 +111,11 @@ class Cirrusly_Commerce_Main {
     }
 
     /**
-     * Bootstraps plugin modules.
+     * Bootstraps and initializes plugin modules, registers lifecycle hooks, and adds plugin filters.
+     *
+     * Loads core and feature module files, conditionally loads the Pro-only automated discounts module,
+     * instantiates module classes, initializes the help module, registers activation and deactivation hooks,
+     * and adds filters for custom cron schedules and the plugin action links.
      */
     public function __construct() {
         $includes_path = plugin_dir_path( __FILE__ ) . 'includes/';
@@ -157,6 +168,12 @@ class Cirrusly_Commerce_Main {
         add_filter( 'plugin_action_links_' . plugin_basename( __FILE__ ), array( $this, 'add_settings_link' ) );
     }
 
+    /**
+     * Ensure a 'weekly' cron schedule exists in the provided schedules array.
+     *
+     * @param array $schedules Associative array of existing cron schedules keyed by schedule name.
+     * @return array The schedules array with a 'weekly' schedule (interval 604800 seconds, label "Once Weekly") ensured.
+     */
     public function add_weekly_schedule( $schedules ) {
         if ( ! isset( $schedules['weekly'] ) ) {
             $schedules['weekly'] = array(
@@ -167,6 +184,13 @@ class Cirrusly_Commerce_Main {
         return $schedules;
     }
 
+    /**
+     * Perform plugin activation tasks.
+     *
+     * Schedules a daily GMC scan and a weekly profit report (if not already scheduled),
+     * enables WooCommerce "Cost of Goods Sold", and migrates a legacy Cirrusly merchant
+     * ID into the scan configuration under `merchant_id_pro` when appropriate.
+     */
     public function activate() {
         if ( ! wp_next_scheduled( 'cirrusly_gmc_daily_scan' ) ) {
             wp_schedule_event( time(), 'daily', 'cirrusly_gmc_daily_scan' );
@@ -187,11 +211,22 @@ class Cirrusly_Commerce_Main {
         }
     }
 
+    /**
+     * Remove plugin-related scheduled cron events.
+     *
+     * Clears any scheduled WordPress cron jobs for the daily GMC scan and the weekly profit report.
+     */
     public function deactivate() {
         wp_clear_scheduled_hook( 'cirrusly_gmc_daily_scan' );
         wp_clear_scheduled_hook( 'cirrusly_weekly_profit_report' ); 
     }
 
+    /**
+     * Add plugin action links: a Settings link and, when applicable, a prominent Go Pro upgrade link.
+     *
+     * @param array $links Existing action links for the plugin.
+     * @return array The modified action links with the Settings link prepended and a Go Pro link added for non-paying Freemius accounts.
+     */
     public function add_settings_link( $links ) {
         $settings_link = '<a href="' . esc_url( admin_url( 'admin.php?page=cirrusly-settings' ) ) . '">Settings</a>';
         array_unshift( $links, $settings_link );
