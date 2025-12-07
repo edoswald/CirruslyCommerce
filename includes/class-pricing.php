@@ -81,7 +81,7 @@ public function init_frontend_msrp() {
                 default:
                     // Invalid value - log and use safe default
                     if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
-                    error_log( sprintf( 'Cirrusly Commerce: Invalid MSRP position "%s", using default', $pos_prod ) );
+                        error_log( sprintf( 'Cirrusly Commerce: Invalid MSRP position "%s", using default', $pos_prod ) );
                     }
                     $prio = 9;
                     break;
