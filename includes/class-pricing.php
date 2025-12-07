@@ -44,7 +44,8 @@ class Cirrusly_Commerce_Pricing {
 
         // Simple calculation for "at a glance" view
         $price = (float) $product->get_price();
-        $cost = (float) $product->get_meta('_cogs_total_value');
+        // Use get_post_meta to avoid internal key notices
+        $cost = (float) get_post_meta( $product->get_id(), '_cogs_total_value', true );
 
         if ( $price > 0 && $cost > 0 ) {
             $margin = (($price - $cost) / $price) * 100;

@@ -57,7 +57,8 @@ class Cirrusly_Commerce_Audit {
                 $is_shipping_exempt = $p->is_virtual() || $p->is_downloadable();
                 
                 // --- Financials ---
-                $cost = (float)$p->get_meta('_cogs_total_value');
+                // Use get_post_meta to avoid "is_internal_meta_key" notices for _cogs_total_value
+                $cost = (float) get_post_meta( $p->get_id(), '_cogs_total_value', true );
                 $ship_cost = (float)$p->get_meta('_cw_est_shipping');
                 
                 // --- Custom Pricing Fields ---
@@ -167,7 +168,7 @@ class Cirrusly_Commerce_Audit {
         
         $is_shipping_exempt = $p->is_virtual() || $p->is_downloadable();
         
-        $cost = (float)$p->get_meta('_cogs_total_value');
+        $cost = (float) get_post_meta( $p->get_id(), '_cogs_total_value', true );
         $ship_cost = (float)$p->get_meta('_cw_est_shipping');
         
         if($ship_cost <= 0 && !$is_shipping_exempt) {
