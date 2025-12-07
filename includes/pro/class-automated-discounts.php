@@ -8,6 +8,13 @@ class Cirrusly_Commerce_Automated_Discounts {
     const SESSION_KEY_PREFIX = 'cc_google_ad_';
     const TOKEN_PARAM = 'pv2';
 
+    /**
+     * Initialize the automated discounts integration and register WordPress/WooCommerce hooks.
+     *
+     * Registers UI, request-handling, price override, cart adjustment, and cache-prevention hooks used
+     * to capture Google discount tokens, apply discounted prices for display and calculation, and prevent
+     * caching when discounts are active.
+     */
     public function __construct() {
         // UI Settings
         add_action( 'cirrusly_commerce_scan_settings_ui', array( $this, 'render_settings_field' ) );
@@ -21,6 +28,13 @@ class Cirrusly_Commerce_Automated_Discounts {
         add_action( 'send_headers', array( $this, 'prevent_caching_if_active' ) );
     }
 
+    /**
+     * Render the admin settings UI for Google Automated Discounts.
+     *
+     * Outputs HTML controls to enable dynamic pricing and to enter Merchant ID and
+     * Google Public Key (PEM). Field values are read from the `cirrusly_scan_config`
+     * option and escaped for safe output.
+     */
     public function render_settings_field() {
         // (Copy render_settings_field HTML from original)
         $scan_cfg = get_option('cirrusly_scan_config', array());
@@ -40,6 +54,13 @@ class Cirrusly_Commerce_Automated_Discounts {
         <?php
     }
 
+    /**
+     * Captures a Google Automated Discounts token from the request, verifies it, and stores the discount in the session.
+     *
+     * If the request contains the configured token parameter, the feature is enabled, and the token verifies, the decoded payload is persisted to the WooCommerce session for later use.
+     *
+     * @return void
+     */
     public function capture_google_token() {
         if ( is_admin() || ! isset( $_GET[ self::TOKEN_PARAM ] ) ) return;
         $cfg = get_option('cirrusly_scan_config', array());
@@ -51,6 +72,16 @@ class Cirrusly_Commerce_Automated_Discounts {
         }
     }
 
+/**
+     * Verifies a Google-signed JWT and returns its payload when valid.
+     *
+     * Validates the token using the configured Google public key, ensures the token is not expired,
+     * requires the payload's merchant id (`m`) to match the configured merchant id, and if present
+     * requires the payload currency (`c`) to match the store currency.
+     *
+     * @param string $token The JWT to verify.
+     * @return array|false The decoded JWT payload when verification succeeds, `false` on failure.
+     */
     private function verify_jwt( $token ) {
         if ( ! class_exists( 'Google\Client' ) ) return false;
         $cfg = get_option('cirrusly_scan_config', array());
@@ -63,7 +94,9 @@ class Cirrusly_Commerce_Automated_Discounts {
 
         try {
             $client = new Google\Client();
-            $payload = $client->verifySignedJwt( $token, array( $public_key ) );
+            
+            // FIXED: Added null for audience, issuer, and max_expiry to match the required 5-parameter signature.
+            $payload = $client->verifySignedJwt( $token, array( $public_key ), null, null, null );
             
             if ( ! $payload ) return false;
             if ( ! isset( $payload['exp'] ) || (int) $payload['exp'] <= time() ) return false;

@@ -3,6 +3,12 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 
 class Cirrusly_Commerce_GMC_UI {
 
+    /**
+     * Initialize the GMC admin UI by registering WordPress and WooCommerce admin hooks and filters.
+     *
+     * Registers column, column-rendering, product-settings, quick-edit, and admin-notice hooks used by the
+     * Google Merchant Center integration UI.
+     */
     public function __construct() {
         add_filter( 'manage_edit-product_columns', array( $this, 'add_gmc_admin_columns' ) );
         add_action( 'manage_product_posts_custom_column', array( $this, 'render_gmc_admin_columns' ), 10, 2 );
@@ -11,6 +17,12 @@ class Cirrusly_Commerce_GMC_UI {
         add_action( 'admin_notices', array( $this, 'render_blocked_save_notice' ) );
     }
 
+    /**
+     * Render the Google Merchant Center (GMC) admin hub page with tabbed navigation.
+     *
+     * Displays the hub header, a three-tab navigation (Health Check, Promotion Manager, Site Content),
+     * and delegates rendering to the corresponding view for the currently selected tab.
+     */
     public function render_gmc_hub_page() {
         // phpcs:ignore WordPress.Security.NonceVerification.Recommended
         $tab = isset( $_GET['tab'] ) ? sanitize_text_field( wp_unslash( $_GET['tab'] ) ) : 'scan';
@@ -38,7 +50,12 @@ class Cirrusly_Commerce_GMC_UI {
     }
 
     /**
-     * Render the Health Check admin UI for Google Merchant Center integration.
+     * Render the Health Check UI for Google Merchant Center and present scan results and automation rules.
+     *
+     * Renders a diagnostic scan form, displays saved scan results from the `woo_gmc_scan_data` option,
+     * and shows the Automation & Workflow Rules panel which stores settings in the `cirrusly_scan_config`
+     * option (via WordPress options API). When the scan form is submitted with a valid nonce, the method
+     * runs the scan logic, updates `woo_gmc_scan_data` with a timestamp and results, and outputs a success notice.
      */
     private function render_scan_view() {
         $is_pro = Cirrusly_Commerce_Core::cirrusly_is_pro();
@@ -61,7 +78,7 @@ class Cirrusly_Commerce_GMC_UI {
 
         if ( isset( $_POST['run_gmc_scan'] ) && check_admin_referer( 'cirrusly_gmc_scan', 'cc_gmc_scan_nonce' ) ) {
             $results = $this->run_gmc_scan_logic();
-            update_option( 'woo_gmc_scan_data', array( 'timestamp' => current_time( 'timestamp' ), 'results' => $results ), false );
+            update_option( 'woo_gmc_scan_data', array( 'timestamp' => time(), 'results' => $results ), false );
             echo '<div class="notice notice-success inline"><p>Scan Complete.</p></div>';
         }
         
@@ -367,8 +384,16 @@ class Cirrusly_Commerce_GMC_UI {
         }
 
         if ( $filter_promo ) {
-            $products = get_posts( array( 'post_type'=>'product', 'posts_per_page'=>-1, 'meta_key'=>'_gmc_promotion_id', 'meta_value'=>$filter_promo ) );
-            echo '<hr><h3>Managing: '.esc_html($filter_promo).'</h3>';
+        $paged = isset( $_GET['paged'] ) ? max( 1, intval( $_GET['paged'] ) ) : 1;
+        $per_page = 100;
+        $products = get_posts( array( 
+            'post_type'      => 'product', 
+            'posts_per_page' => $per_page,
+            'paged'          => $paged,
+           'meta_key'       => '_gmc_promotion_id', 
+            'meta_value'     => $filter_promo 
+        ) );
+        // Add pagination UI below the table            echo '<hr><h3>Managing: '.esc_html($filter_promo).'</h3>';
             echo '<form method="post">';
             wp_nonce_field( 'cirrusly_promo_bulk', 'cc_promo_nonce' );
             echo '<div style="background:#e5e5e5; padding:10px; margin-bottom:10px;">With Selected: <input type="text" name="gmc_new_promo_id" placeholder="New ID"> <button type="submit" name="gmc_promo_bulk_action" value="update" class="button">Move</button> <button type="submit" name="gmc_promo_bulk_action" value="remove" class="button">Remove</button></div>';
@@ -382,7 +407,9 @@ class Cirrusly_Commerce_GMC_UI {
     }
 
     /**
-     * Renders the Site Content Audit UI with Pro Account Check.
+     * Render the Site Content Audit admin view for scanning local content and checking Google account status.
+     *
+     * Renders a UI that (1) checks for required policy pages on the site, (2) provides a restricted-terms scan with controls to run and display scan results, and (3) shows Google Merchant Center account-level issues for Pro users.
      */
     private function render_content_scan_view() {
         $is_pro = Cirrusly_Commerce_Core::cirrusly_is_pro();
@@ -499,12 +526,27 @@ class Cirrusly_Commerce_GMC_UI {
         echo '</div></div>';
     }
 
+    /**
+     * Add a "GMC Data" column to the product list table.
+     *
+     * @param array $columns Associative array of existing list table columns (column_key => label).
+     * @return array The modified columns array including the `gmc_status` key labeled "GMC Data".
+     */
     public function add_gmc_admin_columns( $columns ) {
         $columns['gmc_status'] = 'GMC Data';
         return $columns;
     }
 
-        public function render_gmc_admin_columns( $column, $post_id ) {
+        /**
+     * Renders the "GMC Data" cell for a product in the posts list when the column is `gmc_status`.
+     *
+     * Outputs visible badges and a hidden data element that expose per-product Google Merchant Center
+     * attributes (custom product flag, promotion ID, and custom label) for use by admin UI and quick-edit.
+     *
+     * @param string $column  The current column key being rendered.
+     * @param int    $post_id The post (product) ID for which the column is being rendered.
+     */
+    public function render_gmc_admin_columns( $column, $post_id ) {
         if ( 'gmc_status' !== $column ) return;
         $id_ex = get_post_meta( $post_id, '_gla_identifier_exists', true );
         $promo = get_post_meta( $post_id, '_gmc_promotion_id', true );
@@ -522,7 +564,11 @@ class Cirrusly_Commerce_GMC_UI {
     }
 
     /**
-     * Renders the Google Merchant Center attributes meta box controls on the product edit screen.
+     * Renders the Google Merchant Center attributes meta box on the product edit screen.
+     *
+     * Outputs controls for marking a product as "Custom Product? (No GTIN/Barcode)",
+     * entering a Promotion ID, and setting Custom Label 0. The "Custom Product" checkbox
+     * reflects the product's `_gla_identifier_exists` post meta.
      */
     public function render_gmc_product_settings() {
         global $post;
@@ -535,6 +581,15 @@ class Cirrusly_Commerce_GMC_UI {
         echo '</div>';
     }
     
+    /**
+     * Render the quick-edit UI controls for Google Merchant Center data in the products list.
+     *
+     * This outputs the inline quick-edit fieldset when the column being rendered is
+     * `gmc_status` and the current post type is `product`.
+     *
+     * @param string $column_name The column key being rendered in the list table.
+     * @param string $post_type   The current post type context.
+     */
     public function render_quick_edit_box( $column_name, $post_type ) {
         if ( 'gmc_status' !== $column_name || 'product' !== $post_type ) return;
         ?>
@@ -548,7 +603,11 @@ class Cirrusly_Commerce_GMC_UI {
     }
     
     /**
-     * Display blocked save notice (triggered by Pro logic)
+     * Show an admin error notice when a user-specific blocked-save transient exists.
+     *
+     * Checks that the current user can edit products; if a transient named
+     * `cc_gmc_blocked_save_{user_id}` is present, displays its message as an
+     * error notice in the admin and removes the transient afterward.
      */
     public function render_blocked_save_notice() {
         if ( ! current_user_can( 'edit_products' ) ) return;
@@ -557,5 +616,179 @@ class Cirrusly_Commerce_GMC_UI {
             echo '<div class="notice notice-error is-dismissible"><p><strong>Cirrusly Commerce Alert:</strong> ' . esc_html( $msg ) . '</p></div>';
             delete_transient( 'cc_gmc_blocked_save_' . get_current_user_id() );
         }
+    }
+
+    /**
+     * Performs the GMC health scan logic on local products and merges with Pro API results if available.
+     * * @return array List of products with issues.
+     */
+    private function run_gmc_scan_logic() {
+        $results = array();
+        
+        // 1. Fetch Pro Statuses (Real data from Google)
+        $google_issues = array();
+        if ( Cirrusly_Commerce_Core::cirrusly_is_pro() && class_exists( 'Cirrusly_Commerce_GMC_Pro' ) ) {
+            $google_issues = Cirrusly_Commerce_GMC_Pro::fetch_google_real_statuses();
+        }
+
+        // 2. Scan Local Products
+        // Batch size for processing
+        $batch_size = 100;
+        $offset = get_transient( 'cirrusly_scan_offset' ) ?: 0;
+
+        $args = array(
+            'post_type'      => 'product',
+            'posts_per_page' => $batch_size,
+            'offset'         => $offset,
+            'post_status'    => 'publish',
+            'fields'         => 'ids'
+        );
+        $products = get_posts( $args );
+
+        // Store progress and schedule continuation if needed
+        if ( count( $products ) === $batch_size ) {
+            set_transient( 'cirrusly_scan_offset', $offset + $batch_size, 300 );
+        // Add UI feedback: "Scanning... {$offset} products processed"
+        }
+
+        foreach ( $products as $pid ) {
+            $product_issues = array();
+            $p = wc_get_product( $pid );
+            if ( ! $p ) continue;
+
+            // CHECK: GTIN / MPN Existence
+            $is_custom = get_post_meta( $pid, '_gla_identifier_exists', true );
+            
+            // Basic health check simulation
+            if ( 'no' !== $is_custom && ! $p->get_sku() ) {
+                $product_issues[] = array(
+                    'type' => 'warning',
+                    'msg'  => 'Missing SKU (Identifier)',
+                    'reason' => 'Products generally require unique identifiers.'
+                );
+            }
+            
+            // CHECK: Missing Image
+            if ( ! $p->get_image_id() ) {
+                $product_issues[] = array(
+                    'type' => 'critical',
+                    'msg'  => 'Missing Image',
+                    'reason' => 'Google requires an image URL.'
+                );
+            }
+
+            // CHECK: Price
+            if ( ! $p->get_price() ) {
+                $product_issues[] = array(
+                    'type' => 'critical',
+                    'msg'  => 'Missing Price',
+                    'reason' => 'Price is mandatory.'
+                );
+            }
+
+            // Merge Google API Issues
+            if ( isset( $google_issues[ $pid ] ) ) {
+                foreach ( $google_issues[ $pid ] as $g_issue ) {
+                    $product_issues[] = $g_issue;
+                }
+            }
+
+            if ( ! empty( $product_issues ) ) {
+                $results[] = array(
+                    'product_id' => $pid,
+                    'issues'     => $product_issues
+                );
+            }
+        }
+
+        return $results;
+    }
+
+    /**
+     * Scans site content (pages and products) for restricted terms defined in GMC core.
+     * * @return array List of content pieces with found restricted terms.
+     */
+    private function execute_content_scan_logic() {
+        $issues = array();
+        $terms_map = Cirrusly_Commerce_GMC::get_monitored_terms();
+        
+        // Flatten terms for searching
+        $all_terms = array();
+        foreach ( $terms_map as $category => $list ) {
+            foreach ( $list as $word => $meta ) {
+                $all_terms[$word] = $meta;
+            }
+        }
+
+        // Scan Pages
+        $pages = get_pages( array( 'number' => 500 ) ); // Limit to reasonable batch
+        // Consider adding pagination UI or background processing
+        foreach ( $pages as $page ) {
+            $found_in_page = array();
+            $content = $page->post_title . ' ' . $page->post_content;
+            
+            foreach ( $all_terms as $word => $meta ) {
+                if ( stripos( $content, $word ) !== false ) {
+                    $found_in_page[] = array(
+                        'word'     => $word,
+                        'severity' => $meta['severity'],
+                        'reason'   => $meta['reason']
+                    );
+                }
+            }
+
+            if ( ! empty( $found_in_page ) ) {
+                $issues[] = array(
+                    'id'    => $page->ID,
+                    'type'  => 'page',
+                    'title' => $page->post_title,
+                    'terms' => $found_in_page
+                );
+            }
+        }
+
+        // Scan Products
+        $products = get_posts( array( 
+            'post_type'      => 'product', 
+            'posts_per_page' => 500,
+            'fields'         => 'ids',
+            'no_found_rows'  => true
+        ) );
+        // Add pagination or Action Scheduler for background processing        foreach ( $products as $prod ) {
+            $found_in_prod = array();
+            $content = $prod->post_title . ' ' . $prod->post_content;
+
+            foreach ( $all_terms as $word => $meta ) {
+                if ( stripos( $content, $word ) !== false ) {
+                    $found_in_prod[] = array(
+                        'word'     => $word,
+                        'severity' => $meta['severity'],
+                        'reason'   => $meta['reason']
+                    );
+                }
+            }
+
+            if ( ! empty( $found_in_prod ) ) {
+                $issues[] = array(
+                    'id'    => $prod->ID,
+                    'type'  => 'product',
+                    'title' => $prod->post_title,
+                    'terms' => $found_in_prod
+                );
+            }
+        }
+
+        return $issues;
+    }
+
+    /**
+     * Fetches account-level issues from Google Merchant Center via the Pro client.
+     * * @return Google_Service_ShoppingContent_AccountStatus|WP_Error|null
+     */
+    private function fetch_google_account_issues() {
+        if ( Cirrusly_Commerce_Core::cirrusly_is_pro() && class_exists( 'Cirrusly_Commerce_GMC_Pro' ) ) {
+            return Cirrusly_Commerce_GMC_Pro::fetch_google_account_issues();
+        }
+        return new WP_Error( 'not_pro', 'Pro version required.' );
     }
 }

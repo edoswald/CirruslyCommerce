@@ -3,6 +3,44 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 
 class Cirrusly_Commerce_Google_API_Client {
 
+    /**
+     * Factory method to get an authenticated Google Client.
+     *
+     * @return Google\Client|WP_Error An authenticated Google Client object or WP_Error on failure.
+     */
+    public static function get_client() {
+        // Dependency check for the Google Client Library
+        if ( ! class_exists( 'Google\Client' ) ) {
+            return new WP_Error( 'missing_library', 'Google Client Library not found.' );
+        }
+
+        // Get the raw access token string
+        $token = self::get_access_token();
+
+        if ( is_wp_error( $token ) ) {
+            return $token;
+        }
+
+        try {
+            $client = new Google\Client();
+            $client->setAccessToken( $token );
+            return $client;
+        } catch ( Exception $e ) {
+            return new WP_Error( 'client_init_error', 'Failed to initialize Google Client: ' . $e->getMessage() );
+        }
+    }
+
+    /**
+     * Obtains a Google OAuth access token using the stored Service Account JSON.
+     *
+     * @return string|WP_Error The OAuth access token on success. On failure a WP_Error is returned with one of these codes:
+     *                        'no_creds' (no stored credentials),
+     *                        'decrypt_failed' (unable to decrypt or parse stored data),
+     *                        'invalid_creds' (missing required service account fields),
+     *                        'signing_failed' (JWT signing failed),
+     *                        'auth_failed' (token endpoint returned an error),
+     *                        or an HTTP WP_Error from the token request.
+     */
     public static function get_access_token() {
         $stored_data = get_option( 'cirrusly_service_account_json' );
         if ( ! $stored_data ) return new WP_Error( 'no_creds', 'Service Account JSON not uploaded.' );
@@ -76,7 +114,15 @@ class Cirrusly_Commerce_Google_API_Client {
      *
      * Runs the GMC scan, updates the `woo_gmc_scan_data` option with a timestamped result set, and — when the cirrusly scan configuration has `enable_email_report` set to `"yes"` and the scan returned issues — sends an HTML summary email to the configured `email_recipient` (or the site admin email when none is configured).
      */
-    public function execute_scheduled_scan() {
+    public /**
+     * Performs a GMC health scan, saves the results, and optionally emails an HTML summary.
+     *
+     * Runs the GMC scanner, persists a timestamped scan result to the `woo_gmc_scan_data` option,
+     * and, if configured via `cirrusly_scan_config.enable_email_report === 'yes'` and issues were found,
+     * sends an HTML email to the configured recipient (or the site admin). The email includes a summary
+     * table of affected products with per-issue severity and links to edit each product.
+     */
+    function execute_scheduled_scan() {
         $scanner = new Cirrusly_Commerce_GMC();
         $results = $scanner->run_gmc_scan_logic();
         $scan_data = array( 'timestamp' => time(), 'results' => $results );

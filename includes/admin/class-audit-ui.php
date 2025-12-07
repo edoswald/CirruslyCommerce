@@ -4,7 +4,14 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 class Cirrusly_Commerce_Audit_UI {
 
     /**
-     * Render the Store Financial Audit admin page.
+     * Render the Store Financial Audit admin page and output its HTML interface.
+     *
+     * Renders dashboard metrics, filter controls, a sortable/paginated products table,
+     * and a PRO tools card. Processes filter, search, sort, and pagination inputs;
+     * may delete the audit transient when a refresh is requested; and delegates CSV
+     * import handling to the Pro handler when a valid import nonce is submitted.
+     * Verifies the current user has the 'edit_products' capability and terminates
+     * with "No permission" if the check fails.
      */
     public static function render_page() {
         if ( ! current_user_can( 'edit_products' ) ) wp_die( 'No permission' );
@@ -22,7 +29,7 @@ class Cirrusly_Commerce_Audit_UI {
         settings_errors('cirrusly_audit');
 
         // 1. Handle Cache & Refresh
-        $refresh = isset( $_GET['refresh_audit'] );
+        $refresh = isset( $_GET['refresh_audit'] ) && isset( $_GET['_wpnonce'] ) && wp_verify_nonce( $_GET['_wpnonce'], 'cc_refresh_audit' );
         if ( $refresh ) delete_transient( 'cw_audit_data' );
 
         // 2. Get Data via Core Logic
@@ -84,6 +91,10 @@ class Cirrusly_Commerce_Audit_UI {
         $per_page = 50;
         $search = isset($_GET['s']) ? sanitize_text_field(wp_unslash($_GET['s'])) : '';
         $orderby = isset($_GET['orderby']) ? sanitize_text_field(wp_unslash($_GET['orderby'])) : 'margin';
+        $allowed_orderby = array('cost', 'price', 'ship_pl', 'net', 'margin');
+        if (!in_array($orderby, $allowed_orderby, true)) {
+            $orderby = 'margin';
+        }
         $order = isset($_GET['order']) ? sanitize_text_field(wp_unslash($_GET['order'])) : 'asc';
 
         $filtered_data = array();
@@ -136,7 +147,7 @@ class Cirrusly_Commerce_Audit_UI {
                     <?php echo wp_kses( wc_product_dropdown_categories(array('option_none_text'=>'All Categories','name'=>'cat','selected'=>$f_cat,'value_field'=>'slug','echo'=>0)), $allowed_form_tags ); ?>
                     <label style="margin-left:5px;"><input type="checkbox" name="hide_oos" value="1" <?php checked($f_oos,true); ?>> Hide OOS</label>
                     <button class="button button-primary">Filter</button>
-                    <a href="?page=cirrusly-audit&refresh_audit=1" class="button" title="Refresh Data from DB">Refresh Data</a>
+                    <a href="<?php echo esc_url( wp_nonce_url( '?page=cirrusly-audit&refresh_audit=1', 'cc_refresh_audit' ) ); ?>" class="button" title="Refresh Data from DB">Refresh Data</a>
                 </form>
             </div>
             <?php echo wp_kses_post( $pagination_html ); ?>

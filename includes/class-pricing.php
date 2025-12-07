@@ -5,6 +5,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class Cirrusly_Commerce_Pricing {
 
+    /**
+     * Initialize pricing modules appropriate for the current runtime context.
+     *
+     * Loads and instantiates the frontend MSRP module for non-admin or AJAX requests,
+     * loads the admin UI module when running in the admin area, and loads the Pro
+     * sync worker when Pro is active and the sync component is present.
+     */
     public function __construct() {
         // 1. Load Frontend MSRP Logic
         if ( ! is_admin() || ( defined( 'DOING_AJAX' ) && DOING_AJAX ) ) {

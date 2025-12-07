@@ -3,15 +3,34 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 
 class Cirrusly_Commerce_Pricing_Sync {
 
+    /**
+     * Initialize and register WordPress hooks for GMC sync handling and admin notice rendering.
+     *
+     * Registers the 'cirrusly_commerce_gmc_sync' action to delegate GMC product sync events to handle_gmc_sync_event
+     * and the 'admin_notices' action to render sync error notices via render_sync_error_notice.
+     */
     public function __construct() {
         add_action( 'cirrusly_commerce_gmc_sync', array( $this, 'handle_gmc_sync_event' ), 10, 1 );
         add_action( 'admin_notices', array( $this, 'render_sync_error_notice' ) );
     }
 
+    /**
+     * Handle a Google Merchant Center sync event for a product.
+     *
+     * @param int $product_id The WooCommerce product ID to synchronize to Google Merchant Center.
+     */
     public function handle_gmc_sync_event( $product_id ) {
         $this->_gmc_api_worker( $product_id );
     }
 
+    /**
+     * Update product inventory and price in Google Merchant Center for a given WooCommerce product.
+     *
+     * If required dependencies or configuration are missing the method returns without performing an update.
+     * On successful API update it clears any recorded global sync error; on failure it records a global sync error message.
+     *
+     * @param int $product_id The WooCommerce product ID to sync.
+     */
     private function _gmc_api_worker( $product_id ) {
         // Dependency Check: Use the new Pro API Client
         if ( ! class_exists( 'Cirrusly_Commerce_Google_API_Client' ) ) {
@@ -69,6 +88,14 @@ class Cirrusly_Commerce_Pricing_Sync {
         }
     }
 
+    /**
+     * Log a global Google Merchant Center sync error and reset the admin notice dismissal.
+     *
+     * Stores the provided error message and the current time in the `cirrusly_gmc_global_sync_error` option
+     * and deletes the `cirrusly_gmc_sync_notice_dismissed` transient so the admin notice will be shown again.
+     *
+     * @param string $message The error message to record.
+     */
     private function log_global_sync_failure( $message ) {
         update_option( 'cirrusly_gmc_global_sync_error', array(
             'time'    => time(),
@@ -77,10 +104,22 @@ class Cirrusly_Commerce_Pricing_Sync {
         delete_transient( 'cirrusly_gmc_sync_notice_dismissed' );
     }
 
+    /**
+     * Clears the stored global Google Merchant Center synchronization error.
+     *
+     * Removes the `cirrusly_gmc_global_sync_error` option so the admin error notice is no longer shown.
+     */
     private function log_global_sync_success() {
         delete_option( 'cirrusly_gmc_global_sync_error' );
     }
 
+    /**
+     * Displays a dismissible admin error notice about a recent Google Merchant Center sync failure.
+     *
+     * If the current user has the `manage_options` capability and the notice has not been dismissed,
+     * outputs an HTML admin notice containing how long ago the failure occurred, a link to the GMC Hub,
+     * and the last error message.
+     */
     public function render_sync_error_notice() {
         if ( ! current_user_can( 'manage_options' ) ) return;
         if ( get_transient( 'cirrusly_gmc_sync_notice_dismissed' ) ) return;

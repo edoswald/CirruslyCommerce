@@ -20,8 +20,14 @@ class Cirrusly_Commerce_GMC_Pro {
     }
 
     /**
-     * Fetch actual product statuses from Google Content API.
-     * * @return array Associative array of Product ID => Array of issues.
+     * Retrieve product-level issues reported by the Google Content API for the configured merchant.
+     *
+     * Each issue entry is an associative array with keys:
+     * - `msg` (string): human-readable message prefixed with the source (e.g., "[Google API] ..."),
+     * - `reason` (string): machine-readable detail/reason from the API,
+     * - `type` (string): `'critical'` for disapproved items or `'warning'` otherwise.
+     *
+     * @return array<string, array<int, array{msg:string,reason:string,type:string}>> Associative array mapping WooCommerce product ID (as string) to a list of issue arrays.
      */
     public static function fetch_google_real_statuses() {
         // Relies on the centralized API Client
@@ -116,8 +122,11 @@ class Cirrusly_Commerce_GMC_Pro {
     }
 
     /**
-     * Fetch account-level issues (Policy/Suspensions) from Google Content API.
-     * * @return Google_Service_ShoppingContent_AccountStatus|WP_Error
+     * Retrieve account-level status information (policy issues and suspensions) from the Google Content API for the configured merchant/account.
+     *
+     * Returns a WP_Error when the Google API client is unavailable, merchant/account configuration is missing, or the API call fails.
+     *
+     * @return Google_Service_ShoppingContent_AccountStatus|WP_Error The account status object on success, or a WP_Error describing the failure.
      */
     public static function fetch_google_account_issues() {
         if ( ! class_exists( 'Cirrusly_Commerce_Google_API_Client' ) ) {
@@ -159,7 +168,9 @@ class Cirrusly_Commerce_GMC_Pro {
     }
 
     /**
-     * AJAX Handler to list promotions from Google Merchant Center.
+     * List promotions from Google Merchant Center and emit a JSON AJAX response.
+     *
+     * Validates permissions and Pro status, returns cached results when available, requests promotions from the Google Shopping Content API, normalizes each promotion into an array with keys `id`, `title`, `dates`, `app`, `type`, `code`, and `status`, stores the result in a transient cache, and sends a JSON success or error response.
      */
     public function handle_promo_api_list() {
         check_ajax_referer( 'cc_promo_api_list', 'security' );
@@ -299,7 +310,12 @@ class Cirrusly_Commerce_GMC_Pro {
     }
 
     /**
-     * Handles an AJAX request to submit a Promotion to the Google Shopping Content API.
+     * Handle an AJAX request to create and submit a Promotion to the Google Shopping Content API.
+     *
+     * Validates the AJAX nonce, user capabilities, and Pro status; reads merchant configuration;
+     * validates and sanitizes incoming promotion data (id, title, optional dates, applicability,
+     * offer type, and generic code); creates a Promotion resource and submits it to Google;
+     * clears the promotion cache and returns a JSON success or error response.
      */
     public function handle_promo_api_submit() {
         check_ajax_referer( 'cc_promo_api_submit', 'security' );
@@ -416,7 +432,15 @@ class Cirrusly_Commerce_GMC_Pro {
     }
 
     /**
-     * Prevent publishing of products that contain critical (medical) terms.
+     * Prevents publishing of products that contain monitored medical terms marked as "Critical".
+     *
+     * Scans the product title (and content when the term's scope is "all") for critical medical terms from
+     * the monitored terms list and, when a violation is found while the post status is publish/pending/future,
+     * changes the post status to `draft` and sets a short transient explaining the block for the current user.
+     *
+     * @param int      $post_id The post ID being saved.
+     * @param WP_Post  $post    The post object being saved.
+     * @param bool     $update  Unused. Present to match the save_post hook signature.
      */
     public function check_compliance_on_save( $post_id, $post, $update ) {
         // Double check Pro
@@ -454,7 +478,8 @@ class Cirrusly_Commerce_GMC_Pro {
              }
         }
 
-        if ( $violation_found && in_array( $post->post_status, array( 'publish', 'pending', 'future' ) ) ) {
+        $original_status = get_post_field( 'post_status', $post_id, 'raw' );
+        if ( $violation_found && in_array( $original_status, array( 'publish', 'pending', 'future' ) ) ) {
             
             // Remove hook to prevent infinite loop
             remove_action( 'save_post_product', array( $this, 'check_compliance_on_save' ), 10 );
@@ -465,15 +490,25 @@ class Cirrusly_Commerce_GMC_Pro {
                 'post_status' => 'draft'
             ) );
 
-            set_transient( 'cc_gmc_blocked_save_' . get_current_user_id(), 'Product reverted to Draft due to restricted medical terms.', 30 );
-
+    if ( $original_status !== 'draft' ) {
+        set_transient( 'cc_gmc_blocked_save_' . get_current_user_id(), 'Product reverted to Draft due to restricted medical terms.', 30 );
+    }
+    
             // Re-hook
             add_action( 'save_post_product', array( $this, 'check_compliance_on_save' ), 10, 3 );
         }
     }
 
     /**
-     * Removes configured banned medical terms from a product's title and content on save.
+     * Remove configured banned medical terms from a product's title and content during save.
+     *
+     * When the "auto_strip_banned" option is enabled and the post is a product, this function
+     * removes monitored medical terms from the post title and, when a term's scope is "all",
+     * from the post content as well. Whitespace in the title is normalized after removals.
+     *
+     * @param array $data   Sanitized post data that will be inserted/updated (e.g., post_title, post_content, post_type).
+     * @param array $postarr Raw post data originally passed to WP (unused by this function but provided by the save hook).
+     * @return array The potentially modified $data array with banned medical terms removed where applicable.
      */
     public function handle_auto_strip_on_save( $data, $postarr ) {
         $scan_cfg = get_option('cirrusly_scan_config', array());
@@ -502,9 +537,17 @@ class Cirrusly_Commerce_GMC_Pro {
     }
 
     /**
-     * Analyze text using Google Cloud NLP API.
-     * * @param string $text The content to analyze.
-     * @return Google\Service\CloudNaturalLanguage\AnnotateTextResponse|WP_Error Analysis results or error.
+     * Analyze plain text with Google Cloud Natural Language and extract entities.
+     *
+     * Truncates input to at most 5000 characters (cutting at the last word boundary) before analysis.
+     *
+     * @param string $text The text to analyze; will be truncated to 5000 characters if longer.
+     * @return Google\Service\CloudNaturalLanguage\AnnotateTextResponse|WP_Error
+     *         The annotation response on success, or a WP_Error on failure.
+     *         Possible WP_Error codes:
+     *         - `missing_client` when the Google API client class is not available.
+     *         - `nlp_error` when the Cloud Natural Language API call fails.
+     *         A WP_Error returned by Cirrusly_Commerce_Google_API_Client::get_client() may also be propagated.
      */
     public function analyze_text_with_nlp( $text ) {
         // Truncate to avoid API limits

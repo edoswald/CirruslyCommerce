@@ -3,6 +3,22 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 
 class Cirrusly_Commerce_Badges_Pro {
 
+    /**
+     * Build HTML for configured "smart" product badges based on product data and badge settings.
+     *
+     * Generates zero or more badge <span> elements for inventory ("Low Stock" when stock > 0 and < 5),
+     * performance ("Best Seller" when total sales > 50), scheduler ("Event" when current time is within
+     * configured start/end), and sentiment ("Customer Fave" when analysis indicates strong positive sentiment).
+     *
+     * @param \WC_Product $product The product to evaluate.
+     * @param array $badge_cfg Configuration array. Recognized keys:
+     *                         - 'smart_inventory' (string) : 'yes' to enable inventory badge.
+     *                         - 'smart_performance' (string): 'yes' to enable performance badge.
+     *                         - 'smart_scheduler' (string) : 'yes' to enable scheduler badge.
+     *                         - 'scheduler_start' (string)  : start datetime for scheduler badge.
+     *                         - 'scheduler_end' (string)    : end datetime for scheduler badge.
+     * @return string HTML string containing the concatenated badge elements (may be empty).
+     */
     public static function get_smart_badges_html( $product, $badge_cfg ) {
         $output = '';
 
@@ -24,7 +40,7 @@ class Cirrusly_Commerce_Badges_Pro {
         if ( ! empty($badge_cfg['smart_scheduler']) && $badge_cfg['smart_scheduler'] === 'yes' ) {
             $start = !empty($badge_cfg['scheduler_start']) ? strtotime($badge_cfg['scheduler_start']) : 0;
             $end   = !empty($badge_cfg['scheduler_end']) ? strtotime($badge_cfg['scheduler_end']) : 0;
-            $now   = current_time('timestamp');
+            $now   = time();
 
             if ( $start && $end && $now >= $start && $now <= $end ) {
                 $output .= '<span class="cw-badge-pill" style="background-color:#826eb4;">Event</span>';
@@ -42,7 +58,15 @@ class Cirrusly_Commerce_Badges_Pro {
     }
 
     /**
-     * Uses the centralized Google API Client to analyze reviews.
+     * Produce a sentiment-based badge HTML when recent reviews indicate strong positive sentiment.
+     *
+     * Analyzes up to five recent approved reviews for the given product and returns a "Customer Fave" badge
+     * HTML if the aggregated sentiment exceeds a positive threshold. Results are cached: a positive badge is
+     * cached for seven days; absence of a positive badge is cached for one day. If required dependencies are
+     * missing or an error occurs during analysis, the function returns an empty string.
+     *
+     * @param object $product Product object (e.g., WC_Product) whose reviews will be analyzed.
+     * @return string Badge HTML when strong positive sentiment is detected, empty string otherwise.
      */
     private static function get_sentiment_badge( $product ) {
         $cache_key = 'cc_sentiment_' . $product->get_id();

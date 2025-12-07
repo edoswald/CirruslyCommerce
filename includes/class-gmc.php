@@ -5,6 +5,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class Cirrusly_Commerce_GMC {
 
+    /**
+     * Initialize the GMC integration: load admin and pro submodules when available and register core hooks.
+     *
+     * Registers handlers for product meta saving (standard, quick-edit, and bulk-edit) and for the admin
+     * "mark as custom" redirect action; loads the admin UI when running in admin context and loads the
+     * Pro module when the site is pro and the pro file exists.
+     */
     public function __construct() {
         // 1. Load Sub-Modules
         if ( is_admin() ) {
@@ -38,7 +45,14 @@ class Cirrusly_Commerce_GMC {
     }
 
     /**
-     * Save standard GMC meta fields.
+     * Persist GMC-related product meta and clear related promo statistics.
+     *
+     * Updates the product's `_gla_identifier_exists` meta to `'no'` when the
+     * POST field `gmc_is_custom_product` is present, otherwise sets it to `'yes'`.
+     * When present in POST, saves sanitized values for `_gmc_promotion_id` and
+     * `_gmc_custom_label_0`. Deletes the transient `cirrusly_active_promos_stats`.
+     *
+     * @param int $post_id The ID of the product post being saved.
      */
     public function save_product_meta( $post_id ) {
         // phpcs:ignore WordPress.Security.NonceVerification.Missing
@@ -57,6 +71,14 @@ class Cirrusly_Commerce_GMC {
         delete_transient( 'cirrusly_active_promos_stats' );
     }
 
+    /**
+     * Update a product's GMC identifier flag based on quick/bulk edit input and clear cached promotion stats.
+     *
+     * When the request includes `gmc_is_custom_product`, the product meta `_gla_identifier_exists` is set to `no`.
+     * When the request indicates a quick edit (`woocommerce_quick_edit`) but not a bulk edit, the meta is set to `yes`.
+     *
+     * @param \WC_Product $product The product being edited; its ID is used to update post meta.
+     */
     public function save_quick_bulk_edit( $product ) {
         $post_id = $product->get_id();
         // phpcs:ignore WordPress.Security.NonceVerification.Missing
@@ -68,6 +90,14 @@ class Cirrusly_Commerce_GMC {
         delete_transient( 'cirrusly_active_promos_stats' );
     }
 
+    /**
+     * Marks a product as non-custom and redirects to the GMC admin scan tab.
+     *
+     * Verifies the current user has the 'edit_products' capability and the request nonce for the provided `pid`,
+     * updates the product meta `_gla_identifier_exists` to `'no'` for that post ID, then redirects to the
+     * Cirrusly GMC scan page and exits. If the user lacks capability, the request is terminated with an error;
+     * nonce verification will also halt the request on failure.
+     */
     public function handle_mark_custom() {
         if ( ! current_user_can( 'edit_products' ) ) wp_die('No permission');
         $pid = intval( $_GET['pid'] );
@@ -78,7 +108,15 @@ class Cirrusly_Commerce_GMC {
     }
 
     /**
-     * Helper to get monitored terms (Used by both UI and Logic)
+     * Returns the set of GMC-monitored terms grouped by category and their enforcement metadata.
+     *
+     * Each top-level key is a category (e.g., 'promotional', 'medical'). Each category maps terms to an
+     * associative array with keys:
+     * - `severity`: enforcement level such as "Medium", "High", or "Critical".
+     * - `scope`: where the term is monitored (e.g., "title", "all").
+     * - `reason`: short explanation for monitoring or restriction.
+     *
+     * @return array<string, array<string, array{severity:string,scope:string,reason:string}>> Associative array of categories to term metadata.
      */
     public static function get_monitored_terms() {
         return array(

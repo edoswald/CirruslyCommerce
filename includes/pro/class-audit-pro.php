@@ -11,7 +11,16 @@ class Cirrusly_Commerce_Audit_Pro {
     }
 
     /**
-     * Stream the compiled audit data as a CSV download.
+     * Stream compiled audit data as a CSV download when the Cirrusly Audit admin export is requested.
+     *
+     * When the request includes page=cirrusly-audit and action=export_csv, this method verifies the current
+     * user has the `edit_products` capability and that the Pro feature is enabled. It sends CSV headers,
+     * writes a header row and one CSV row per compiled audit record, then terminates the request.
+     *
+     * CSV filename pattern: store-audit-YYYY-MM-DD.csv
+     *
+     * Columns emitted: ID, Product Name, Type, Cost (COGS), Shipping Cost, Price, Net Profit, Margin %,
+     * MAP, Google Min, MSRP. Price-like columns that are not greater than zero are emitted as empty.
      */
     public static function handle_export() {
         if ( isset($_GET['page']) && $_GET['page'] === 'cirrusly-audit' && isset($_GET['action']) && $_GET['action'] === 'export_csv' ) {
@@ -52,7 +61,19 @@ class Cirrusly_Commerce_Audit_Pro {
     }
 
     /**
-     * Import product COGS and extra pricing fields from an uploaded CSV file.
+     * Import product COGS and pricing fields from an uploaded CSV and update matching products' metadata.
+     *
+     * Processes the uploaded `csv_import` file (when the current user can edit products and the Pro feature is enabled),
+     * reads the header to map columns (handles a leading BOM on the first column), requires an "ID" column, and for each
+     * row updates available values on the matching post ID. Updated fields and their meta keys:
+     * - "Cost (COGS)" -> `_cogs_total_value`
+     * - "MAP" -> `_cirrusly_map_price`
+     * - "Google Min" -> `_auto_pricing_min_price`
+     * - "MSRP" -> `_alg_msrp`
+     *
+     * Price-like values are normalized with `wc_format_decimal()` before saving. On failure this method registers
+     * appropriate settings errors; on success it clears the `cw_audit_data` transient and registers a success message
+     * indicating how many products were updated.
      */
     public static function handle_import() {
         if ( isset($_FILES['csv_import']) && current_user_can('edit_products') ) {
