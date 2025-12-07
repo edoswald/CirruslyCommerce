@@ -1332,6 +1332,12 @@ public function run_gmc_scan_logic() {
      * @return Google\Service\CloudNaturalLanguage\AnnotateTextResponse|WP_Error Analysis results or error.
      */
     private function analyze_text_with_nlp( $text ) {
+    // Truncate to avoid API limits and excessive costs (NLP charges per 1000 chars)
+    $max_length = 5000;
+    if ( strlen( $text ) > $max_length ) {
+        $text = substr( $text, 0, $max_length );
+    }
+
         $client = self::get_google_client();
         if ( is_wp_error( $client ) ) {
             return $client;
