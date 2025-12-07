@@ -92,6 +92,7 @@ Store Audit: A financial breakdown of every product to spot profit leaks.
 = 1.3 =
 **Note:** Effective from this release, only changes to the free version of the plugin will be listed. For changes to the Pro version of the plugin (which also include the free changes), please refer to the pro version README instead.
 * Refactor of entire plugin to improve both frontend and admin loading times
+* **New Feature:** Gutenberg Blocks! 
 
 = 1.2.1 =
 * **New Feature:** Introduced "Freemium" architecture. Pro features are now visible in the interface (grayed out) to showcase advanced capabilities if downloading from Freemius. They are not visible from the WP Plugin Directory version. 

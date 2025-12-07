@@ -98,7 +98,7 @@ class Cirrusly_Commerce_Main {
 
     private static $instance = null;
 
-    / **
+    /**
      * Retrieve the singleton instance of the main plugin class, creating it if one does not already exist.
      *
      * @return Cirrusly_Commerce_Main The shared instance of the main plugin class.
