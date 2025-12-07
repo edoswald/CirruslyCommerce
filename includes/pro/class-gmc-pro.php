@@ -493,7 +493,7 @@ class Cirrusly_Commerce_GMC_Pro {
             }
             
             // Strip from Content
-            if ( $rules['scope'] === 'all' && preg_match( $pattern, $data['post_content'] ) ) {
+            if ( isset( $rules['scope'] ) && $rules['scope'] === 'all' && preg_match( $pattern, $data['post_content'] ) ) {
                 $data['post_content'] = preg_replace( $pattern, '', $data['post_content'] );
             }
         }
