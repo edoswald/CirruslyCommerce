@@ -142,13 +142,13 @@ class Cirrusly_Commerce_Pricing_Frontend {
         return $price_html;
     }
 
-    / **
+    /**
      * Appends inline MSRP markup to the given price HTML when rendering product listings (non-single product pages).
      *
      * @param string           $price_html Existing formatted price HTML.
      * @param \WC_Product|null $product    The product object for which to render MSRP.
      * @return string The original or modified price HTML including inline MSRP when applicable.
-     * /
+     */
     public function cw_render_msrp_inline_loop_check( $price_html, $product ) {
         if ( ! is_product() ) return $this->cw_render_msrp_inline( $price_html, $product );
         return $price_html;
