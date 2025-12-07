@@ -1012,6 +1012,9 @@ public function register_admin_menus() {
         // Retrieve values
         $msrp = get_option( 'cirrusly_msrp_config', array() );
         $msrp_enable = isset($msrp['enable_display']) ? $msrp['enable_display'] : '';
+        // [UPDATED] Retrieve position settings with defaults
+        $pos_prod = isset($msrp['position_product']) ? $msrp['position_product'] : 'before_price';
+        $pos_loop = isset($msrp['position_loop']) ? $msrp['position_loop'] : 'before_price';
 
         $gcr = get_option( 'cirrusly_google_reviews_config', array() );
         $gcr_enable = isset($gcr['enable_reviews']) ? $gcr['enable_reviews'] : '';
@@ -1060,7 +1063,7 @@ public function register_admin_menus() {
             </div>
         </div>';
 
-        // Card 2: Frontend Display (MSRP) - MOVED UP
+// Card 2: Frontend Display (MSRP) - [UPDATED]
         echo '<div class="cc-settings-card">
             <div class="cc-card-header">
                 <h3>Frontend Display</h3>
@@ -1071,6 +1074,31 @@ public function register_admin_menus() {
                     <tr>
                         <th scope="row">MSRP Price</th>
                         <td><label><input type="checkbox" name="cirrusly_msrp_config[enable_display]" value="yes" '.checked('yes', $msrp_enable, false).'> Show Strikethrough MSRP on Product Pages</label></td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Product Page Position</th>
+                        <td>
+                            <select name="cirrusly_msrp_config[position_product]">
+                                <option value="before_title" '.selected('before_title', $pos_prod, false).'>Before Title</option>
+                                <option value="before_price" '.selected('before_price', $pos_prod, false).'>Before Price (Default)</option>
+                                <option value="inline" '.selected('inline', $pos_prod, false).'>Inline with Price</option>
+                                <option value="after_price" '.selected('after_price', $pos_prod, false).'>After Price</option>
+                                <option value="after_excerpt" '.selected('after_excerpt', $pos_prod, false).'>After Excerpt</option>
+                                <option value="before_add_to_cart" '.selected('before_add_to_cart', $pos_prod, false).'>Before Add to Cart</option>
+                                <option value="after_add_to_cart" '.selected('after_add_to_cart', $pos_prod, false).'>After Add to Cart</option>
+                                <option value="after_meta" '.selected('after_meta', $pos_prod, false).'>After Meta</option>
+                            </select>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Catalog / Loop Position</th>
+                        <td>
+                            <select name="cirrusly_msrp_config[position_loop]">
+                                <option value="before_price" '.selected('before_price', $pos_loop, false).'>Before Price (Default)</option>
+                                <option value="inline" '.selected('inline', $pos_loop, false).'>Inline with Price</option>
+                                <option value="after_price" '.selected('after_price', $pos_loop, false).'>After Price</option>
+                            </select>
+                        </td>
                     </tr>
                 </table>
                 <p class="description">For custom placement, use the <strong>MSRP Display</strong> block in the Gutenberg editor.</p>
