@@ -1,16 +1,10 @@
 <?php
-if ( ! defined( 'ABSPATH' ) ) exit;
+if ( ! defined( 'ABSPATH' ) ) {
+    exit;
+}
 
 class Cirrusly_Commerce_Pricing_UI {
 
-    / **
-     * Register WooCommerce admin hooks for pricing UI, saving pricing meta, and the product Margin column.
-     *
-     * Attaches actions and filters that:
-     * - render pricing fields for simple products and variations,
-     * - save pricing-related post meta for simple products and variations,
-     * - add and render a "Margin" column on the products list table.
-     */
     public function __construct() {
         // Meta Boxes
         add_action( 'woocommerce_product_options_pricing', array( $this, 'pe_render_simple_fields' ) );
@@ -25,12 +19,6 @@ class Cirrusly_Commerce_Pricing_UI {
         add_action( 'manage_product_posts_custom_column', array( $this, 'render_margin_column' ), 10, 2 );
     }
 
-    /**
-     * Insert a "Margin" column immediately after the "price" column in the product columns array.
-     *
-     * @param array $columns Associative array of existing admin product columns (key => label).
-     * @return array The modified columns array with the 'cw_margin' => 'Margin' entry placed directly after the 'price' column.
-     */
     public function add_margin_column( $columns ) {
         $new_columns = array();
         foreach ( $columns as $key => $title ) {
@@ -42,14 +30,6 @@ class Cirrusly_Commerce_Pricing_UI {
         return $new_columns;
     }
 
-    /**
-     * Renders the "Margin" admin column for a product row in the products list.
-     *
-     * Outputs a bold percentage representing the profit margin computed from the product price and the `_cogs_total_value` post meta; uses red color when the margin is less than 15% and green otherwise. If cost is missing or zero, outputs a grey dash.
-     *
-     * @param string $column  The current column key.
-     * @param int    $post_id The product post ID.
-     */
     public function render_margin_column( $column, $post_id ) {
         if ( 'cw_margin' !== $column ) return;
         
@@ -57,6 +37,7 @@ class Cirrusly_Commerce_Pricing_UI {
         if ( ! $product ) return;
 
         $price = (float) $product->get_price();
+        // Use get_post_meta to avoid notices
         $cost = (float) get_post_meta( $product->get_id(), '_cogs_total_value', true );
 
         if ( $price > 0 && $cost > 0 ) {
@@ -68,19 +49,6 @@ class Cirrusly_Commerce_Pricing_UI {
         }
     }
 
-    /**
-     * Render pricing fields for a simple product on the product edit screen.
-     *
-     * Outputs the HTML inputs for Google Min, MAP, MSRP, Base Shipping and Sale Timer End,
-     * prefilled from product meta.
-     *
-     * Fields and meta keys:
-     * - "Google Min ($)"        => _auto_pricing_min_price
-     * - "MAP ($)"               => _cirrusly_map_price
-     * - "MSRP ($)"              => _alg_msrp
-     * - "Base Ship ($)"         => _cw_est_shipping
-     * - "Sale Timer End"        => _cw_sale_end
-     */
     public function pe_render_simple_fields() {
         global $product_object;
         $ship = $product_object->get_meta( '_cw_est_shipping' );
@@ -110,15 +78,6 @@ class Cirrusly_Commerce_Pricing_UI {
         echo '</div>';
     }
 
-    /**
-     * Render pricing input fields for a single product variation in the variation pricing panel.
-     *
-     * Displays inputs for Google Min price, MAP, MSRP, and Base Shipping and appends the shared pricing toolbar.
-     *
-     * @param int   $loop           Index of the variation used to namespace input field names.
-     * @param array $variation_data Variation data array provided by WooCommerce (unused by this renderer).
-     * @param object $variation     Variation post/object (expects an accessible ->ID) whose meta values populate the inputs.
-     */
     public function pe_render_variable_fields( $loop, $variation_data, $variation ) {
         $ship = get_post_meta( $variation->ID, '_cw_est_shipping', true );
         $map  = get_post_meta( $variation->ID, '_cirrusly_map_price', true ); 
@@ -135,12 +94,6 @@ class Cirrusly_Commerce_Pricing_UI {
         echo '</div>';
     }
 
-    /**
-     * Render the "Pricing Engine" toolbar and profit display used in the product pricing UI.
-     *
-     * Outputs the HTML controls for sale strategy, sale rounding, and regularization (reg) strategy,
-     * along with a profit/margin display area and a shipping matrix placeholder.
-     */
     private function pe_render_toolbar() {
         ?>
         <div class="cw-tools-row" style="margin-top:10px;">
@@ -187,15 +140,6 @@ class Cirrusly_Commerce_Pricing_UI {
         <?php
     }
 
-    /**
-     * Persist simple-product pricing fields from the request into post meta and schedule a GMC sync.
-     *
-     * Saves submitted values for base shipping (_cw_est_shipping), MAP (_cirrusly_map_price),
-     * MSRP (_alg_msrp), Google minimum price (_auto_pricing_min_price) and sale end (_cw_sale_end)
-     * to the product's post meta, then schedules a Google Manufacturer Center sync for the product.
-     *
-     * @param int $post_id Product post ID to save meta for.
-     */
     public function pe_save_simple( $post_id ) {
         // phpcs:ignore WordPress.Security.NonceVerification.Missing
         if ( isset( $_POST['_cw_est_shipping'] ) ) update_post_meta( $post_id, '_cw_est_shipping', wc_format_decimal( sanitize_text_field( wp_unslash( $_POST['_cw_est_shipping'] ) ) ) );
@@ -211,17 +155,6 @@ class Cirrusly_Commerce_Pricing_UI {
         $this->schedule_gmc_sync( $post_id );
     }
 
-    /**
-     * Saves per-variation pricing fields from the product edit POST and schedules a GMC sync.
-     *
-     * Reads indexed POST values for base shipping, MAP, MSRP, and Google minimum price and updates
-     * the corresponding variation post meta keys (`_cw_est_shipping`, `_cirrusly_map_price`,
-     * `_alg_msrp`, `_auto_pricing_min_price`) with sanitized, decimal-formatted values. After saving,
-     * schedules a Google Manufacturer Center (GMC) sync for the variation.
-     *
-     * @param int $vid Variation post ID to update.
-     * @param int $i   Index of the variation within the submitted POST arrays.
-     */
     public function pe_save_variable( $vid, $i ) {
         // phpcs:ignore WordPress.Security.NonceVerification.Missing
         if ( isset( $_POST['_cw_est_shipping'][$i] ) ) update_post_meta( $vid, '_cw_est_shipping', wc_format_decimal( sanitize_text_field( wp_unslash( $_POST['_cw_est_shipping'][$i] ) ) ) );
@@ -235,14 +168,6 @@ class Cirrusly_Commerce_Pricing_UI {
         $this->schedule_gmc_sync( $vid );
     }
 
-    /**
-     * Schedule a Google Manufacturer Center (GMC) sync for a product when Pro is active.
-     *
-     * If the Pro feature is enabled, clears any existing scheduled GMC sync for the
-     * given product and schedules a single sync to run approximately 60 seconds later.
-     *
-     * @param int $product_id The WP post ID of the product to sync.
-     */
     private function schedule_gmc_sync( $product_id ) {
         // Ensure Pro is active before scheduling
         if ( Cirrusly_Commerce_Core::cirrusly_is_pro() ) {

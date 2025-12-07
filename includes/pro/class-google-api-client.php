@@ -1,130 +1,75 @@
 <?php
-if ( ! defined( 'ABSPATH' ) ) exit;
+if ( ! defined( 'ABSPATH' ) ) {
+    exit;
+}
 
 class Cirrusly_Commerce_Google_API_Client {
 
     /**
-     * Factory method to get an authenticated Google Client.
-     *
-     * @return Google\Client|WP_Error An authenticated Google Client object or WP_Error on failure.
+     * Create and return a configured Google API client.
+     * * @return Google\Client|WP_Error
      */
     public static function get_client() {
-        // Dependency check for the Google Client Library
-        if ( ! class_exists( 'Google\Client' ) ) {
-            return new WP_Error( 'missing_library', 'Google Client Library not found.' );
+        // 1. Retrieve & Decrypt Key
+        $json_key = get_option( 'cirrusly_service_account_json' );
+        
+        if ( empty( $json_key ) ) {
+            return new WP_Error( 'missing_creds', 'Missing Service Account JSON.' );
         }
 
-        // Get the raw access token string
-        $token = self::get_access_token();
-
-        if ( is_wp_error( $token ) ) {
-            return $token;
+        // Safety: Check Composer library
+        if ( ! class_exists( 'Google\Client' ) ) {
+            return new WP_Error( 'missing_lib', 'Google Library not loaded. Run composer install.' );
         }
 
         try {
             $client = new Google\Client();
-            $client->setAccessToken( $token );
-            return $client;
-        } catch ( Exception $e ) {
-            return new WP_Error( 'client_init_error', 'Failed to initialize Google Client: ' . $e->getMessage() );
-        }
-    }
+            $client->setApplicationName( 'Cirrusly Commerce' );
 
-    /**
-     * Obtains a Google OAuth access token using the stored Service Account JSON.
-     *
-     * @return string|WP_Error The OAuth access token on success. On failure a WP_Error is returned with one of these codes:
-     *                        'no_creds' (no stored credentials),
-     *                        'decrypt_failed' (unable to decrypt or parse stored data),
-     *                        'invalid_creds' (missing required service account fields),
-     *                        'signing_failed' (JWT signing failed),
-     *                        'auth_failed' (token endpoint returned an error),
-     *                        or an HTTP WP_Error from the token request.
-     */
-    public static function get_access_token() {
-        $stored_data = get_option( 'cirrusly_service_account_json' );
-        if ( ! $stored_data ) return new WP_Error( 'no_creds', 'Service Account JSON not uploaded.' );
-
-        // 1. Try to decrypt
-        $json_raw = Cirrusly_Commerce_Security::decrypt_data( $stored_data );
-
-        // 2. Fallback: Check if it's legacy plaintext (backward compatibility)
-        if ( ! $json_raw ) {
-            // Attempt to decode as plain JSON to see if it's old unencrypted data
-            $test_json = json_decode( $stored_data, true );
-            if ( json_last_error() === JSON_ERROR_NONE && isset( $test_json['private_key'] ) ) {
-                $json_raw = $stored_data; // It was plaintext, use as is
-            } else {
-                // If it's not valid JSON and decryption failed, it's unusable
-                return new WP_Error( 'decrypt_failed', 'Could not decrypt Service Account credentials. Please re-upload the JSON file.' );
+            // Use Security class for decryption
+            $json_raw = Cirrusly_Commerce_Security::decrypt_data( $json_key );
+            
+            // Fallback for legacy plaintext (backward compatibility)
+            if ( ! $json_raw ) {
+                if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+                    error_log( 'Cirrusly Commerce: Decryption returned false, trying raw key as fallback.' );
+                }
+                $test_json = json_decode( $json_key, true );
+                if ( json_last_error() === JSON_ERROR_NONE && isset( $test_json['private_key'] ) ) {
+                    $json_raw = $json_key; 
+                } else {
+                    return new WP_Error( 'decrypt_failed', 'Could not decrypt Service Account credentials.' );
+                }
             }
+
+            $auth_config = json_decode( $json_raw, true );
+            if ( ! is_array( $auth_config ) ) {
+                return new WP_Error( 'invalid_json', 'Service Account JSON is malformed.' );
+            }
+
+            $client->setAuthConfig( $auth_config );
+            $client->setScopes([
+                'https://www.googleapis.com/auth/content',
+                'https://www.googleapis.com/auth/cloud-language' 
+            ]);
+            
+            return $client;
+
+        } catch ( Exception $e ) {
+            return new WP_Error( 'auth_failed', 'Auth Error: ' . $e->getMessage() );
         }
-
-        $creds = json_decode( $json_raw, true );
-        if ( empty($creds['client_email']) || empty($creds['private_key']) ) {
-            return new WP_Error( 'invalid_creds', 'Invalid Service Account JSON.' );
-        }
-
-        $header = json_encode(array('alg' => 'RS256', 'typ' => 'JWT'));
-        $now = time();
-        $claim = json_encode(array(
-            'iss' => $creds['client_email'],
-            'scope' => 'https://www.googleapis.com/auth/content',
-            'aud' => 'https://oauth2.googleapis.com/token',
-            'exp' => $now + 3600,
-            'iat' => $now
-        ));
-
-        $base64Url = function($data) {
-            return str_replace(['+', '/', '='], ['-', '_', ''], base64_encode($data));
-        };
-
-        $payload = $base64Url($header) . "." . $base64Url($claim);
-        $signature = '';
-        
-        if ( ! openssl_sign($payload, $signature, $creds['private_key'], 'SHA256') ) {
-            return new WP_Error( 'signing_failed', 'Could not sign JWT. Check private key.' );
-        }
-
-        $jwt = $payload . "." . $base64Url($signature);
-
-        $response = wp_remote_post( 'https://oauth2.googleapis.com/token', array(
-            'timeout' => 15,
-            'body' => array(
-                'grant_type' => 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-                'assertion' => $jwt
-            )
-        ));
-
-        if ( is_wp_error( $response ) ) return $response;
-
-        $body = json_decode( wp_remote_retrieve_body( $response ), true );
-        if ( isset( $body['access_token'] ) ) {
-            return $body['access_token'];
-        }
-
-        return new WP_Error( 'auth_failed', 'Google Auth Failed: ' . wp_remote_retrieve_body($response) );
     }
 
-    public static function execute_scheduled_scan() {
-        // This ensures the email reporting and heavy scanning 
-        // logic is isolated to Pro.
     /**
-     * Perform the scheduled Google Merchant Center health scan and persist the results.
-     *
-     * Runs the GMC scan, updates the `woo_gmc_scan_data` option with a timestamped result set, and — when the cirrusly scan configuration has `enable_email_report` set to `"yes"` and the scan returned issues — sends an HTML summary email to the configured `email_recipient` (or the site admin email when none is configured).
+     * Perform the scheduled Google Merchant Center health scan and email results.
      */
-    public /**
-     * Performs a GMC health scan, saves the results, and optionally emails an HTML summary.
-     *
-     * Runs the GMC scanner, persists a timestamped scan result to the `woo_gmc_scan_data` option,
-     * and, if configured via `cirrusly_scan_config.enable_email_report === 'yes'` and issues were found,
-     * sends an HTML email to the configured recipient (or the site admin). The email includes a summary
-     * table of affected products with per-issue severity and links to edit each product.
-     */
-    function execute_scheduled_scan() {
+    public static function execute_scheduled_scan() {
+        if ( ! class_exists( 'Cirrusly_Commerce_GMC' ) ) return;
+
         $scanner = new Cirrusly_Commerce_GMC();
+        // Uses the scanner logic (which will now call API logic if Pro)
         $results = $scanner->run_gmc_scan_logic();
+        
         $scan_data = array( 'timestamp' => time(), 'results' => $results );
         update_option( 'woo_gmc_scan_data', $scan_data, false );
         
@@ -136,7 +81,6 @@ class Cirrusly_Commerce_Google_API_Client {
             $to = !empty($scan_cfg['email_recipient']) ? $scan_cfg['email_recipient'] : get_option('admin_email');
             $subject = 'Action Required: ' . count($results) . ' Issues Found in GMC Health Scan';
             
-            // Build HTML Message
             $message  = '<h2>Cirrusly Commerce Daily Health Report</h2>';
             $message .= '<p>The daily scan detected <strong>' . count($results) . ' products</strong> with potential Google Merchant Center issues.</p>';
             $message .= '<table border="1" cellpadding="10" cellspacing="0" style="border-collapse:collapse; width:100%; border-color:#eee;">';
@@ -152,11 +96,10 @@ class Cirrusly_Commerce_Google_API_Client {
                     $issues_html .= '<div style="color:'. $color .'; margin-bottom:4px;"><strong>' . ucfirst($issue['type']) . ':</strong> ' . esc_html($issue['msg']) . '</div>';
                 }
 
-                $edit_url = esc_url( admin_url( 'post.php?post=' . $row['product_id'] . '&action=edit' ) );
+                $edit_url = admin_url( 'post.php?post=' . $row['product_id'] . '&action=edit' );
                 
                 $message .= '<tr>';
-                // FIX: Escape the product name to prevent XSS in email
-                $message .= '<td><a href="' . esc_url( $edit_url ) . '">' . esc_html( $product->get_name() ) . '</a></td>';
+                $message .= '<td><a href="' . $edit_url . '">' . esc_html( $product->get_name() ) . '</a></td>';
                 $message .= '<td>' . $issues_html . '</td>';
                 $message .= '<td>See severity details above</td>';
                 $message .= '<td><a href="' . $edit_url . '" style="text-decoration:none; background:#2271b1; color:#fff; padding:5px 10px; border-radius:3px;">Fix Now</a></td>';
@@ -166,13 +109,10 @@ class Cirrusly_Commerce_Google_API_Client {
             $message .= '</table>';
             $message .= '<p style="margin-top:20px;">You can view the full report in your <a href="' . admin_url('admin.php?page=cirrusly-gmc') . '">GMC Hub Dashboard</a>.</p>';
 
-            // Set HTML Content Type using headers parameter instead
-            // Set HTML Content Type and From header for email authentication
+            // Ensure Core class has this method (See step 2 below)
             $headers = Cirrusly_Commerce_Core::get_email_from_header();
             $headers[] = 'Content-Type: text/html; charset=UTF-8';
             wp_mail( $to, $subject, $message, $headers );
         }
     }
-    }
 }
-?>
