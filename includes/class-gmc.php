@@ -1335,7 +1335,14 @@ public function run_gmc_scan_logic() {
     // Truncate to avoid API limits and excessive costs (NLP charges per 1000 chars)
     $max_length = 5000;
     if ( strlen( $text ) > $max_length ) {
-        $text = substr( $text, 0, $max_length );
+        // Truncate at last space to avoid cutting words
+        $truncated = substr( $text, 0, $max_length );
+        $last_space = strrpos( $truncated, ' ' );
+        $text = $last_space !== false ? substr( $truncated, 0, $last_space ) : $truncated;
+        
+        if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+            error_log( sprintf( 'Cirrusly Commerce NLP: Text truncated from %d to %d chars', strlen( $text ), strlen( $truncated ) ) );
+        }
     }
 
         $client = self::get_google_client();

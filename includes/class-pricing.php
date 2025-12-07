@@ -77,6 +77,14 @@ public function init_frontend_msrp() {
                 case 'before_add_to_cart': $prio = 25; break;
                 case 'after_add_to_cart':  $prio = 31; break;
                 case 'after_meta':         $prio = 41; break;
+                case 'before_price':       $prio = 9;  break; // Explicit default position
+                default:
+                    // Invalid value - log and use safe default
+                    if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+                    error_log( sprintf( 'Cirrusly Commerce: Invalid MSRP position "%s", using default', $pos_prod ) );
+                    }
+                    $prio = 9;
+                    break;
             }
 
             add_action( $hook, array( $this, 'cw_render_msrp_block_hook' ), $prio );
