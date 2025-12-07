@@ -117,8 +117,57 @@ class Cirrusly_Commerce_Core {
      * @return void
      */
     public function handle_audit_inline_save() {
-        // (Keep the existing AJAX logic here, or move to Audit class)
-        // ... existing code ...
+        // 1. Verify Nonce and Permissions
+        if ( ! check_ajax_referer( 'cc_audit_save', '_nonce', false ) ) {
+            wp_send_json_error( 'Invalid security token' );
+        }
+
+        if ( ! current_user_can( 'edit_products' ) ) {
+            wp_send_json_error( 'Permission denied' );
+        }
+
+        // 2. Sanitize and Validate Inputs
+        $pid   = isset( $_POST['pid'] ) ? intval( $_POST['pid'] ) : 0;
+        $field = isset( $_POST['field'] ) ? sanitize_text_field( $_POST['field'] ) : '';
+        $value = isset( $_POST['value'] ) ? sanitize_text_field( $_POST['value'] ) : '';
+
+        if ( ! $pid || ! $field ) {
+            wp_send_json_error( 'Missing product ID or field' );
+        }
+
+        // Allowed fields whitelist to prevent unauthorized meta updates
+        $allowed_fields = array( '_cogs_total_value', '_cw_est_shipping' );
+        if ( ! in_array( $field, $allowed_fields ) ) {
+            wp_send_json_error( 'Field not allowed' );
+        }
+
+        // 3. Update Data
+        // Clean currency formatting if necessary and ensure decimal
+        $clean_value = function_exists('wc_format_decimal') ? wc_format_decimal( $value ) : floatval( $value );
+        update_post_meta( $pid, $field, $clean_value );
+
+        // 4. Clear Caches
+        delete_transient( 'cw_audit_data' );
+        $this->clear_metrics_cache();
+
+        // 5. Return Calculated Metrics for UI Update
+        if ( ! class_exists( 'Cirrusly_Commerce_Audit' ) ) {
+            // Fallback load if not already loaded (Ajax context)
+            $audit_path = plugin_dir_path( __FILE__ ) . 'class-audit.php';
+            if ( file_exists( $audit_path ) ) {
+                require_once $audit_path;
+            }
+        }
+
+        if ( class_exists( 'Cirrusly_Commerce_Audit' ) && method_exists( 'Cirrusly_Commerce_Audit', 'get_single_metric' ) ) {
+            $metrics = Cirrusly_Commerce_Audit::get_single_metric( $pid );
+            if ( $metrics ) {
+                wp_send_json_success( $metrics );
+            }
+        }
+
+        // Fallback success if metrics calc failed but save worked (shouldn't happen if setup is correct)
+        wp_send_json_success( array() );
     }
 
     /**
@@ -140,13 +189,9 @@ class Cirrusly_Commerce_Core {
      * @return bool `true` if Pro features are available, `false` otherwise.
      */
     public static function cirrusly_is_pro() {
-    // Dev mode bypass - requires explicit constant opt-in
-    if ( defined('CIRRUSLY_DEV_MODE') && CIRRUSLY_DEV_MODE 
-         && defined('WP_DEBUG') && WP_DEBUG 
-         && current_user_can('manage_options') 
-         && isset( $_GET['cc_dev_mode'] ) ) {
-         // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-         return sanitize_text_field( wp_unslash( $_GET['cc_dev_mode'] ) ) === 'pro';
+        // (Keep existing Freemius check logic)
+        if ( defined('WP_DEBUG') && WP_DEBUG && current_user_can('manage_options') && isset( $_GET['cc_dev_mode'] ) ) {
+             return $_GET['cc_dev_mode'] === 'pro';
         }
         if ( function_exists( 'cc_fs' ) ) {
              return cc_fs()->can_use_premium_code();

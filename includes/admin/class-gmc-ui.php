@@ -78,7 +78,7 @@ class Cirrusly_Commerce_GMC_UI {
 
         if ( isset( $_POST['run_gmc_scan'] ) && check_admin_referer( 'cirrusly_gmc_scan', 'cc_gmc_scan_nonce' ) ) {
             $results = $this->run_gmc_scan_logic();
-            update_option( 'woo_gmc_scan_data', array( 'timestamp' => time(), 'results' => $results ), false );
+            update_option( 'woo_gmc_scan_data', array( 'timestamp' => current_time( 'timestamp' ), 'results' => $results ), false );
             echo '<div class="notice notice-success inline"><p>Scan Complete.</p></div>';
         }
         
@@ -351,9 +351,7 @@ class Cirrusly_Commerce_GMC_UI {
         global $wpdb;
         // ... (Bulk Action Logic) ...
         if ( isset( $_POST['gmc_promo_bulk_action'] ) && ! empty( $_POST['gmc_promo_products'] ) && check_admin_referer( 'cirrusly_promo_bulk', 'cc_promo_nonce' ) ) {
-            if ( ! current_user_can( 'edit_products' ) ) { // or 'manage_woocommerce'
-                wp_die( 'Unauthorized access.' );
-            }            $new_promo_id = isset($_POST['gmc_new_promo_id']) ? sanitize_text_field( wp_unslash( $_POST['gmc_new_promo_id'] ) ) : '';
+            $new_promo_id = isset($_POST['gmc_new_promo_id']) ? sanitize_text_field( wp_unslash( $_POST['gmc_new_promo_id'] ) ) : '';
             $action = sanitize_text_field( wp_unslash( $_POST['gmc_promo_bulk_action'] ) );
             $promo_products = isset($_POST['gmc_promo_products']) && is_array($_POST['gmc_promo_products']) ? array_map('intval', $_POST['gmc_promo_products']) : array();
 
@@ -386,26 +384,62 @@ class Cirrusly_Commerce_GMC_UI {
         }
 
         if ( $filter_promo ) {
-        $paged = isset( $_GET['paged'] ) ? max( 1, intval( $_GET['paged'] ) ) : 1;
-        $per_page = 100;
-        $products = get_posts( array( 
-            'post_type'      => 'product', 
-            'posts_per_page' => $per_page,
-            'paged'          => $paged,
-           'meta_key'       => '_gmc_promotion_id', 
-            'meta_value'     => $filter_promo 
-        ) );
-        // Add pagination UI below the table            
+            // FIXED: Added Pagination for better performance with large product lists
+            $paged = isset( $_GET['paged'] ) ? absint( $_GET['paged'] ) : 1;
+            $per_page = 20;
+
+            $args = array( 
+                'post_type'      => 'product', 
+                'posts_per_page' => $per_page, 
+                'paged'          => $paged,
+                'meta_key'       => '_gmc_promotion_id', 
+                'meta_value'     => $filter_promo 
+            );
+
+            $query = new WP_Query( $args );
+            $products = $query->posts;
+            $total_pages = $query->max_num_pages;
+
             echo '<hr><h3>Managing: '.esc_html($filter_promo).'</h3>';
             echo '<form method="post">';
             wp_nonce_field( 'cirrusly_promo_bulk', 'cc_promo_nonce' );
             echo '<div style="background:#e5e5e5; padding:10px; margin-bottom:10px;">With Selected: <input type="text" name="gmc_new_promo_id" placeholder="New ID"> <button type="submit" name="gmc_promo_bulk_action" value="update" class="button">Move</button> <button type="submit" name="gmc_promo_bulk_action" value="remove" class="button">Remove</button></div>';
-            echo '<table class="wp-list-table widefat fixed striped"><thead><tr><th class="check-column"><input type="checkbox" id="cb-all-promo"></th><th>Name</th><th>Action</th></tr></thead><tbody>';
-            foreach($products as $pObj) { 
-                $p=wc_get_product($pObj->ID); 
-                echo '<tr><th><input type="checkbox" name="gmc_promo_products[]" value="'.esc_attr($p->get_id()).'"></th><td><a href="'.esc_url(get_edit_post_link($p->get_id())).'">'.esc_html($p->get_name()).'</a></td><td><a href="'.esc_url(get_edit_post_link($p->get_id())).'" class="button button-small">Edit</a></td></tr>'; 
+            
+            // Pagination Top
+            if ( $total_pages > 1 ) {
+                $page_links = paginate_links( array(
+                    'base'    => add_query_arg( 'paged', '%#%' ),
+                    'format'  => '',
+                    'current' => $paged,
+                    'total'   => $total_pages,
+                    'prev_text' => '&laquo;',
+                    'next_text' => '&raquo;'
+                ) );
+                echo '<div class="tablenav top"><div class="tablenav-pages" style="float:right; margin:5px 0;">' . $page_links . '</div><div class="clear"></div></div>';
             }
-            echo '</tbody></table></form><script>jQuery("#cb-all-promo").change(function(){jQuery("input[name=\'gmc_promo_products[]\']").prop("checked",this.checked);});</script>';
+
+            echo '<table class="wp-list-table widefat fixed striped"><thead><tr><th class="check-column"><input type="checkbox" id="cb-all-promo"></th><th>Name</th><th>Action</th></tr></thead><tbody>';
+            
+            if ( $products ) {
+                foreach($products as $pObj) { 
+                    $p=wc_get_product($pObj->ID); 
+                    if(!$p) continue;
+                    echo '<tr><th><input type="checkbox" name="gmc_promo_products[]" value="'.esc_attr($p->get_id()).'"></th><td><a href="'.esc_url(get_edit_post_link($p->get_id())).'">'.esc_html($p->get_name()).'</a></td><td><a href="'.esc_url(get_edit_post_link($p->get_id())).'" class="button button-small">Edit</a></td></tr>'; 
+                }
+            } else {
+                 echo '<tr><td colspan="3">No products found.</td></tr>';
+            }
+
+            echo '</tbody></table>';
+            
+            // Pagination Bottom
+            if ( $total_pages > 1 ) {
+                echo '<div class="tablenav bottom"><div class="tablenav-pages" style="float:right; margin:5px 0;">' . $page_links . '</div><div class="clear"></div></div>';
+            }
+
+            echo '</form><script>jQuery("#cb-all-promo").change(function(){jQuery("input[name=\'gmc_promo_products[]\']").prop("checked",this.checked);});</script>';
+            
+            wp_reset_postdata();
         }
     }
 
@@ -423,8 +457,7 @@ class Cirrusly_Commerce_GMC_UI {
             <p>This tool scans your site pages and product descriptions to ensure compliance with Google Merchant Center policies.</p>
         </div>';
         
-        $all_pages = get_pages( array( 'number' => 500 ) );
-
+        $all_pages = get_pages();
         $found_titles = array();
         foreach($all_pages as $p) $found_titles[] = strtolower($p->post_title);
         
@@ -460,11 +493,8 @@ class Cirrusly_Commerce_GMC_UI {
         echo '</form></div>';
 
         if ( isset( $_POST['run_content_scan'] ) && check_admin_referer( 'cirrusly_content_scan', 'cc_content_scan_nonce' ) ) {
-            if ( ! current_user_can( 'manage_woocommerce' ) ) {
-                wp_die( 'Unauthorized access.' );
-            }
             $issues = $this->execute_content_scan_logic();
-            update_option( 'cirrusly_content_scan_data', array( 'timestamp' => time(), 'issues' => $issues ), false );
+            update_option( 'cirrusly_content_scan_data', array('timestamp'=>time(), 'issues'=>$issues) );
             echo '<div class="notice notice-success inline" style="margin-top:10px;"><p>Scan Complete. Results saved.</p></div>';
         }
 
@@ -563,7 +593,7 @@ class Cirrusly_Commerce_GMC_UI {
         if ( $label ) echo '<span class="gmc-badge gmc-badge-label" title="'.esc_attr($label).'">Label</span> ';
         
         echo '<span class="gmc-hidden-data" 
-            data-custom="' . esc_attr( 'no' === $id_ex ? 'yes' : 'no' ) . '" 
+            data-custom="'.('no'===$id_ex?'yes':'no').'" 
             data-promo="'.esc_attr($promo).'" 
             data-label="'.esc_attr($label).'" 
             style="display:none;"></span>';
@@ -638,24 +668,13 @@ class Cirrusly_Commerce_GMC_UI {
         }
 
         // 2. Scan Local Products
-        // Batch size for processing
-        $batch_size = 100;
-        $offset = get_transient( 'cirrusly_scan_offset' ) ?: 0;
-
         $args = array(
             'post_type'      => 'product',
-            'posts_per_page' => $batch_size,
-            'offset'         => $offset,
+            'posts_per_page' => -1,
             'post_status'    => 'publish',
             'fields'         => 'ids'
         );
         $products = get_posts( $args );
-
-        // Store progress and schedule continuation if needed
-        if ( count( $products ) === $batch_size ) {
-            set_transient( 'cirrusly_scan_offset', $offset + $batch_size, 300 );
-        // Add UI feedback: "Scanning... {$offset} products processed"
-        }
 
         foreach ( $products as $pid ) {
             $product_issues = array();
@@ -718,21 +737,16 @@ class Cirrusly_Commerce_GMC_UI {
         $issues = array();
         $terms_map = Cirrusly_Commerce_GMC::get_monitored_terms();
         
-        // Flatten terms for searching from grouped map.
+        // Flatten terms for searching
         $all_terms = array();
-        foreach ( $terms_map as $group ) {
-            if ( ! is_array( $group ) ) {
-                continue;
+        foreach ( $terms_map as $category => $list ) {
+            foreach ( $list as $word => $meta ) {
+                $all_terms[$word] = $meta;
             }
-            foreach ( $group as $word => $meta ) {
-                $all_terms[ $word ] = $meta;
-            }
-        }
         }
 
         // Scan Pages
-        $pages = get_pages( array( 'number' => 500 ) ); // Limit to reasonable batch
-        // Consider adding pagination UI or background processing
+        $pages = get_pages();
         foreach ( $pages as $page ) {
             $found_in_page = array();
             $content = $page->post_title . ' ' . $page->post_content;
@@ -758,13 +772,8 @@ class Cirrusly_Commerce_GMC_UI {
         }
 
         // Scan Products
-        $products = get_posts( array( 
-            'post_type'      => 'product', 
-            'posts_per_page' => 500,
-            'no_found_rows'  => true
-        ) );
-        // Add pagination or Action Scheduler for background processing        
-            foreach ( $products as $prod ) {
+        $products = get_posts( array( 'post_type' => 'product', 'posts_per_page' => -1 ) );
+        foreach ( $products as $prod ) {
             $found_in_prod = array();
             $content = $prod->post_title . ' ' . $prod->post_content;
 
