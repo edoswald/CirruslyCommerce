@@ -4,9 +4,9 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 class Cirrusly_Commerce_Security {
 
     /**
-     * Derives a site-unique encryption key from the WordPress Auth Salt.
+     * Derives a site-unique 32-byte encryption key from the WordPress Auth Salt.
      *
-     * @return string Hex-encoded 32-byte (64-character) SHA-256 hash derived from wp_salt('auth').
+     * @return string Raw 32-byte binary SHA-256 hash derived from wp_salt('auth').
      */
     private static function get_encryption_key() {
         return hash( 'sha256', wp_salt( 'auth' ), true );
