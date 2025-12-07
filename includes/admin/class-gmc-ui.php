@@ -718,11 +718,16 @@ class Cirrusly_Commerce_GMC_UI {
         $issues = array();
         $terms_map = Cirrusly_Commerce_GMC::get_monitored_terms();
         
-        // Flatten terms for searching
+        // Flatten terms for searching from grouped map.
         $all_terms = array();
-            foreach ( $list as $word => $meta ) {
-                $all_terms[$word] = $meta;
+        foreach ( $terms_map as $group ) {
+            if ( ! is_array( $group ) ) {
+                continue;
             }
+            foreach ( $group as $word => $meta ) {
+                $all_terms[ $word ] = $meta;
+            }
+        }
         }
 
         // Scan Pages

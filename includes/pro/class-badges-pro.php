@@ -49,10 +49,13 @@ class Cirrusly_Commerce_Badges_Pro {
 
         // 4. SMART: SENTIMENT (NLP)
         // Check for cached sentiment or run analysis
+    if ( ! empty($badge_cfg['smart_sentiment']) && $badge_cfg['smart_sentiment'] === 'yes' ) {
+        // Check for cached sentiment or run analysis
         $sentiment_html = self::get_sentiment_badge( $product );
         if ( $sentiment_html ) {
             $output .= $sentiment_html;
         }
+    }
 
         return $output;
     }

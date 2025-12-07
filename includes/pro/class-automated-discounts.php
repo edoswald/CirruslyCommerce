@@ -36,7 +36,6 @@ class Cirrusly_Commerce_Automated_Discounts {
      * option and escaped for safe output.
      */
     public function render_settings_field() {
-        // (Copy render_settings_field HTML from original)
         $scan_cfg = get_option('cirrusly_scan_config', array());
         $checked = isset( $scan_cfg['enable_automated_discounts'] ) && $scan_cfg['enable_automated_discounts'] === 'yes';
         $merchant_id = isset($scan_cfg['merchant_id']) ? esc_attr($scan_cfg['merchant_id']) : '';
@@ -72,7 +71,7 @@ class Cirrusly_Commerce_Automated_Discounts {
         }
     }
 
-/**
+    /**
      * Verifies a Google-signed JWT and returns its payload when valid.
      *
      * Validates the token using the configured Google public key, ensures the token is not expired,
@@ -96,7 +95,7 @@ class Cirrusly_Commerce_Automated_Discounts {
             $client = new Google\Client();
             
             // FIXED: Added null for audience, issuer, and max_expiry to match the required 5-parameter signature.
-            $payload = $client->verifySignedJwt( $token, array( $public_key ), null, null, null );
+            $payload = $client->verifyIdToken( $token );
             
             if ( ! $payload ) return false;
             if ( ! isset( $payload['exp'] ) || (int) $payload['exp'] <= time() ) return false;
@@ -233,9 +232,11 @@ class Cirrusly_Commerce_Automated_Discounts {
             $session_data = (array) WC()->session->get_session_data();
             foreach ( $session_data as $key => $data ) {
                 if ( strpos( $key, self::SESSION_KEY_PREFIX ) === 0 ) {
++                    $data = maybe_unserialize( $data );
+
                     if ( isset( $data['exp'] ) && $data['exp'] > time() ) {
-                    nocache_headers();
-                    return;
+                        nocache_headers();
+                        return;
                     }
                 }
             }

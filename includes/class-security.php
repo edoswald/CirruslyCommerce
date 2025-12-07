@@ -4,58 +4,80 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 class Cirrusly_Commerce_Security {
 
     /**
-     * Derives a site-unique 32-byte encryption key from the WordPress Auth Salt.
+     * Derives site-unique encryption and authentication keys from the WordPress Auth Salt.
      *
-     * @return string Raw 32-byte binary SHA-256 hash derived from wp_salt('auth').
+     * Uses hash_hmac with distinct contexts to generate cryptographically verified
+     * separation between the encryption key and the HMAC key.
+     *
+     * @return array Associative array with 'enc' (Encryption Key) and 'auth' (HMAC Key).
      */
-    private static function get_encryption_key() {
-        return hash( 'sha256', wp_salt( 'auth' ), true );
+    private static function get_keys() {
+        $salt = wp_salt( 'auth' );
+        return array(
+            'enc'  => hash_hmac( 'sha256', 'cc_encryption_context', $salt, true ),
+            'auth' => hash_hmac( 'sha256', 'cc_authentication_context', $salt, true ),
+        );
     }
 
     /**
-     * Encrypt data using AES-256-CBC.
+     * Encrypt data using AES-256-CBC with HMAC-SHA256 integrity check (Encrypt-then-MAC).
      *
      * @param string $data The plaintext data.
-     * @return string|false Base64 encoded string containing IV and encrypted data, or false on failure.
+     * @return string|false Base64 encoded string containing IV, Ciphertext, and HMAC, or false on failure.
      */
-    private static function encrypt_data( $data ) {
+    public static function encrypt_data( $data ) {
         if ( empty( $data ) ) return false;
 
-        $key = self::get_encryption_key();
+        $keys = self::get_keys();
         $method = 'aes-256-cbc';
         $iv_length = openssl_cipher_iv_length( $method );
         $iv = openssl_random_pseudo_bytes( $iv_length );
 
-        $encrypted = openssl_encrypt( $data, $method, $key, OPENSSL_RAW_DATA, $iv );
+        // Encrypt (Raw binary)
+        $ciphertext = openssl_encrypt( $data, $method, $keys['enc'], OPENSSL_RAW_DATA, $iv );
         
-        if ( false === $encrypted ) return false;
+        if ( false === $ciphertext ) return false;
 
-        // Store IV + Encrypted Data together, base64 encoded
-        return base64_encode( $iv . $encrypted );
+        // Calculate HMAC on IV + Ciphertext
+        $hmac = hash_hmac( 'sha256', $iv . $ciphertext, $keys['auth'], true );
+
+        // Return base64 encoded payload: IV . Ciphertext . HMAC
+        return base64_encode( $iv . $ciphertext . $hmac );
     }
 
     /**
-     * Decrypt data using AES-256-CBC.
+     * Decrypt data using AES-256-CBC with HMAC verification.
      *
      * @param string $data The base64 encoded encrypted string.
-     * @return string|false The decrypted plaintext, or false on failure.
+     * @return string|false The decrypted plaintext, or false on failure/tampering.
      */
     public static function decrypt_data( $data ) {
         if ( empty( $data ) ) return false;
 
-        $key = self::get_encryption_key();
+        $keys = self::get_keys();
         $data = base64_decode( $data );
         $method = 'aes-256-cbc';
         $iv_length = openssl_cipher_iv_length( $method );
+        $hmac_length = 32; // SHA-256 outputs 32 bytes
 
-        // Basic validation
-        if ( strlen( $data ) <= $iv_length ) return false;
+        // Basic validation: Length must cover IV + HMAC
+        if ( strlen( $data ) < $iv_length + $hmac_length ) return false;
 
+        // Extract components
         $iv = substr( $data, 0, $iv_length );
-        $encrypted_payload = substr( $data, $iv_length );
+        $hmac = substr( $data, -$hmac_length );
+        $ciphertext = substr( $data, $iv_length, -$hmac_length );
 
-        return openssl_decrypt( $encrypted_payload, $method, $key, OPENSSL_RAW_DATA, $iv );
+        // Verify HMAC (Authenticate)
+        $calc_hmac = hash_hmac( 'sha256', $iv . $ciphertext, $keys['auth'], true );
+        
+        // Constant-time comparison to prevent timing attacks
+        if ( ! hash_equals( $hmac, $calc_hmac ) ) {
+            return false;
+        }
 
+        // Decrypt
+        return openssl_decrypt( $ciphertext, $method, $keys['enc'], OPENSSL_RAW_DATA, $iv );
     }
 
 }

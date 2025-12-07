@@ -18,7 +18,7 @@ class Cirrusly_Commerce_Audit_UI {
         
         // Handle Import Submission (Delegated to Pro)
         if ( isset($_POST['cc_import_nonce']) && wp_verify_nonce($_POST['cc_import_nonce'], 'cc_import_action') ) {
-            if ( class_exists( 'Cirrusly_Commerce_Audit_Pro' ) ) {
+            if ( Cirrusly_Commerce_Core::cirrusly_is_pro() && class_exists( 'Cirrusly_Commerce_Audit_Pro' ) ) {
                 Cirrusly_Commerce_Audit_Pro::handle_import();
             }
         }
