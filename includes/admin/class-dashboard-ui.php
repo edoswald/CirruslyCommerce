@@ -18,9 +18,9 @@ class Cirrusly_Commerce_Dashboard_UI {
      */
     public function render_main_dashboard() {
         echo '<div class="wrap">'; 
-        self::render_page_header( 'Cirrusly Commerce Dashboard' );
+        echo '<h1>' . esc_html__( 'Cirrusly Commerce Dashboard', 'cirrusly-commerce' ) . '</h1>';
         $m = self::get_dashboard_metrics();
-        $is_pro = self::cirrusly_is_pro();
+        $is_pro = Cirrusly_Commerce_Core::cirrusly_is_pro();
         ?>
         
         <div class="cc-intro-text" style="background:#fff; padding:15px; border:1px solid #ccd0d4; margin-bottom:20px; border-left:4px solid #2271b1;">
