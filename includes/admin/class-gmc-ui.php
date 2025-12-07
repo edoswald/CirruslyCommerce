@@ -384,8 +384,8 @@ class Cirrusly_Commerce_GMC_UI {
         }
 
         if ( $filter_promo ) {
-            $products = get_posts( array( 'post_type'=>'product', 'posts_per_page'=>100, 'meta_key'=>'_gmc_promotion_id', 'meta_value'=>$filter_promo ) );
-            // Consider adding pagination UI if more products exist            echo '<hr><h3>Managing: '.esc_html($filter_promo).'</h3>';
+            $products = get_posts( array( 'post_type'=>'product', 'posts_per_page'=>-1, 'meta_key'=>'_gmc_promotion_id', 'meta_value'=>$filter_promo ) );
+            echo '<hr><h3>Managing: '.esc_html($filter_promo).'</h3>';
             echo '<form method="post">';
             wp_nonce_field( 'cirrusly_promo_bulk', 'cc_promo_nonce' );
             echo '<div style="background:#e5e5e5; padding:10px; margin-bottom:10px;">With Selected: <input type="text" name="gmc_new_promo_id" placeholder="New ID"> <button type="submit" name="gmc_promo_bulk_action" value="update" class="button">Move</button> <button type="submit" name="gmc_promo_bulk_action" value="remove" class="button">Remove</button></div>';
@@ -607,5 +607,162 @@ class Cirrusly_Commerce_GMC_UI {
             echo '<div class="notice notice-error is-dismissible"><p><strong>Cirrusly Commerce Alert:</strong> ' . esc_html( $msg ) . '</p></div>';
             delete_transient( 'cc_gmc_blocked_save_' . get_current_user_id() );
         }
+    }
+
+    /**
+     * Performs the GMC health scan logic on local products and merges with Pro API results if available.
+     * * @return array List of products with issues.
+     */
+    private function run_gmc_scan_logic() {
+        $results = array();
+        
+        // 1. Fetch Pro Statuses (Real data from Google)
+        $google_issues = array();
+        if ( Cirrusly_Commerce_Core::cirrusly_is_pro() && class_exists( 'Cirrusly_Commerce_GMC_Pro' ) ) {
+            $google_issues = Cirrusly_Commerce_GMC_Pro::fetch_google_real_statuses();
+        }
+
+        // 2. Scan Local Products
+        $args = array(
+            'post_type'      => 'product',
+            'posts_per_page' => -1,
+            'post_status'    => 'publish',
+            'fields'         => 'ids'
+        );
+        $products = get_posts( $args );
+
+        foreach ( $products as $pid ) {
+            $product_issues = array();
+            $p = wc_get_product( $pid );
+            if ( ! $p ) continue;
+
+            // CHECK: GTIN / MPN Existence
+            $is_custom = get_post_meta( $pid, '_gla_identifier_exists', true );
+            
+            // Basic health check simulation
+            if ( 'no' !== $is_custom && ! $p->get_sku() ) {
+                $product_issues[] = array(
+                    'type' => 'warning',
+                    'msg'  => 'Missing SKU (Identifier)',
+                    'reason' => 'Products generally require unique identifiers.'
+                );
+            }
+            
+            // CHECK: Missing Image
+            if ( ! $p->get_image_id() ) {
+                $product_issues[] = array(
+                    'type' => 'critical',
+                    'msg'  => 'Missing Image',
+                    'reason' => 'Google requires an image URL.'
+                );
+            }
+
+            // CHECK: Price
+            if ( ! $p->get_price() ) {
+                $product_issues[] = array(
+                    'type' => 'critical',
+                    'msg'  => 'Missing Price',
+                    'reason' => 'Price is mandatory.'
+                );
+            }
+
+            // Merge Google API Issues
+            if ( isset( $google_issues[ $pid ] ) ) {
+                foreach ( $google_issues[ $pid ] as $g_issue ) {
+                    $product_issues[] = $g_issue;
+                }
+            }
+
+            if ( ! empty( $product_issues ) ) {
+                $results[] = array(
+                    'product_id' => $pid,
+                    'issues'     => $product_issues
+                );
+            }
+        }
+
+        return $results;
+    }
+
+    /**
+     * Scans site content (pages and products) for restricted terms defined in GMC core.
+     * * @return array List of content pieces with found restricted terms.
+     */
+    private function execute_content_scan_logic() {
+        $issues = array();
+        $terms_map = Cirrusly_Commerce_GMC::get_monitored_terms();
+        
+        // Flatten terms for searching
+        $all_terms = array();
+        foreach ( $terms_map as $category => $list ) {
+            foreach ( $list as $word => $meta ) {
+                $all_terms[$word] = $meta;
+            }
+        }
+
+        // Scan Pages
+        $pages = get_pages();
+        foreach ( $pages as $page ) {
+            $found_in_page = array();
+            $content = $page->post_title . ' ' . $page->post_content;
+            
+            foreach ( $all_terms as $word => $meta ) {
+                if ( stripos( $content, $word ) !== false ) {
+                    $found_in_page[] = array(
+                        'word'     => $word,
+                        'severity' => $meta['severity'],
+                        'reason'   => $meta['reason']
+                    );
+                }
+            }
+
+            if ( ! empty( $found_in_page ) ) {
+                $issues[] = array(
+                    'id'    => $page->ID,
+                    'type'  => 'page',
+                    'title' => $page->post_title,
+                    'terms' => $found_in_page
+                );
+            }
+        }
+
+        // Scan Products
+        $products = get_posts( array( 'post_type' => 'product', 'posts_per_page' => -1 ) );
+        foreach ( $products as $prod ) {
+            $found_in_prod = array();
+            $content = $prod->post_title . ' ' . $prod->post_content;
+
+            foreach ( $all_terms as $word => $meta ) {
+                if ( stripos( $content, $word ) !== false ) {
+                    $found_in_prod[] = array(
+                        'word'     => $word,
+                        'severity' => $meta['severity'],
+                        'reason'   => $meta['reason']
+                    );
+                }
+            }
+
+            if ( ! empty( $found_in_prod ) ) {
+                $issues[] = array(
+                    'id'    => $prod->ID,
+                    'type'  => 'product',
+                    'title' => $prod->post_title,
+                    'terms' => $found_in_prod
+                );
+            }
+        }
+
+        return $issues;
+    }
+
+    /**
+     * Fetches account-level issues from Google Merchant Center via the Pro client.
+     * * @return Google_Service_ShoppingContent_AccountStatus|WP_Error|null
+     */
+    private function fetch_google_account_issues() {
+        if ( Cirrusly_Commerce_Core::cirrusly_is_pro() && class_exists( 'Cirrusly_Commerce_GMC_Pro' ) ) {
+            return Cirrusly_Commerce_GMC_Pro::fetch_google_account_issues();
+        }
+        return new WP_Error( 'not_pro', 'Pro version required.' );
     }
 }

@@ -9,7 +9,7 @@ class Cirrusly_Commerce_Security {
      * @return string Hex-encoded 32-byte (64-character) SHA-256 hash derived from wp_salt('auth').
      */
     private static function get_encryption_key() {
-        return hash( 'sha256', wp_salt( 'auth' ) );
+        return hash( 'sha256', wp_salt( 'auth' ), true );
     }
 
     /**

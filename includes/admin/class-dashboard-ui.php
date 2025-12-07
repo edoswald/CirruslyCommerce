@@ -174,17 +174,17 @@ class Cirrusly_Commerce_Dashboard_UI {
      * transient for one hour.
      *
      * @return array{
-     *   gmc_critical:int,    // Number of critical Google Merchant Center issues.
-     *   gmc_warnings:int,    // Number of non-critical Google Merchant Center warnings.
-     *   content_issues:int,  // Count of content scan issues.
-     *   missing_cost:int,    // Count of products/variations missing cost data.
-     *   loss_makers:int,     // Estimated count of products with negative net (loss makers).
-     *   total_products:int,  // Total published products and product variations.
-     *   on_sale_count:int,   // Number of products currently on sale.
-     *   avg_margin:float,    // Average margin percentage across sampled products (rounded to 1 decimal).
-     *   weekly_revenue:float,// Total revenue from completed/processing orders in the last 7 days.
-     *   weekly_orders:int,   // Number of completed/processing orders in the last 7 days.
-     *   low_stock_count:int  // Count of published products/variations with stock > 0 and <= low-stock threshold.
+     * gmc_critical:int,    // Number of critical Google Merchant Center issues.
+     * gmc_warnings:int,    // Number of non-critical Google Merchant Center warnings.
+     * content_issues:int,  // Count of content scan issues.
+     * missing_cost:int,    // Count of products/variations missing cost data.
+     * loss_makers:int,     // Estimated count of products with negative net (loss makers).
+     * total_products:int,  // Total published products and product variations.
+     * on_sale_count:int,   // Number of products currently on sale.
+     * avg_margin:float,    // Average margin percentage across sampled products (rounded to 1 decimal).
+     * weekly_revenue:float,// Total revenue from completed/processing orders in the last 7 days.
+     * weekly_orders:int,   // Number of completed/processing orders in the last 7 days.
+     * low_stock_count:int  // Count of published products/variations with stock > 0 and <= low-stock threshold.
      * }
      */
     public static function get_dashboard_metrics() {
@@ -197,9 +197,13 @@ class Cirrusly_Commerce_Dashboard_UI {
             // 1. GMC Scan Data
             $scan_data = get_option( 'woo_gmc_scan_data' );
             $gmc_critical = 0; $gmc_warnings = 0;
-            if ( ! empty( $scan_data['results'] ) ) {
+            if ( is_array( $scan_data ) && ! empty( $scan_data['results'] ) && is_array( $scan_data['results'] ) ) {
                 foreach( $scan_data['results'] as $res ) {
+                    if ( empty( $res['issues'] ) || ! is_array( $res['issues'] ) ) {
+                        continue;
+                    }
                     foreach( $res['issues'] as $i ) {
+                        if ( ! isset( $i['type'] ) ) continue;
                         if( $i['type'] === 'critical' ) $gmc_critical++; else $gmc_warnings++;
                     }
                 }
@@ -208,7 +212,7 @@ class Cirrusly_Commerce_Dashboard_UI {
             // 2. Content Scan Data
             $content_data = get_option( 'cirrusly_content_scan_data' );
             $content_issues = 0;
-            if ( ! empty( $content_data['issues'] ) ) {
+            if ( is_array( $content_data ) && ! empty( $content_data['issues'] ) && is_array( $content_data['issues'] ) ) {
                 $content_issues = count( $content_data['issues'] );
             }
 
@@ -218,10 +222,10 @@ class Cirrusly_Commerce_Dashboard_UI {
             
             $count_posts = wp_count_posts('product');
             $count_vars  = wp_count_posts('product_variation');
-            $total_products = $count_posts->publish + $count_vars->publish;
+            $total_products = (int) $count_posts->publish + (int) $count_vars->publish;
 
             $on_sale_ids = wc_get_product_ids_on_sale();
-            $on_sale_count = count( $on_sale_ids );
+            $on_sale_count = is_array( $on_sale_ids ) ? count( $on_sale_ids ) : 0;
             
             // 4. Margin & Loss Makers
             $audit_data = get_transient( 'cw_audit_data' );
@@ -231,21 +235,24 @@ class Cirrusly_Commerce_Dashboard_UI {
 
             if ( is_array($audit_data) ) {
                 foreach($audit_data as $row) {
-                    if ( $row['net'] < 0 ) $loss_makers++;
-                    if ( isset($row['margin']) ) { $total_margin += $row['margin']; $margin_count++; }
+                    if ( isset( $row['net'] ) && (float) $row['net'] < 0 ) $loss_makers++;
+                    if ( isset($row['margin']) ) { $total_margin += (float) $row['margin']; $margin_count++; }
                 }
             } else {
                 // Fallback lightweight query
                 // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
                 $margin_query = $wpdb->get_results("SELECT pm.meta_value as cost, p.ID FROM {$wpdb->postmeta} pm JOIN {$wpdb->posts} p ON p.ID = pm.post_id WHERE pm.meta_key = '_cogs_total_value' AND p.post_type = 'product' AND p.post_status = 'publish' LIMIT 200");
                 
-                foreach($margin_query as $row) {
-                    $product = wc_get_product($row->ID);
-                    if($product) {
-                        $price = (float)$product->get_price(); $cost = (float)$row->cost;
-                        if($price > 0 && $cost > 0) { 
-                            $margin = (($price - $cost) / $price) * 100; $total_margin += $margin; $margin_count++;
-                            if ( $price < $cost ) $loss_makers++; // Rough Estimate in fallback
+                if ( is_array( $margin_query ) ) {
+                    foreach($margin_query as $row) {
+                        $product = wc_get_product($row->ID);
+                        if($product) {
+                            $price = (float)$product->get_price(); 
+                            $cost = isset( $row->cost ) ? (float)$row->cost : 0;
+                            if($price > 0 && $cost > 0) { 
+                                $margin = (($price - $cost) / $price) * 100; $total_margin += $margin; $margin_count++;
+                                if ( $price < $cost ) $loss_makers++; // Rough Estimate in fallback
+                            }
                         }
                     }
                 }
@@ -262,14 +269,15 @@ class Cirrusly_Commerce_Dashboard_UI {
                 'limit'        => 1000, // Cap to prevent memory issues on high-volume stores
                 'status'       => array('wc-completed', 'wc-processing'),
                 'date_created' => '>=' . wp_date('Y-m-d', strtotime('-7 days')), 
-                'return'       => 'ids'
+                'return'       => 'ids',
+                'no_found_rows'=> true // Optimization
             ) );
             
-            if ( ! empty($orders) ) {
+            if ( ! empty($orders) && is_array( $orders ) ) {
                 $weekly_orders = count($orders);
                 foreach($orders as $oid) {
                     $o = wc_get_order($oid);
-                    if($o) $weekly_revenue += $o->get_total();
+                    if($o) $weekly_revenue += (float) $o->get_total();
                 }
             }
 
@@ -292,14 +300,14 @@ class Cirrusly_Commerce_Dashboard_UI {
                 'gmc_critical'   => $gmc_critical,
                 'gmc_warnings'   => $gmc_warnings,
                 'content_issues' => $content_issues,
-                'missing_cost'   => $missing_cost,
+                'missing_cost'   => (int) $missing_cost,
                 'loss_makers'    => $loss_makers,
                 'total_products' => $total_products,
                 'on_sale_count'  => $on_sale_count,
                 'avg_margin'     => $avg_margin,
                 'weekly_revenue' => $weekly_revenue,
                 'weekly_orders'  => $weekly_orders,
-                'low_stock_count'=> $low_stock_count
+                'low_stock_count'=> (int) $low_stock_count
             );
             set_transient( 'cirrusly_dashboard_metrics', $metrics, 1 * HOUR_IN_SECONDS );
         }

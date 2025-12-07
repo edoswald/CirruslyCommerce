@@ -4,6 +4,13 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 class Cirrusly_Commerce_Core {
 
     /**
+     * Holds the global configuration settings for the audit system.
+     *
+     * @var array
+     */
+    public $global_config = array();
+
+    /**
      * Initialize the core system by loading required dependencies and registering hooks.
      *
      * Loads necessary classes and sets up actions and filters that drive the plugin's behavior.
@@ -11,6 +18,15 @@ class Cirrusly_Commerce_Core {
     public function __construct() {
         $this->load_dependencies();
         $this->define_hooks();
+    }
+
+    /**
+     * Retrieve the global configuration array.
+     *
+     * @return array The global configuration settings or an empty array if not set.
+     */
+    public function get_global_config() {
+        return isset( $this->global_config ) ? $this->global_config : array();
     }
 
     /**
@@ -134,4 +150,3 @@ class Cirrusly_Commerce_Core {
         return false;
     }
 }
-?>
