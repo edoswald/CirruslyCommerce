@@ -31,7 +31,13 @@ class Cirrusly_Commerce_Security {
         $keys = self::get_keys();
         $method = 'aes-256-cbc';
         $iv_length = openssl_cipher_iv_length( $method );
-        $iv = openssl_random_pseudo_bytes( $iv_length );
+        $crypto_strong = false;
+        $iv = openssl_random_pseudo_bytes( $iv_length, $crypto_strong );
+    
+        if ( ! $crypto_strong ) {
+            // Fallback or error - do not proceed with weak randomness
+            return false;
+        }
 
         // Encrypt (Raw binary)
         $ciphertext = openssl_encrypt( $data, $method, $keys['enc'], OPENSSL_RAW_DATA, $iv );

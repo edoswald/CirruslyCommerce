@@ -17,6 +17,8 @@ class Cirrusly_Commerce_Badges_Pro {
      *                         - 'smart_scheduler' (string) : 'yes' to enable scheduler badge.
      *                         - 'scheduler_start' (string)  : start datetime for scheduler badge.
      *                         - 'scheduler_end' (string)    : end datetime for scheduler badge.
+     *                         - 'smart_sentiment' (string)  : 'yes' to enable sentiment badge.
+
      * @return string HTML string containing the concatenated badge elements (may be empty).
      */
     public static function get_smart_badges_html( $product, $badge_cfg ) {
@@ -42,15 +44,14 @@ class Cirrusly_Commerce_Badges_Pro {
             $end   = !empty($badge_cfg['scheduler_end']) ? strtotime($badge_cfg['scheduler_end']) : false;
             $now   = time();
 
-        if ( $start !== false && $end !== false && $now >= $start && $now <= $end ) {
-                $output .= '<span class="cw-badge-pill" style="background-color:#826eb4;">Event</span>';
+            if ( $start !== false && $end !== false && $now >= $start && $now <= $end ) {
+                    $output .= '<span class="cw-badge-pill" style="background-color:#826eb4;">Event</span>';
             }
         }
 
         // 4. SMART: SENTIMENT (NLP)
         // Check for cached sentiment or run analysis
     if ( ! empty($badge_cfg['smart_sentiment']) && $badge_cfg['smart_sentiment'] === 'yes' ) {
-        // Check for cached sentiment or run analysis
         $sentiment_html = self::get_sentiment_badge( $product );
         if ( $sentiment_html ) {
             $output .= $sentiment_html;
@@ -81,6 +82,8 @@ class Cirrusly_Commerce_Badges_Pro {
             'number'  => 5,
             'status'  => 'approve',
             'type'    => 'review',
+            'orderby' => 'comment_date',
+            'order'   => 'DESC',
         ) ); 
         
         if ( empty( $comments ) ) {
@@ -112,7 +115,7 @@ class Cirrusly_Commerce_Badges_Pro {
             $service = new Google\Service\CloudNaturalLanguage( $client );
             
             $combined_text = implode( "\n\n", array_map( function( $c ) {
-                return $c->comment_content;
+                return wp_strip_all_tags( $c->comment_content );
             }, $comments ) );
             
             $doc = new Google\Service\CloudNaturalLanguage\Document();
