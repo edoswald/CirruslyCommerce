@@ -140,9 +140,13 @@ class Cirrusly_Commerce_Core {
      * @return bool `true` if Pro features are available, `false` otherwise.
      */
     public static function cirrusly_is_pro() {
-        // (Keep existing Freemius check logic)
-        if ( defined('WP_DEBUG') && WP_DEBUG && current_user_can('manage_options') && isset( $_GET['cc_dev_mode'] ) ) {
-             return $_GET['cc_dev_mode'] === 'pro';
+    // Dev mode bypass - requires explicit constant opt-in
+    if ( defined('CIRRUSLY_DEV_MODE') && CIRRUSLY_DEV_MODE 
+         && defined('WP_DEBUG') && WP_DEBUG 
+         && current_user_can('manage_options') 
+         && isset( $_GET['cc_dev_mode'] ) ) {
+         // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+         return sanitize_text_field( wp_unslash( $_GET['cc_dev_mode'] ) ) === 'pro';
         }
         if ( function_exists( 'cc_fs' ) ) {
              return cc_fs()->can_use_premium_code();

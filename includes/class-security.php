@@ -59,4 +59,3 @@ class Cirrusly_Commerce_Security {
     }
 
 }
-?>

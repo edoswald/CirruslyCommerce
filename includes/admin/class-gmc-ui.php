@@ -384,8 +384,16 @@ class Cirrusly_Commerce_GMC_UI {
         }
 
         if ( $filter_promo ) {
-            $products = get_posts( array( 'post_type'=>'product', 'posts_per_page'=>-1, 'meta_key'=>'_gmc_promotion_id', 'meta_value'=>$filter_promo ) );
-            echo '<hr><h3>Managing: '.esc_html($filter_promo).'</h3>';
+        $paged = isset( $_GET['paged'] ) ? max( 1, intval( $_GET['paged'] ) ) : 1;
+        $per_page = 100;
+        $products = get_posts( array( 
+            'post_type'      => 'product', 
+            'posts_per_page' => $per_page,
+            'paged'          => $paged,
+           'meta_key'       => '_gmc_promotion_id', 
+            'meta_value'     => $filter_promo 
+        ) );
+        // Add pagination UI below the table            echo '<hr><h3>Managing: '.esc_html($filter_promo).'</h3>';
             echo '<form method="post">';
             wp_nonce_field( 'cirrusly_promo_bulk', 'cc_promo_nonce' );
             echo '<div style="background:#e5e5e5; padding:10px; margin-bottom:10px;">With Selected: <input type="text" name="gmc_new_promo_id" placeholder="New ID"> <button type="submit" name="gmc_promo_bulk_action" value="update" class="button">Move</button> <button type="submit" name="gmc_promo_bulk_action" value="remove" class="button">Remove</button></div>';
@@ -623,13 +631,24 @@ class Cirrusly_Commerce_GMC_UI {
         }
 
         // 2. Scan Local Products
+        // Batch size for processing
+        $batch_size = 100;
+        $offset = get_transient( 'cirrusly_scan_offset' ) ?: 0;
+
         $args = array(
             'post_type'      => 'product',
-            'posts_per_page' => -1,
+            'posts_per_page' => $batch_size,
+            'offset'         => $offset,
             'post_status'    => 'publish',
             'fields'         => 'ids'
         );
         $products = get_posts( $args );
+
+        // Store progress and schedule continuation if needed
+        if ( count( $products ) === $batch_size ) {
+            set_transient( 'cirrusly_scan_offset', $offset + $batch_size, 300 );
+        // Add UI feedback: "Scanning... {$offset} products processed"
+        }
 
         foreach ( $products as $pid ) {
             $product_issues = array();
@@ -701,7 +720,8 @@ class Cirrusly_Commerce_GMC_UI {
         }
 
         // Scan Pages
-        $pages = get_pages();
+        $pages = get_pages( array( 'number' => 500 ) ); // Limit to reasonable batch
+        // Consider adding pagination UI or background processing
         foreach ( $pages as $page ) {
             $found_in_page = array();
             $content = $page->post_title . ' ' . $page->post_content;
@@ -727,8 +747,13 @@ class Cirrusly_Commerce_GMC_UI {
         }
 
         // Scan Products
-        $products = get_posts( array( 'post_type' => 'product', 'posts_per_page' => -1 ) );
-        foreach ( $products as $prod ) {
+        $products = get_posts( array( 
+            'post_type'      => 'product', 
+            'posts_per_page' => 500,
+            'fields'         => 'ids',
+            'no_found_rows'  => true
+        ) );
+        // Add pagination or Action Scheduler for background processing        foreach ( $products as $prod ) {
             $found_in_prod = array();
             $content = $prod->post_title . ' ' . $prod->post_content;
 

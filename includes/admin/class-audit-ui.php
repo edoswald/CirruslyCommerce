@@ -93,7 +93,7 @@ class Cirrusly_Commerce_Audit_UI {
         $orderby = isset($_GET['orderby']) ? sanitize_text_field(wp_unslash($_GET['orderby'])) : 'margin';
         $allowed_orderby = array('cost', 'price', 'ship_pl', 'net', 'margin');
         if (!in_array($orderby, $allowed_orderby, true)) {
-        $orderby = 'margin';
+            $orderby = 'margin';
         }
         $order = isset($_GET['order']) ? sanitize_text_field(wp_unslash($_GET['order'])) : 'asc';
 
