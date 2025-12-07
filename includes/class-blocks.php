@@ -141,13 +141,17 @@ class Cirrusly_Commerce_Blocks {
         // Priority 1: Smart / Meta (if enabled)
         if ( ! empty( $attributes['useMeta'] ) ) {
              if ( class_exists( 'Cirrusly_Commerce_Countdown' ) ) {
+                 // FIXED: Call the correct method that returns the config array
                  $config = Cirrusly_Commerce_Countdown::get_smart_countdown_config( $product );
-                 if ( $config && ! empty( $config['end'] ) ) {
+                 
+                 // SAFEGUARD: Check if we actually got an array with an end date
+                 if ( $config && is_array( $config ) && ! empty( $config['end'] ) ) {
                      $end_date = $config['end'];
                  }
              }
         }
-        // Priority 2: Manual Override
+        
+        // Priority 2: Manual Override (Block Attributes)
         if ( ! $end_date && ! empty( $attributes['manualDate'] ) ) {
             $end_date = $attributes['manualDate'];
         }
@@ -179,8 +183,7 @@ class Cirrusly_Commerce_Blocks {
 
         $html = '';
         if ( class_exists( 'Cirrusly_Commerce_Badges' ) ) {
-            $badges = new Cirrusly_Commerce_Badges();
-            $html = $badges->get_badge_html( $product );
+            $html = Cirrusly_Commerce_Badges::get_badge_html( $product );
         }
 
         if ( empty( $html ) ) {

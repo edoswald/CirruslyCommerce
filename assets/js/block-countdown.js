@@ -62,7 +62,7 @@
                         )
                     )
                 ),
-                el( 'div', useBlockProps( { className: 'cirrusly-countdown-block-editor' } ),
+                el( 'div', Object.assign( { key: 'content' }, useBlockProps( { className: 'cirrusly-countdown-block-editor' } ) ),
                     el( ServerSideRender, {
                         block: 'cirrusly/countdown',
                         attributes: attributes

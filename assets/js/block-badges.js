@@ -36,7 +36,7 @@
                         } )
                     )
                 ),
-                el( 'div', useBlockProps( { className: 'cirrusly-badges-block-editor' } ),
+                el( 'div', Object.assign( { key: 'content' }, useBlockProps( { className: 'cirrusly-badges-block-editor' } ) ),
                     el( ServerSideRender, {
                         block: 'cirrusly/badges',
                         attributes: attributes
