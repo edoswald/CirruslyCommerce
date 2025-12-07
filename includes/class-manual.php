@@ -16,7 +16,7 @@ class Cirrusly_Commerce_Manual {
                 .cc-manual-list li { margin-bottom: 8px; line-height: 1.5; }
                 .cc-callout { background: #f0f6fc; border-left: 4px solid #72aee6; padding: 15px; margin: 15px 0; }
                 .cc-alert { background: #fcf0f1; border-left: 4px solid #d63638; padding: 15px; margin: 15px 0; }
-                .cc-notice-top { background: #fff; border-left: 4px solid #00a32a; box-shadow: 0 1px 1px rgba(0,0,0,.04); padding: 12px; margin-bottom: 20px; }
+                .cc-tip { background: #f0f9eb; border-left: 4px solid #00a32a; padding: 15px; margin: 15px 0; }
                 code { background: #f0f0f1; padding: 2px 5px; border-radius: 3px; }
             </style>
 
@@ -24,21 +24,23 @@ class Cirrusly_Commerce_Manual {
                 <p style="margin:0;"><strong>🚧 Work in Progress:</strong> We are currently working on a comprehensive version of this manual. In the meantime, please feel free to email us directly at <a href="mailto:support@cirruslyweather.com">support@cirruslyweather.com</a> with any questions.</p>
             </div>
 
+
             <div class="card" style="max-width: 1000px; padding: 40px; margin-top: 20px;">
                 <h2 style="margin-top:0;">Cirrusly Commerce User Manual</h2>
                 <p><strong>Version:</strong> <?php echo esc_html( CIRRUSLY_COMMERCE_VERSION ); ?></p>
                 <hr>
-                <nav class="cc-manual-nav" style="background:#f0f6fc; padding:15px; border-radius:4px; margin-bottom:30px;">
+                <nav class="cc-manual-nav" style="background:#f0f6fc; padding:15px; border-radius:4px; margin-bottom:30px; line-height: 2;">
                     <strong>Quick Links:</strong> 
                     <a href="#intro">Introduction</a>
-                    <a href="#dashboard">Dashboard</a>
+                    <a href="#dashboard">Dashboard & Widgets</a>
                     <a href="#gmc">GMC Hub</a>
-                    <a href="#api-setup">Google API Setup</a>
+                    <a href="#reviews">Google Reviews</a>
                     <a href="#audit">Financial Audit</a>
                     <a href="#profit">Profit Engine</a>
-                    <a href="#pricing">Pricing Engine</a>
+                    <a href="#pricing">Pricing & MSRP</a>
                     <a href="#countdown">Countdown Timer</a>
                     <a href="#badges">Badge Manager</a>
+                    <a href="#reports">Email Reports</a>
                     <a href="#troubleshoot">Troubleshooting</a>
                 </nav>
 
@@ -48,235 +50,165 @@ class Cirrusly_Commerce_Manual {
                 </div>
 
                 <div class="cc-manual-section" id="dashboard">
-                    <h3>Dashboard Overview</h3>
-                    <p>The <strong>Dashboard</strong> acts as your mission control, providing a real-time snapshot of your store's health.</p>
+                    <h3>Dashboard & Widgets</h3>
+                    <p>The <strong>Dashboard</strong> acts as your mission control, providing a real-time snapshot of your store's health. Additionally, a summary widget is available on your main WordPress Dashboard.</p>
+                    
+                    <h4>Main Dashboard (Cirrusly Commerce > Dashboard)</h4>
                     <ul class="cc-manual-list">
-                        <li><strong>Catalog Metrics:</strong> View your total product count, how many items are currently On Sale, and the calculated Average Margin across your entire catalog.</li>
-                        <li><strong>GMC Health:</strong> A color-coded card showing Critical Issues (Red) and Warnings (Orange). Critical issues prevent products from being approved by Google.</li>
-                        <li><strong>Store Integrity:</strong> Tracks products with "Missing Cost." Without a Cost of Goods Sold (COGS) value, the plugin cannot calculate your profit. Use the "Open Audit" button to fix these.</li>
-                        <li><strong>System Info:</strong> Access the "System Info" toggle in the top header to copy your environment details for support requests.</li>
+                        <li><strong>Store Pulse:</strong> A 7-day rolling view of your Revenue and Order count.</li>
+                        <li><strong>Catalog Metrics:</strong> View your total product count, On Sale items, Low Stock alerts, and calculated Average Margin.</li>
+                        <li><strong>GMC Health:</strong> A color-coded card showing Critical Issues (Red) and Warnings (Orange).</li>
+                        <li><strong>Store Integrity:</strong> Tracks products with "Missing Cost." Without a Cost of Goods Sold (COGS) value, profit cannot be calculated.</li>
                     </ul>
+
+                    <h4>WordPress Admin Widget</h4>
+                    <p>We inject a "Cirrusly Commerce Overview" widget onto your main WordPress start screen. This allows you to see your <strong>Revenue Pulse</strong> and <strong>Critical GMC Issues</strong> immediately after logging in, without navigating to the plugin settings.</p>
                 </div>
 
                 <div class="cc-manual-section" id="gmc">
                     <h3>GMC Hub</h3>
-                    <p>Located at <em>Cirrusly Commerce > GMC Hub</em>. This module ensures your data meets Google's strict policies to prevent account suspensions.</p>
+                    <p>Located at <em>Cirrusly Commerce > GMC Hub</em>. This module ensures your data meets Google's strict policies.</p>
 
                     <h4>1. Health Check (Scan)</h4>
-                    <p>The scanner analyzes your product titles and descriptions for restricted terms and validates required identifiers (GTIN/EAN).</p>
+                    <p>The scanner analyzes your product titles and descriptions for restricted terms and validates required identifiers (GTIN/EAN). You can schedule this to run automatically in <em>Settings > General</em>.</p>
                     <ul class="cc-manual-list">
-                        <li><strong>Mark Custom:</strong> If a product (like a handmade item) has no GTIN, click "Mark Custom" in the results. This sets <code>identifier_exists</code> to "no" for Google feeds.</li>
-                        <li><strong>Block Save on Critical Error:</strong> <span class="cc-manual-pro">PRO</span> Prevents you from saving a product if it contains banned medical terms (e.g., "Cure", "COVID"), stopping accidental policy violations.</li>
-                        <li><strong>Auto-strip Banned Words:</strong> <span class="cc-manual-pro">PRO</span> Automatically removes known banned words from product titles during the scan process.</li>
+                        <li><strong>Mark Custom:</strong> If a product (like a handmade item) has no GTIN, click "Mark Custom" to set <code>identifier_exists</code> to "no".</li>
+                        <li><strong>Block Save on Critical Error:</strong> <span class="cc-manual-pro">PRO</span> Prevents saving products containing banned medical terms (e.g., "Cure", "COVID").</li>
+                        <li><strong>Service Account Integration:</strong> <span class="cc-manual-pro">PRO</span> By uploading your Google Cloud Service Account JSON in Settings, you unlock direct API communication for faster updates.</li>
                     </ul>
 
                     <h4>2. Promotion Manager</h4>
-                    <p>Easily manage "Merchant Promotions" (coupon codes displayed on Google Shopping ads).</p>
+                    <p>Manage "Merchant Promotions" (coupon codes displayed on Google Shopping ads).</p>
                     <ul class="cc-manual-list">
-                        <li><strong>ID Generation:</strong> Automatically generates valid <code>promotion_id</code> strings for your feeds based on WooCommerce coupons.</li>
-                        <li><strong>One-Click Submit:</strong> <span class="cc-manual-pro">PRO</span> Sends promotion data directly to Google via the Content API, bypassing the need for manual CSV uploads in Merchant Center. <strong>Requires Service Account.</strong></li>
+                        <li><strong>ID Generation:</strong> Automatically generates valid <code>promotion_id</code> strings for your feeds.</li>
+                        <li><strong>One-Click Submit:</strong> <span class="cc-manual-pro">PRO</span> Sends promotion data directly to Google via the Content API, bypassing manual CSV uploads. <strong>Requires Service Account.</strong></li>
                     </ul>
 
                     <h4>3. Site Content Scan</h4>
-                    <p>Scans your WordPress Pages (Refund Policy, Terms of Service, Contact) to ensure you meet Google's "Misrepresentation" policy requirements. It checks for required legal text and secure checkout indicators.</p>
+                    <p>Scans WordPress Pages (Refund Policy, TOS, Contact) to ensure they meet Google's "Misrepresentation" policy requirements.</p>
                 </div>
 
-                <div class="cc-manual-section" id="api-setup">
-                    <h3>Google Service Account Setup <span class="cc-manual-pro">PRO</span></h3>
-                    <p>To use advanced features like <strong>One-Click Promotions</strong> and <strong>AI Content Scanning</strong>, you must connect Cirrusly Commerce to your Google Merchant Center via a Service Account.</p>
-                    
-                    <div class="cc-callout">
-                        <strong>What is a Service Account?</strong><br>
-                        It is a "Robot User" that you create in the Google Cloud Console. You give this robot permission to talk to your Merchant Center so it can upload promotions and scan data automatically.
+                <div class="cc-manual-section" id="reviews">
+                    <h3>Google Customer Reviews</h3>
+                    <p>Located in <em>Settings > General</em>. This feature integrates the Google Customer Reviews survey opt-in on your "Order Received" (Thank You) page.</p>
+                    <ol class="cc-manual-list">
+                        <li>Go to <em>Settings > General</em>.</li>
+                        <li>Enter your <strong>Merchant ID</strong>.</li>
+                        <li>Check "Enable Survey".</li>
+                    </ol>
+                    <div class="cc-tip">
+                        <strong>Note:</strong> The survey only appears to customers after they complete a purchase. Google handles the email delivery based on the estimated delivery date.
                     </div>
-
-                    <h4>Step 1: Create Project & Enable API</h4>
-                    <ol class="cc-manual-list">
-                        <li>Go to the <a href="https://console.cloud.google.com/" target="_blank">Google Cloud Console</a>.</li>
-                        <li>Create a <strong>New Project</strong> (name it something like "Cirrusly Commerce Connector").</li>
-                        <li>Using the search bar at the top, search for <strong>"Content API for Shopping"</strong> and click <strong>Enable</strong>.</li>
-                        <li>(Optional) Search for <strong>"Cloud Natural Language API"</strong> and click <strong>Enable</strong> (required for Medical Term AI detection).</li>
-                    </ol>
-
-                    <h4>Step 2: Create Credentials (JSON Key)</h4>
-                    <ol class="cc-manual-list">
-                        <li>In the Google Cloud sidebar, go to <strong>IAM & Admin > Service Accounts</strong>.</li>
-                        <li>Click <strong>Create Service Account</strong>. Give it a name (e.g., "shop-manager") and click "Done".</li>
-                        <li>You will see the new account in the list. Copy the <strong>Email Address</strong> (e.g., <code>shop-manager@project-id.iam.gserviceaccount.com</code>). <em>You will need this for Step 3.</em></li>
-                        <li>Click on the email address to open details. Go to the <strong>Keys</strong> tab.</li>
-                        <li>Click <strong>Add Key > Create New Key</strong>. Select <strong>JSON</strong> and click Create.</li>
-                        <li>A file will download to your computer. Open this file with Notepad or a Text Editor.</li>
-                    </ol>
-
-                    <h4>Step 3: Grant Access in Merchant Center (Crucial!)</h4>
-                    <div class="cc-alert">
-                        <strong>STOP! Do not skip this step.</strong><br>
-                        Creating the key is not enough. You must tell Google Merchant Center that this specific "Robot User" is allowed to access your store.
-                    </div>
-                    <ol class="cc-manual-list">
-                        <li>Log into your <a href="https://merchants.google.com/" target="_blank">Google Merchant Center</a>.</li>
-                        <li>Click the <strong>Settings (Gear Icon)</strong> > <strong>People & Access</strong>.</li>
-                        <li>Click <strong>Add User</strong>.</li>
-                        <li>Paste the <strong>Service Account Email</strong> you copied in Step 2.</li>
-                        <li>Grant it <strong>Standard</strong> or <strong>Admin</strong> access.</li>
-                    </ol>
-
-                    <h4>Step 4: Save in Plugin</h4>
-                    <ol class="cc-manual-list">
-                        <li>Go to your WordPress Admin > <em>Cirrusly Commerce > Settings</em>.</li>
-                        <li>Paste the <strong>Merchant Center ID</strong> (found in the top right of your Google Merchant Center).</li>
-                        <li>Copy the <strong>entire contents</strong> of the JSON file you downloaded in Step 2.</li>
-                        <li>Paste it into the <strong>Service Account JSON</strong> field in the settings.</li>
-                        <li>Click Save.</li>
-                    </ol>
                 </div>
 
                 <div class="cc-manual-section" id="audit">
                     <h3>Financial Audit</h3>
-                    <p>Located at <em>Cirrusly Commerce > Financial Audit</em>. This spreadsheet-like view allows for rapid financial optimization of your catalog.</p>
+                    <p>Located at <em>Cirrusly Commerce > Financial Audit</em>. This spreadsheet-like view allows for rapid financial optimization.</p>
                     <ul class="cc-manual-list">
-                        <li><strong>The Grid:</strong> Columns include Cost, Price, Net Margin (Profit %), and Stock status.</li>
-                        <li><strong>Visual Alerts:</strong> Products with <strong>0.00</strong> cost are flagged red. Low margin products (< 15%) are highlighted yellow.</li>
-                        <li><strong>Inline Edit:</strong> <span class="cc-manual-pro">PRO</span> Click directly on the "Cost" or "Est. Shipping" values in the table to update them instantly via AJAX without reloading the page.</li>
-                        <li><strong>Bulk Tools:</strong> <span class="cc-manual-pro">PRO</span> Use the "Import COGS" feature to upload a simple CSV (ID, Cost) to update thousands of products at once.</li>
+                        <li><strong>Visual Alerts:</strong> Products with <strong>0.00</strong> cost are flagged red. Low margin products (< 15%) are yellow.</li>
+                        <li><strong>Inline Edit:</strong> <span class="cc-manual-pro">PRO</span> Click directly on the "Cost" or "Est. Shipping" values in the table to update them instantly via AJAX.</li>
+                        <li><strong>Filtering:</strong> Use the filters to show only "Loss Makers" (negative profit) or "Missing Cost" items.</li>
                     </ul>
                 </div>
 
                 <div class="cc-manual-section" id="profit">
                     <h3>Profit Engine</h3>
-                    <p>Navigate to <em>Cirrusly Commerce > Settings > Profit Engine</em>. These global settings drive the "Net Profit" calculations used throughout the plugin.</p>
-                    
-                    <div class="cc-callout">
-                        <strong>Why is this important?</strong><br>
-                        WooCommerce only knows your product price. To calculate <em>Profit</em>, Cirrusly Commerce needs to know your costs: <strong>Cost of Goods + Shipping Label Cost + Payment Fees</strong>.
-                    </div>
+                    <p>Navigate to <em>Cirrusly Commerce > Settings > Profit Engine</em>. These global settings drive the "Net Profit" calculations.</p>
 
                     <h4>1. Payment Processor Fees</h4>
                     <p>Define the transaction fees deducted from your revenue.</p>
                     <ul class="cc-manual-list">
-                        <li><strong>Standard:</strong> Enter your primary rate (e.g., Stripe is 2.9% + $0.30).</li>
-                        <li><strong>Mixed Mode:</strong> <span class="cc-manual-pro">PRO</span> If you use multiple gateways (e.g., PayPal and Stripe), enable "Mixed Mode" to blend the rates based on your split (e.g., 60% Stripe, 40% PayPal) for a more accurate average cost.</li>
+                        <li><strong>Single Mode:</strong> Enter your primary rate (e.g., Stripe is 2.9% + $0.30).</li>
+                        <li><strong>Mixed Mode:</strong> <span class="cc-manual-pro">PRO</span> If you use multiple gateways (e.g., PayPal + Stripe), enable "Mixed Mode". You can define a "Profile Split" (e.g., 60% of orders use Primary, 40% use Secondary) to blend the fees into a weighted average cost.</li>
                     </ul>
 
-                    <h4>2. Shipping Revenue Tiers</h4>
-                    <p>Define what the <em>customer pays</em> for shipping based on the cart total. This is your shipping revenue.</p>
-                    <ul>
-                        <li>Example: Orders $0-$50 pay $5.99 shipping.</li>
-                        <li>Example: Orders $50+ pay $0.00 (Free Shipping).</li>
-                    </ul>
+                    <h4>2. Shipping Revenue Tiers & Costs</h4>
+                    <p><strong>Revenue Tiers:</strong> Define what the customer pays (e.g., Orders $0-$50 pay $5.99).<br>
+                    <strong>Internal Costs:</strong> Define what YOU pay per Shipping Class (e.g., "Heavy" items cost $15.00 to ship).</p>
 
-                    <h4>3. Internal Shipping Cost</h4>
-                    <p>Define what <em>you pay</em> to buy the shipping label. This is set per <strong>Shipping Class</strong>.</p>
-                    <ul>
-                        <li>If a product is in the "Heavy" class, you might define the cost as $15.00.</li>
-                        <li>The system subtracts this cost from the shipping revenue to find the "Shipping Margin".</li>
-                    </ul>
-
-                    <h4>4. Scenario Matrix</h4>
-                    <p>Create multipliers to model expensive scenarios (e.g., "Overnight Shipping" = 5.0x Base Cost). Use these in the Pricing Engine to ensure you don't lose money on expedited orders.</p>
+                    <h4>3. Scenario Matrix</h4>
+                    <p>Create multipliers to model expensive scenarios (e.g., "Overnight Shipping" = 5.0x Base Cost). These appear in the Product Pricing calculator to test "What if?" scenarios.</p>
                 </div>
 
                 <div class="cc-manual-section" id="pricing">
-                    <h3>Pricing Engine (Product Editor)</h3>
-                    <p>Located on the "General" tab of the WooCommerce product edit screen. This panel provides real-time feedback on your item's profitability.</p>
+                    <h3>Pricing Engine & MSRP</h3>
+                    
+                    <h4>Real-Time Calculator</h4>
+                    <p>On the product edit screen ("General" tab), the Pricing Engine bar updates instantly as you type a price. It subtracts COGS, Payment Fees, and Shipping Costs to show <strong>Net Margin %</strong>.</p>
+
+                    <h4>MSRP / RRP Display</h4>
+                    <p>You can display a strike-through "List Price" on the frontend.</p>
                     <ul class="cc-manual-list">
-                        <li><strong>Financial Inputs:</strong> Enter <strong>MSRP</strong> (Retail Price), <strong>MAP</strong> (Min Advertised Price), and <strong>Google Min</strong> (lowest auto-price).</li>
-                        <li><strong>Real-Time Calculator:</strong> As you type a price, the "Net Margin" bar updates instantly. It accounts for the COGS, Payment Fees (from settings), and Shipping Costs (from settings).</li>
-                        <li><strong>Pricing Toolbar:</strong> Use the dropdown to auto-calculate a price based on common strategies.
-                            <ul>
-                                <li><em>Strategies:</em> 5-40% Off MSRP, Target 20% Margin, Match Competitor.</li>
-                                <li><em>Psychological Rounding:</em> Automatically round calculated prices to <strong>.99</strong>, <strong>.50</strong>, or the <strong>Nearest 5</strong> (e.g., 12.43 becomes 15.00).</li>
-                            </ul>
-                        </li>
+                        <li><strong>Enable:</strong> Go to <em>Settings > General > Frontend Display</em>.</li>
+                        <li><strong>Positioning:</strong> Choose where the MSRP appears on the <strong>Product Page</strong> (e.g., Before Price, Inline, After Meta) and on the <strong>Loop/Catalog</strong> (e.g., Before Price).</li>
+                        <li><strong>Block Themes:</strong> If you use a Full Site Editing (FSE) theme, use the dedicated <strong>"MSRP Display" Block</strong> in the editor.</li>
                     </ul>
                 </div>
 
                 <div class="cc-manual-section" id="countdown">
                     <h3>Countdown Timer</h3>
-                    <p>Create urgency with lightweight, CLS-free countdown timers on your product pages.</p>
+                    <p>Create urgency with lightweight, CLS-free countdown timers.</p>
                     
-                    <h4>Method 1: Manual (Per Product)</h4>
-                    <p>Go to the <strong>Product Data > General</strong> tab. Enter a date and time in the <strong>"Sale Timer End"</strong> field (Format: YYYY-MM-DD HH:MM). A countdown will appear above the price until that time is reached.</p>
-
-                    <h4>Method 2: Smart Rules <span class="cc-manual-pro">PRO</span></h4>
-                    <p>Go to <em>Cirrusly Commerce > Settings > General</em> (bottom of page). You can create rules to auto-inject timers based on taxonomy.</p>
+                    <h4>Smart Rules <span class="cc-manual-pro">PRO</span></h4>
+                    <p>In <em>Settings > General</em>, scroll to "Smart Countdown Rules". You can auto-inject timers onto products based on taxonomy.</p>
                     <ul>
-                        <li><strong>Taxonomy:</strong> e.g., <code>product_cat</code> (Category) or <code>product_tag</code> (Tag).</li>
-                        <li><strong>Term:</strong> The slug of the category (e.g., <code>summer-sale</code>).</li>
-                        <li><strong>End Date:</strong> The expiry date for the entire group.</li>
+                        <li><strong>Taxonomy:</strong> <code>product_cat</code>, <code>product_tag</code>, or <code>product_brand</code> (depending on plugin).</li>
+                        <li><strong>Term:</strong> The slug (e.g., <code>flash-sale</code>).</li>
+                        <li><strong>End Date:</strong> YYYY-MM-DD HH:MM:SS format.</li>
                     </ul>
 
-                    <h4>Method 3: Shortcode</h4>
-                    <p>Place a timer anywhere (Descriptions, Blog Posts) using the shortcode, using the format below:</p>
-                    <code>[cw_countdown end="20XX-12-31 23:59" label="Sale Ends:" align="center"]</code>
+                    <h4>Shortcode</h4>
+                    <p>Place a timer manually in descriptions:</p>
+                    <code>[cw_countdown end="2025-12-31 23:59" label="Offer Ends:" align="center"]</code>
                 </div>
 
                 <div class="cc-manual-section" id="badges">
                     <h3>Badge Manager</h3>
-                    <p>Navigate to <em>Cirrusly Commerce > Settings > Badge Manager</em>. This module replaces standard "Sale" badges with dynamic, conversion-focused labels.</p>
+                    <p>Navigate to <em>Cirrusly Commerce > Settings > Badge Manager</em>.</p>
+                    
+                    <h4>Smart Badges <span class="cc-manual-pro">PRO</span></h4>
+                    <p>Toggle these automatic logic rules to boost conversion:</p>
                     <ul class="cc-manual-list">
-                        <li><strong>Discount Pills:</strong> Automatically displays "SAVE 20%" or "SAVE $15" based on the price difference.</li>
-                        <li><strong>Calculation Base:</strong> Choose to calculate savings against the <strong>MSRP</strong> (for deeper discount perception) or the <strong>Regular Price</strong>.</li>
-                        <li><strong>"New" Badge:</strong> Auto-labels products added within the last X days.</li>
-                        <li><strong>Custom Tag Badges:</strong> Upload custom icons (e.g., "Vegan", "Made in USA") that appear automatically on products tagged with specific WooCommerce tags.</li>
+                        <li><strong>Inventory:</strong> Displays a badge when stock is &le; 5 (uses WooCommerce stock management).</li>
+                        <li><strong>Performance:</strong> Displays a "Best Seller" badge on your top-performing products.</li>
+                        <li><strong>Scheduler:</strong> Displays an event badge (e.g., "Black Friday") across the store between specific dates.</li>
+                    </ul>
+
+                    <h4>Custom Tag Badges</h4>
+                    <p>Upload custom icons (e.g., "Vegan", "Made in USA") that appear automatically on products tagged with specific WooCommerce tags.</p>
+                </div>
+
+                <div class="cc-manual-section" id="reports">
+                    <h3>Email Reports & Alerts</h3>
+                    <p>Stay informed without logging in. Configure these in <em>Settings > General > Advanced Alerts</em>.</p>
+                    <ul class="cc-manual-list">
+                        <li><strong>Weekly Profit Report:</strong> <span class="cc-manual-pro">PRO</span> Sends a summary every week detailing revenue, orders, and total estimated margin.</li>
+                        <li><strong>Scan Reports:</strong> If "Enable Email Report" is checked in Automation settings, you will receive a digest whenever the Daily Health Scan finds new issues.</li>
+                        <li><strong>Instant Disapproval:</strong> <span class="cc-manual-pro">PRO</span> Receive an immediate email if the API detects a product has been disapproved by Google.</li>
                     </ul>
                 </div>
 
                 <div class="cc-manual-section" id="troubleshoot">
-                    <h3>Troubleshooting & Setup Issues</h3>
-                    <p>Common configuration pitfalls and how to solve them.</p>
-
+                    <h3>Troubleshooting</h3>
+                    
                     <h4>1. API Error: "User cannot access account"</h4>
-                    <p>This is the most common error when submitting Promotions.</p>
-                    <ul class="cc-manual-list">
-                        <li><strong>Cause:</strong> The Service Account (Step 2 above) was created, but not added to your Merchant Center users.</li>
-                        <li><strong>Solution:</strong> Review Step 3 in the <a href="#api-setup">Service Account Setup</a> section. You must add the <code>.iam.gserviceaccount.com</code> email as a user in Merchant Center.</li>
+                    <p><strong>Cause:</strong> The Service Account email (from your JSON file) has not been added to Google Merchant Center.</p>
+                    <p><strong>Fix:</strong> Log into Merchant Center > Settings > People & Access. Add the email address found in your JSON file (ending in <code>.iam.gserviceaccount.com</code>) as a user.</p>
+
+                    <h4>2. MSRP Not Showing</h4>
+                    <p>If enabled in settings but invisible:
+                    <ul>
+                        <li>Check if your theme hooks into standard WooCommerce locations.</li>
+                        <li>If using a Page Builder (Elementor/Divi), you may need to add the MSRP shortcode or block manually.</li>
                     </ul>
 
-                    <h4>2. GMC Updates Not Appearing Immediately</h4>
-                    <p>When you save a product, Cirrusly Commerce pushes the update to Google in the background.</p>
-                    <div class="cc-callout">
-                        <strong>Note:</strong> There is a built-in <strong>60-second delay</strong> after you click save. This ensures that all data (including variations) is fully saved in WooCommerce before we send it to Google to prevent sync errors. Please wait 1-2 minutes before checking Merchant Center.
-                    </div>
-
-                    <h4>3. MSRP Not Appearing on Frontend</h4>
-                    <p>If you have entered an MSRP but it is not showing on your product page:</p>
-                    <ul class="cc-manual-list">
-                        <li><strong>Check Settings:</strong> Go to <em>Cirrusly Commerce > Settings > Pricing</em> and ensure "Enable Frontend Display" is checked.</li>
-                        <li><strong>Block Themes (FSE):</strong> If you are using a modern Block Theme (like Twenty Twenty-Four), the standard WooCommerce hooks may not run. You must use the <strong>"MSRP Display" Block</strong> in the Site Editor to place the price manually.</li>
-                    </ul>
-
-                    <h4>4. Data Not Showing in Google Merchant Center</h4>
-                    <p>Cirrusly Commerce creates the data, but it does not generate the XML feed itself.</p>
-                    <div class="cc-callout">
-                        <strong>Solution:</strong> You must map the fields in your feed plugin (e.g., Product Feed PRO or CTX Feed).<br>
-                        <em>Example:</em> Map <code>g:price</code> to the standard Price, and map <code>g:sale_price</code> to our <strong>MSRP</strong> (<code>_alg_msrp</code>) if you want to show strike-through pricing on Google.
-                    </div>
-
-                    <h4>5. Profit Margin Seems Incorrect</h4>
-                    <p>If the "Net Profit" calculated on the product page looks too low or too high:</p>
-                    <ul class="cc-manual-list">
-                        <li><strong>Check Shipping Classes:</strong> Ensure the product is assigned a Shipping Class, and that you have defined a "Label Cost" for that class in <em>Settings > Profit Engine</em>.</li>
-                        <li><strong>Check Payment Fees:</strong> Verify your Payment Processor Fee settings. A default of 0% will make your profit look higher than it actually is.</li>
-                        <li><strong>Verify COGS:</strong> Ensure the "Cost of Goods" field is not empty or zero.</li>
-                    </ul>
+                    <h4>3. Profit Calculation Looks Wrong</h4>
+                    <p>Check <strong>Profit Engine > Payment Processor Fees</strong>. If set to 0%, your margin will look artificially high. Also ensure you have defined <strong>Internal Shipping Costs</strong> for your Shipping Classes.</p>
                 </div>
 
-                <div class="cc-manual-section" id="compat">
-                    <h3>Plugin Compatibility</h3>
-                    <p>Cirrusly Commerce integrates with the following plugins:</p>
-                    <ul class="cc-manual-list">
-                        <li><strong>Product Feed PRO (AdTribes):</strong> Custom fields (MSRP, MAP) appear in attribute mapping dropdowns automatically.</li>
-                        <li><strong>Rank Math &amp; Yoast SEO:</strong> MSRP/GTIN fields are registered for schema markup automatically.</li>
-                        <li><strong>WooCommerce Subscriptions:</strong> Pricing Engine supports recurring pricing fields.</li>
-                        <li><strong>Flexible Shipping:</strong> Detects shipping classes for cost calculation.</li>
-                        <li><strong>WPFactory MSRP:</strong> Shares the <code>_alg_msrp</code> key for seamless migration.</li>
-                    </ul>
-                </div>
-                
                 <div class="cc-manual-section" id="keys" style="border-bottom:0;">
                     <h3>Database Key Reference</h3>
-                    <p>For developers or custom feed configurations. Use these keys when mapping fields in your Feed plugin:</p>
+                    <p>For developers or custom feed configurations. Use these meta keys when mapping fields in your Feed plugin:</p>
                     <table class="widefat striped" style="max-width:600px;">
                         <thead><tr><th>Field</th><th>Meta Key</th></tr></thead>
                         <tbody>
@@ -286,8 +218,6 @@ class Cirrusly_Commerce_Manual {
                             <tr><td>MSRP Price</td><td><code>_alg_msrp</code></td></tr>
                             <tr><td>MAP Price</td><td><code>_cirrusly_map_price</code></td></tr>
                             <tr><td>Promotion ID</td><td><code>_gmc_promotion_id</code></td></tr>
-                            <tr><td>Custom Label 0</td><td><code>_gmc_custom_label_0</code></td></tr>
-                            <tr><td>Identifier Exists</td><td><code>_gla_identifier_exists</code></td></tr>
                             <tr><td>Sale Timer End</td><td><code>_cw_sale_end</code></td></tr>
                         </tbody>
                     </table>
