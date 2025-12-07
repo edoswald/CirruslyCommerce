@@ -4,6 +4,33 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 class Cirrusly_Commerce_Google_API_Client {
 
     /**
+     * Factory method to get an authenticated Google Client.
+     *
+     * @return Google\Client|WP_Error An authenticated Google Client object or WP_Error on failure.
+     */
+    public static function get_client() {
+        // Dependency check for the Google Client Library
+        if ( ! class_exists( 'Google\Client' ) ) {
+            return new WP_Error( 'missing_library', 'Google Client Library not found.' );
+        }
+
+        // Get the raw access token string
+        $token = self::get_access_token();
+
+        if ( is_wp_error( $token ) ) {
+            return $token;
+        }
+
+        try {
+            $client = new Google\Client();
+            $client->setAccessToken( $token );
+            return $client;
+        } catch ( Exception $e ) {
+            return new WP_Error( 'client_init_error', 'Failed to initialize Google Client: ' . $e->getMessage() );
+        }
+    }
+
+    /**
      * Obtains a Google OAuth access token using the stored Service Account JSON.
      *
      * @return string|WP_Error The OAuth access token on success. On failure a WP_Error is returned with one of these codes:

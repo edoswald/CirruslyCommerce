@@ -384,8 +384,8 @@ class Cirrusly_Commerce_GMC_UI {
         }
 
         if ( $filter_promo ) {
-            $products = get_posts( array( 'post_type'=>'product', 'posts_per_page'=>-1, 'meta_key'=>'_gmc_promotion_id', 'meta_value'=>$filter_promo ) );
-            echo '<hr><h3>Managing: '.esc_html($filter_promo).'</h3>';
+            $products = get_posts( array( 'post_type'=>'product', 'posts_per_page'=>100, 'meta_key'=>'_gmc_promotion_id', 'meta_value'=>$filter_promo ) );
+            // Consider adding pagination UI if more products exist            echo '<hr><h3>Managing: '.esc_html($filter_promo).'</h3>';
             echo '<form method="post">';
             wp_nonce_field( 'cirrusly_promo_bulk', 'cc_promo_nonce' );
             echo '<div style="background:#e5e5e5; padding:10px; margin-bottom:10px;">With Selected: <input type="text" name="gmc_new_promo_id" placeholder="New ID"> <button type="submit" name="gmc_promo_bulk_action" value="update" class="button">Move</button> <button type="submit" name="gmc_promo_bulk_action" value="remove" class="button">Remove</button></div>';
