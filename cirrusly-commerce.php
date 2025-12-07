@@ -152,6 +152,8 @@ class Cirrusly_Commerce_Main {
         new Cirrusly_Commerce_Compatibility();
         new Cirrusly_Commerce_Badges();
         new Cirrusly_Commerce_Countdown();
+        new Cirrusly_Commerce_Manual();
+
         
         // Only init Automated Discounts if the class was loaded (i.e., user is Pro)
         if ( class_exists( 'Cirrusly_Commerce_Automated_Discounts' ) ) {

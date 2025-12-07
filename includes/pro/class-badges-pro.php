@@ -38,11 +38,11 @@ class Cirrusly_Commerce_Badges_Pro {
 
         // 3. SMART: SCHEDULER (Date Range)
         if ( ! empty($badge_cfg['smart_scheduler']) && $badge_cfg['smart_scheduler'] === 'yes' ) {
-            $start = !empty($badge_cfg['scheduler_start']) ? strtotime($badge_cfg['scheduler_start']) : 0;
-            $end   = !empty($badge_cfg['scheduler_end']) ? strtotime($badge_cfg['scheduler_end']) : 0;
+            $start = !empty($badge_cfg['scheduler_start']) ? strtotime($badge_cfg['scheduler_start']) : false;
+            $end   = !empty($badge_cfg['scheduler_end']) ? strtotime($badge_cfg['scheduler_end']) : false;
             $now   = time();
 
-            if ( $start && $end && $now >= $start && $now <= $end ) {
+        if ( $start !== false && $end !== false && $now >= $start && $now <= $end ) {
                 $output .= '<span class="cw-badge-pill" style="background-color:#826eb4;">Event</span>';
             }
         }
@@ -93,6 +93,14 @@ class Cirrusly_Commerce_Badges_Pro {
         
         $client = Cirrusly_Commerce_Google_API_Client::get_client();
         if ( is_wp_error( $client ) ) return '';
+    
+        if ( ! class_exists( 'Google\Service\CloudNaturalLanguage' ) ) {
+            if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+                error_log( 'Cirrusly: Google Cloud Natural Language service class not found. Install google/apiclient-services.' );
+            }
+            set_transient( $cache_key, '', DAY_IN_SECONDS );
+            return '';
+        }
 
         try {
             $service = new Google\Service\CloudNaturalLanguage( $client );

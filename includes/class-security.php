@@ -56,6 +56,8 @@ class Cirrusly_Commerce_Security {
 
         $keys = self::get_keys();
         $data = base64_decode( $data );
+        if ( false === $data ) return false;
+
         $method = 'aes-256-cbc';
         $iv_length = openssl_cipher_iv_length( $method );
         $hmac_length = 32; // SHA-256 outputs 32 bytes
