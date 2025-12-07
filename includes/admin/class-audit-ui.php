@@ -4,7 +4,14 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 class Cirrusly_Commerce_Audit_UI {
 
     /**
-     * Render the Store Financial Audit admin page.
+     * Render the Store Financial Audit admin page and output its HTML interface.
+     *
+     * Renders dashboard metrics, filter controls, a sortable/paginated products table,
+     * and a PRO tools card. Processes filter, search, sort, and pagination inputs;
+     * may delete the audit transient when a refresh is requested; and delegates CSV
+     * import handling to the Pro handler when a valid import nonce is submitted.
+     * Verifies the current user has the 'edit_products' capability and terminates
+     * with "No permission" if the check fails.
      */
     public static function render_page() {
         if ( ! current_user_can( 'edit_products' ) ) wp_die( 'No permission' );
