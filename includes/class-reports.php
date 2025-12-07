@@ -14,7 +14,7 @@ class Cirrusly_Commerce_Reports {
         add_action( 'cirrusly_weekly_profit_report', array( __CLASS__, 'send_weekly_email' ) );
     }
 
-public static function send_weekly_email() {
+    public static function send_weekly_email() {
         // 1. Check if enabled
         $scan_cfg = get_option( 'cirrusly_scan_config', array() );
         
