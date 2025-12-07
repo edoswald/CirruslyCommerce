@@ -36,7 +36,7 @@ class Cirrusly_Commerce_Countdown {
      *
      * @return array The configured smart rules as an associative array, or an empty array if no rules exist or pro is inactive.
      */
-    private function get_smart_rules() {
+    private static function get_smart_rules() {
         // Only return rules if PRO is active
         if ( ! class_exists( 'Cirrusly_Commerce_Core' ) || ! Cirrusly_Commerce_Core::cirrusly_is_pro() ) {
             return array();
@@ -63,7 +63,45 @@ class Cirrusly_Commerce_Countdown {
 
         if ( empty( $a['end'] ) ) return '';
 
-        return $this->generate_timer_html( $a['end'], $a['label'], $a['align'] );
+        return self::generate_timer_html( $a['end'], $a['label'], $a['align'] );
+    }
+
+/**
+     * Helper to find the active configuration for a product.
+     * Returns array('end' => string, 'label' => string, 'align' => string) or false.
+     */
+    public static function get_smart_countdown_config( $product ) {
+        if ( ! is_object( $product ) ) return false;
+        $pid = $product->get_id();
+
+        // --- PRIORITY 1: Manual Product Meta ---
+        $manual_end = get_post_meta( $pid, '_cw_sale_end', true );
+        if ( ! empty( $manual_end ) && self::is_date_future( $manual_end ) ) {
+            // Manual meta always defaults to 'Sale Ends In:' and 'left' 
+            // per your original logic, unless you add meta fields for them later.
+            return array(
+                'end'   => $manual_end,
+                'label' => 'Sale Ends In:',
+                'align' => 'left'
+            );
+        }
+
+        // --- PRIORITY 2: Smart Rules (Pro Feature) ---
+        $rules = self::get_smart_rules();
+        foreach ( $rules as $rule ) {
+            if ( empty($rule['term']) || empty($rule['taxonomy']) || empty($rule['end']) ) continue;
+
+            if ( has_term( $rule['term'], $rule['taxonomy'], $pid ) ) {
+                 if ( self::is_date_future( $rule['end'] ) ) {
+                    return array(
+                        'end'   => $rule['end'],
+                        'label' => isset($rule['label']) ? $rule['label'] : 'Ends in:',
+                        'align' => isset($rule['align']) ? $rule['align'] : 'left',
+                    );
+                 }
+            }
+        }
+        return false;
     }
 
     /**
@@ -126,8 +164,7 @@ class Cirrusly_Commerce_Countdown {
      * @param string $align Alignment for the timer content: 'left', 'center', or 'right'.
      * @return string The rendered HTML for the countdown, or an empty string if the end date is past or invalid.
      */
-    private function generate_timer_html( $end_date, $label, $align ) {
-        // 1. Timezone & Target Calc
+    public static function generate_timer_html( $end_date, $label, $align ) {
         $timezone_string = get_option( 'timezone_string' ) ?: 'America/New_York';
         try {
             $dt = new DateTime( $end_date, new DateTimeZone( $timezone_string ) );
@@ -137,9 +174,8 @@ class Cirrusly_Commerce_Countdown {
         }
 
         $now = time();
-        if ( $target_timestamp < $now ) return ''; // Expired
+        if ( $target_timestamp < $now ) return ''; 
 
-        // 2. Pre-Calculate for CLS
         $diff = $target_timestamp - $now;
         $days = floor($diff / (60 * 60 * 24));
         $hours = floor(($diff % (60 * 60 * 24)) / (60 * 60));
@@ -189,7 +225,7 @@ class Cirrusly_Commerce_Countdown {
      * @param string $date_str A date/time string parseable by DateTime (in the site's timezone).
      * @return bool `true` if the parsed date/time is later than the current time, `false` otherwise or on parse failure.
      */
-    private function is_date_future( $date_str ) {
+    private static function is_date_future( $date_str ) {
         $timezone_string = get_option( 'timezone_string' ) ?: 'America/New_York';
         try {
             $dt = new DateTime( $date_str, new DateTimeZone( $timezone_string ) );

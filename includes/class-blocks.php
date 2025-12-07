@@ -21,115 +21,214 @@ class Cirrusly_Commerce_Blocks {
 	}
 
 	/**
-	 * Register the MSRP block and its editor script.
-	 *
-	 * Registers the block editor JavaScript under the handle `cirrusly-block-msrp`
-	 * and registers the block type `cirrusly/msrp`, wiring the editor script and
-	 * the server-side render callback.
+	 * Register blocks and editor scripts.
 	 */
 	public function register_blocks() {
-		// 1. Register the JavaScript file found in assets/js/
-		wp_register_script(
-			'cirrusly-block-msrp', // Handle
-			CIRRUSLY_COMMERCE_URL . 'assets/js/block-msrp.js', // Path to file
-			// Updated dependencies to include 'wp-server-side-render'
-			array( 'wp-blocks', 'wp-element', 'wp-editor', 'wp-components', 'wp-i18n', 'wp-server-side-render' ), 
-			CIRRUSLY_COMMERCE_VERSION,
-			true // Load in footer
-		);
+        $deps = array( 'wp-blocks', 'wp-element', 'wp-editor', 'wp-components', 'wp-i18n', 'wp-server-side-render', 'wp-date' );
 
-		// 2. Register the block type in PHP, linking it to the script above.
-        // FIX: Added render_callback so the block actually outputs HTML on the frontend
-register_block_type( 'cirrusly/msrp', array(
-    'editor_script' => 'cirrusly-block-msrp',
-    'render_callback' => array( $this, 'render_msrp_block' ),
-    'attributes' => array(
-        'textAlign' => array(
-            'type' => 'string',
-            'default' => 'left',
-        ),
-        'showStrikethrough' => array(
-            'type' => 'boolean',
-            'default' => true,
-        ),
-        'isBold' => array(
-            'type' => 'boolean',
-            'default' => false,
-        ),
-    ),
-) );
+		// 1. MSRP Block
+		wp_register_script(
+			'cirrusly-block-msrp',
+			CIRRUSLY_COMMERCE_URL . 'assets/js/block-msrp.js', 
+			$deps, 
+			CIRRUSLY_COMMERCE_VERSION,
+			true
+		);
+        register_block_type( 'cirrusly/msrp', array(
+            'editor_script' => 'cirrusly-block-msrp',
+            'render_callback' => array( $this, 'render_msrp_block' ),
+            'attributes' => array(
+                'textAlign' => array( 'type' => 'string', 'default' => 'left' ),
+                'showStrikethrough' => array( 'type' => 'boolean', 'default' => true ),
+                'isBold' => array( 'type' => 'boolean', 'default' => false ),
+            ),
+        ) );
+
+        // 2. Countdown Block
+        wp_register_script(
+            'cirrusly-block-countdown',
+            CIRRUSLY_COMMERCE_URL . 'assets/js/block-countdown.js',
+            $deps,
+            CIRRUSLY_COMMERCE_VERSION,
+            true
+        );
+        register_block_type( 'cirrusly/countdown', array(
+            'editor_script' => 'cirrusly-block-countdown',
+            'render_callback' => array( $this, 'render_countdown_block' ),
+            'attributes' => array(
+                'textAlign' => array( 'type' => 'string', 'default' => 'left' ),
+                'label' => array( 'type' => 'string', 'default' => 'Sale Ends In:' ),
+                'useMeta' => array( 'type' => 'boolean', 'default' => true ),
+                'manualDate' => array( 'type' => 'string', 'default' => '' ),
+            ),
+        ) );
+
+        // 3. Badges Block
+        wp_register_script(
+            'cirrusly-block-badges',
+            CIRRUSLY_COMMERCE_URL . 'assets/js/block-badges.js',
+            $deps,
+            CIRRUSLY_COMMERCE_VERSION,
+            true
+        );
+        register_block_type( 'cirrusly/badges', array(
+            'editor_script' => 'cirrusly-block-badges',
+            'render_callback' => array( $this, 'render_badges_block' ),
+            'attributes' => array(
+                'align' => array( 'type' => 'string', 'default' => 'left' ),
+            ),
+        ) );
+
+        // 4. Discount Notice Block
+        wp_register_script(
+            'cirrusly-block-discount-notice',
+            CIRRUSLY_COMMERCE_URL . 'assets/js/block-discount-notice.js',
+            $deps,
+            CIRRUSLY_COMMERCE_VERSION,
+            true
+        );
+        register_block_type( 'cirrusly/discount-notice', array(
+            'editor_script' => 'cirrusly-block-discount-notice',
+            'render_callback' => array( $this, 'render_discount_notice_block' ),
+            'attributes' => array(
+                'message' => array( 'type' => 'string', 'default' => '⚡ Exclusive Price Unlocked!' ),
+            ),
+        ) );
 	}
 
 	/**
-     * Render the MSRP block HTML for the current product.
+     * Render the MSRP block.
      */
     public function render_msrp_block( $attributes, $content ) {
         global $product;
-
-    // Check if productId attribute is set (for editor preview)
-    if ( isset( $attributes['productId'] ) && $attributes['productId'] > 0 ) {
-        $product = wc_get_product( $attributes['productId'] );
-    }
-        
-    // 1. Ensure we have a product object
-        if ( ! $product ) {
-            $product_id = get_the_ID();
-            if ( $product_id ) {
-                $product = wc_get_product( $product_id );
-            }
-        }
-        
-        // If still no product (e.g. on a standard post), return empty.
+        $product = $this->ensure_product_context( $attributes, $product );
         if ( ! $product || ! is_object( $product ) ) return '';
 
-        // 2. Get the raw MSRP HTML from your Pricing class
         $msrp_html = '';
         if ( class_exists( 'Cirrusly_Commerce_Pricing' ) ) {
             $msrp_html = Cirrusly_Commerce_Pricing::get_msrp_html( $product );
         }
         
-        // FIX: Handle "Edge Case" where the preview product has no MSRP.
         if ( empty( $msrp_html ) ) {
-            // Check if we are inside the Block Editor (REST API Request)
             if ( defined( 'REST_REQUEST' ) && REST_REQUEST ) {
-                // Return a placeholder so the block is visible and selectable in the editor
                 $msrp_html = '<div class="cw-msrp-container" style="color:#999;font-size:0.9em;margin-bottom:5px;line-height:1;border:1px dashed #ccc;padding:2px;">MSRP: <span class="cw-msrp-value" style="text-decoration:line-through;">$99.99</span> <small>(Preview)</small></div>';
             } else {
-                // On the Frontend, truly return empty if there is no MSRP
                 return '';
             }
         }
 
-        // 3. Process Attributes
         $align = isset( $attributes['textAlign'] ) ? $attributes['textAlign'] : 'left';
         $is_bold = isset( $attributes['isBold'] ) ? $attributes['isBold'] : false;
         $strikethrough = isset( $attributes['showStrikethrough'] ) ? $attributes['showStrikethrough'] : true;
 
-        // 4. Construct CSS Styles
-        $style_parts = array();
-        
-        // Alignment: We use text-align on a block-level container
-        $style_parts[] = 'text-align:' . esc_attr( $align );
-        $style_parts[] = 'display:block';
-        $style_parts[] = 'width:100%';
+        $style_parts = array( 'text-align:' . esc_attr( $align ), 'display:block', 'width:100%' );
+        if ( $is_bold ) $style_parts[] = 'font-weight:bold';
+        if ( ! $strikethrough ) $msrp_html = str_replace( 'text-decoration:line-through;', 'text-decoration:none;', $msrp_html );
 
-        if ( $is_bold ) {
-            $style_parts[] = 'font-weight:bold';
+        return sprintf( '<div class="cirrusly-msrp-block-wrapper" style="%s">%s</div>', implode( '; ', $style_parts ), $msrp_html );
+    }
+
+    /**
+     * Render the Countdown Block
+     */
+    public function render_countdown_block( $attributes, $content ) {
+        global $product;
+        $product = $this->ensure_product_context( $attributes, $product );
+        if ( ! $product || ! is_object( $product ) ) return '';
+
+        $end_date = '';
+
+        // Priority 1: Smart / Meta (if enabled)
+        if ( ! empty( $attributes['useMeta'] ) ) {
+             if ( class_exists( 'Cirrusly_Commerce_Countdown' ) ) {
+                 $end_date = Cirrusly_Commerce_Countdown::get_smart_end_date( $product );
+             }
+        }
+        // Priority 2: Manual Override
+        if ( ! $end_date && ! empty( $attributes['manualDate'] ) ) {
+            $end_date = $attributes['manualDate'];
         }
 
-        // Logic to remove strikethrough if disabled
-        if ( ! $strikethrough ) {
-            $msrp_html = str_replace( 'text-decoration:line-through;', 'text-decoration:none;', $msrp_html );
+        if ( empty( $end_date ) ) {
+             if ( defined( 'REST_REQUEST' ) && REST_REQUEST ) {
+                 return '<div style="padding:10px; border:1px dashed #ccc; text-align:center;">[Countdown Timer: No active date found for this product]</div>';
+             }
+             return '';
         }
 
-        // 5. Wrap and Return
-        $styles = implode( '; ', $style_parts );
+        if ( class_exists( 'Cirrusly_Commerce_Countdown' ) ) {
+            return Cirrusly_Commerce_Countdown::generate_timer_html( 
+                $end_date, 
+                $attributes['label'], 
+                $attributes['textAlign'] 
+            );
+        }
+        return '';
+    }
+
+    /**
+     * Render the Badges Block
+     */
+    public function render_badges_block( $attributes, $content ) {
+        global $product;
+        $product = $this->ensure_product_context( $attributes, $product );
+        if ( ! $product || ! is_object( $product ) ) return '';
+
+        $html = '';
+        if ( class_exists( 'Cirrusly_Commerce_Badges' ) ) {
+            $html = Cirrusly_Commerce_Badges::get_badge_html( $product );
+        }
+
+        if ( empty( $html ) ) {
+             if ( defined( 'REST_REQUEST' ) && REST_REQUEST ) {
+                 return '<div style="padding:5px; border:1px dashed #ccc; text-align:center;">[Smart Badges Placeholder]</div>';
+             }
+             return '';
+        }
+
+        $align = isset( $attributes['align'] ) ? $attributes['align'] : 'left';
+        return '<div class="cw-badge-container cw-block-render" style="text-align:' . esc_attr( $align ) . '">' . $html . '</div>';
+    }
+
+    /**
+     * Render the Discount Notice Block
+     */
+    public function render_discount_notice_block( $attributes, $content ) {
+        global $product;
+        $product = $this->ensure_product_context( $attributes, $product );
         
-        return sprintf( 
-            '<div class="cirrusly-msrp-block-wrapper" style="%s">%s</div>', 
-            esc_attr( $styles ), 
-            $msrp_html 
+        $has_discount = false;
+        if ( $product && class_exists( 'Cirrusly_Commerce_Automated_Discounts' ) ) {
+            $discount = Cirrusly_Commerce_Automated_Discounts::get_active_discount( $product->get_id() );
+            if ( $discount ) $has_discount = true;
+        }
+
+        // Preview in Editor
+        if ( defined( 'REST_REQUEST' ) && REST_REQUEST ) {
+            $has_discount = true; // Always show in editor so user can style it
+        }
+
+        if ( ! $has_discount ) return '';
+
+        $message = ! empty( $attributes['message'] ) ? $attributes['message'] : '⚡ Exclusive Price Unlocked!';
+        
+        return sprintf(
+            '<div class="cw-discount-notice" style="background:#e0f7fa; color:#006064; padding:10px; border-radius:4px; text-align:center; font-weight:bold; margin-bottom:15px;">%s</div>',
+            esc_html( $message )
         );
     }
 
+    /**
+     * Helper to get product object in Editor (using block attributes) or Frontend.
+     */
+    private function ensure_product_context( $attributes, $global_product ) {
+        if ( isset( $attributes['productId'] ) && $attributes['productId'] > 0 ) {
+            return wc_get_product( $attributes['productId'] );
+        }
+        if ( ! $global_product ) {
+            $product_id = get_the_ID();
+            if ( $product_id ) return wc_get_product( $product_id );
+        }
+        return $global_product;
+    }
 }
