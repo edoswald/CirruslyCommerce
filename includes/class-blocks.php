@@ -18,7 +18,25 @@ class Cirrusly_Commerce_Blocks {
 	 */
 	public function __construct() {
 		add_action( 'init', array( $this, 'register_blocks' ) );
+        // Register Custom Block Category
+        add_filter( 'block_categories_all', array( $this, 'register_block_category' ), 10, 2 );
 	}
+
+    /**
+     * Add "Cirrusly Commerce" to the Gutenberg Block Inserter.
+     */
+    public function register_block_category( $categories, $post ) {
+        return array_merge(
+            $categories,
+            array(
+                array(
+                    'slug'  => 'cirrusly',
+                    'title' => __( 'Cirrusly Commerce', 'cirrusly-commerce' ),
+                    'icon'  => 'cloud', // Dashicon
+                ),
+            )
+        );
+    }
 
 	/**
 	 * Register blocks and editor scripts.
@@ -102,7 +120,12 @@ class Cirrusly_Commerce_Blocks {
     public function render_msrp_block( $attributes, $content ) {
         global $product;
         $product = $this->ensure_product_context( $attributes, $product );
-        if ( ! $product || ! is_object( $product ) ) return '';
+        
+        // If still no product (empty store?), fail gracefully
+        if ( ! $product || ! is_object( $product ) ) {
+            if ( defined( 'REST_REQUEST' ) && REST_REQUEST ) return '<div class="cw-placeholder">Add a product to preview MSRP.</div>';
+            return '';
+        }
 
         $msrp_html = '';
         if ( class_exists( 'Cirrusly_Commerce_Pricing' ) ) {
@@ -121,13 +144,11 @@ class Cirrusly_Commerce_Blocks {
         $is_bold = isset( $attributes['isBold'] ) ? $attributes['isBold'] : false;
         $strikethrough = isset( $attributes['showStrikethrough'] ) ? $attributes['showStrikethrough'] : true;
 
-        $classes = array( 'cirrusly-msrp-block-wrapper' );
-        if ( ! $strikethrough ) $classes[] = 'no-strikethrough';
-        
         $style_parts = array( 'text-align:' . esc_attr( $align ), 'display:block', 'width:100%' );
         if ( $is_bold ) $style_parts[] = 'font-weight:bold';
+        if ( ! $strikethrough ) $msrp_html = str_replace( 'text-decoration:line-through;', 'text-decoration:none;', $msrp_html );
 
-        return sprintf( '<div class="%s" style="%s">%s</div>', esc_attr( implode( ' ', $classes ) 
+        return sprintf( '<div class="cirrusly-msrp-block-wrapper" style="%s">%s</div>', implode( '; ', $style_parts ), $msrp_html );
     }
 
     /**
@@ -136,17 +157,17 @@ class Cirrusly_Commerce_Blocks {
     public function render_countdown_block( $attributes, $content ) {
         global $product;
         $product = $this->ensure_product_context( $attributes, $product );
-        if ( ! $product || ! is_object( $product ) ) return '';
+        if ( ! $product || ! is_object( $product ) ) {
+             if ( defined( 'REST_REQUEST' ) && REST_REQUEST ) return '<div class="cw-placeholder">Add a product to preview Timer.</div>';
+             return '';
+        }
 
         $end_date = '';
 
         // Priority 1: Smart / Meta (if enabled)
         if ( ! empty( $attributes['useMeta'] ) ) {
              if ( class_exists( 'Cirrusly_Commerce_Countdown' ) ) {
-                 // FIXED: Call the correct method that returns the config array
                  $config = Cirrusly_Commerce_Countdown::get_smart_countdown_config( $product );
-                 
-                 // SAFEGUARD: Check if we actually got an array with an end date
                  if ( $config && is_array( $config ) && ! empty( $config['end'] ) ) {
                      $end_date = $config['end'];
                  }
@@ -181,7 +202,10 @@ class Cirrusly_Commerce_Blocks {
     public function render_badges_block( $attributes, $content ) {
         global $product;
         $product = $this->ensure_product_context( $attributes, $product );
-        if ( ! $product || ! is_object( $product ) ) return '';
+        if ( ! $product || ! is_object( $product ) ) {
+            if ( defined( 'REST_REQUEST' ) && REST_REQUEST ) return '<div class="cw-placeholder">Add a product to preview Badges.</div>';
+            return '';
+        }
 
         $html = '';
         if ( class_exists( 'Cirrusly_Commerce_Badges' ) ) {
@@ -190,7 +214,7 @@ class Cirrusly_Commerce_Blocks {
 
         if ( empty( $html ) ) {
              if ( defined( 'REST_REQUEST' ) && REST_REQUEST ) {
-                 return '<div style="padding:5px; border:1px dashed #ccc; text-align:center;">[Smart Badges Placeholder]</div>';
+                 return '<div style="padding:5px; border:1px dashed #ccc; text-align:center;">[Smart Badges: No active badges for product]</div>';
              }
              return '';
         }
@@ -204,17 +228,18 @@ class Cirrusly_Commerce_Blocks {
      */
     public function render_discount_notice_block( $attributes, $content ) {
         global $product;
+        // Notice block might be global, but usually context-aware
         $product = $this->ensure_product_context( $attributes, $product );
         
         $has_discount = false;
-        if ( $product && class_exists( 'Cirrusly_Commerce_Automated_Discounts' ) ) {
+        if ( $product && is_object($product) && class_exists( 'Cirrusly_Commerce_Automated_Discounts' ) ) {
             $discount = Cirrusly_Commerce_Automated_Discounts::get_active_discount( $product->get_id() );
             if ( $discount ) $has_discount = true;
         }
 
-        // Preview in Editor
+        // Always show in Editor
         if ( defined( 'REST_REQUEST' ) && REST_REQUEST ) {
-            $has_discount = true; // Always show in editor so user can style it
+            $has_discount = true; 
         }
 
         if ( ! $has_discount ) return '';
@@ -229,15 +254,40 @@ class Cirrusly_Commerce_Blocks {
 
     /**
      * Helper to get product object in Editor (using block attributes) or Frontend.
+     * UPDATED: Now fetches the latest product if no context is found in the Editor.
      */
     private function ensure_product_context( $attributes, $global_product ) {
+        // 1. Check if specific product ID passed via attributes (uncommon in basic blocks but possible)
         if ( isset( $attributes['productId'] ) && $attributes['productId'] > 0 ) {
             return wc_get_product( $attributes['productId'] );
         }
-        if ( ! $global_product ) {
-            $product_id = get_the_ID();
-            if ( $product_id ) return wc_get_product( $product_id );
+
+        // 2. Check Global Product (Frontend / Single Product Template)
+        if ( $global_product && is_object( $global_product ) ) {
+            return $global_product;
         }
-        return $global_product;
+
+        // 3. Try get_the_ID() - Works in Query Loops on Frontend
+        $post_id = get_the_ID();
+        if ( $post_id && 'product' === get_post_type( $post_id ) ) {
+            return wc_get_product( $post_id );
+        }
+
+        // 4. PREVIEW FIX: If we are in the REST API (Editor) and still have no product...
+        // This happens in Site Editor > Templates where get_the_ID() is the template ID.
+        if ( defined( 'REST_REQUEST' ) && REST_REQUEST ) {
+            // Fetch the most recent product to use as a mock
+            $recent_products = wc_get_products( array( 
+                'limit' => 1, 
+                'orderby' => 'date', 
+                'order' => 'DESC' 
+            ) );
+            
+            if ( ! empty( $recent_products ) ) {
+                return reset( $recent_products );
+            }
+        }
+
+        return null;
     }
 }
