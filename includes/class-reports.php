@@ -113,10 +113,8 @@ class Cirrusly_Commerce_Reports {
         // Store filter callback for proper removal
         $html_filter = function() { return 'text/html'; };
         
-        // FIX: Add From header here as well
-        $admin_email = get_option( 'admin_email' );
-        $site_title  = wp_specialchars_decode( get_option( 'blogname' ), ENT_QUOTES );
-        $headers     = array( "From: $site_title <$admin_email>" );
++        // Add From header for email authentication  
++        $headers = Cirrusly_Commerce_Core::get_email_from_header();  
 
         add_filter( 'wp_mail_content_type', $html_filter );
         wp_mail( $to, $subject, $message, $headers );

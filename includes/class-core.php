@@ -1482,8 +1482,8 @@ public function register_admin_menus() {
             // This ensures Gmail sees the email as authenticated (if the server allows sending as this address)
             $admin_email = get_option( 'admin_email' );
             $site_title  = wp_specialchars_decode( get_option( 'blogname' ), ENT_QUOTES );
-            $headers[]   = "From: $site_title <$admin_email>";
-
+            // Add From header for email authentication  
+            $headers = Cirrusly_Commerce_Core::get_email_from_header();  
             wp_mail( $to, $subject, $message, $headers );
         }
     }
