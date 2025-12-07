@@ -490,10 +490,11 @@ class Cirrusly_Commerce_Settings_Manager {
 
         // Matrix
         echo '<div class="cc-settings-card"><div class="cc-card-header"><h3>3. Scenario Matrix</h3></div><div class="cc-card-body"><table class="widefat striped cc-settings-table"><thead><tr><th>Key</th><th>Label</th><th>Multiplier</th><th></th></tr></thead><tbody id="cc-matrix-rows">';
-        $idx=0;
-        foreach($matrix_rules as $k => $rule) {
-            $keyVal = isset($rule['key']) ? $rule['key'] : 'rule_'.$idx; $idx++;
-            echo '<tr><td><input type="text" name="cirrusly_shipping_config[matrix_rules]['.$idx.'][key]" value="'.esc_attr($keyVal).'"></td><td><input type="text" name="cirrusly_shipping_config[matrix_rules]['.$idx.'][label]" value="'.esc_attr($rule['label']).'"></td><td>x <input type="number" step="0.1" name="cirrusly_shipping_config[matrix_rules]['.$idx.'][cost_mult]" value="'.esc_attr($rule['cost_mult']).'"></td><td><button type="button" class="button cc-remove-row"><span class="dashicons dashicons-trash"></span></button></td></tr>';
+        $idx = 0;
+        foreach ( $matrix_rules as $rule ) {
+            $keyVal = isset( $rule['key'] ) ? $rule['key'] : 'rule_' . $idx;
+            echo '<tr><td><input type="text" name="cirrusly_shipping_config[matrix_rules][' . esc_attr( $idx ) . '][key]" value="' . esc_attr( $keyVal ) . '"></td><td><input type="text" name="cirrusly_shipping_config[matrix_rules][' . esc_attr( $idx ) . '][label]" value="' . esc_attr( $rule['label'] ) . '"></td><td>x <input type="number" step="0.1" name="cirrusly_shipping_config[matrix_rules][' . esc_attr( $idx ) . '][cost_mult]" value="' . esc_attr( isset( $rule['cost_mult'] ) ? $rule['cost_mult'] : 1.0 ) . '"></td><td><button type="button" class="button cc-remove-row"><span class="dashicons dashicons-trash"></span></button></td></tr>';
+            $idx++;
         }
         echo '</tbody></table><button type="button" class="button" id="cc-add-matrix-row" style="margin-top:10px;">+ Add Scenario</button></div></div>';
     }
