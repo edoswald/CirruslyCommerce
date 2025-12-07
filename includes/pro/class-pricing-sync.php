@@ -45,8 +45,10 @@ class Cirrusly_Commerce_Pricing_Sync {
             
             $gmc_product->setOfferId( (string) $offer_id );
             // Defaulting to en/US/online if not set elsewhere. Ideally should match feed settings.
-            $gmc_product->setContentLanguage( 'en' ); 
-            $gmc_product->setTargetCountry( 'US' );
+            $language = apply_filters( 'cirrusly_gmc_content_language', get_bloginfo( 'language' ) );
+            $country = apply_filters( 'cirrusly_gmc_target_country', WC()->countries->get_base_country() );
+            $gmc_product->setContentLanguage( substr( $language, 0, 2 ) ); 
+            $gmc_product->setTargetCountry( $country );
             $gmc_product->setChannel( 'online' );
             
             $gmc_product->setAvailability( $product->is_in_stock() ? 'in stock' : 'out of stock' );
@@ -56,7 +58,7 @@ class Cirrusly_Commerce_Pricing_Sync {
             $price_obj->setCurrency( get_woocommerce_currency() );
             $gmc_product->setPrice( $price_obj );
             
-            $product_rest_id = sprintf( 'online:en:US:%s', $offer_id );
+            $product_rest_id = sprintf( 'online:%s:%s:%s', substr( $language, 0, 2 ), $country, $offer_id );
 
             $service->products->update( $merchant_id, $product_rest_id, $gmc_product );
             
