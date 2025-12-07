@@ -121,11 +121,13 @@ class Cirrusly_Commerce_Blocks {
         $is_bold = isset( $attributes['isBold'] ) ? $attributes['isBold'] : false;
         $strikethrough = isset( $attributes['showStrikethrough'] ) ? $attributes['showStrikethrough'] : true;
 
+        $classes = array( 'cirrusly-msrp-block-wrapper' );
+        if ( ! $strikethrough ) $classes[] = 'no-strikethrough';
+        
         $style_parts = array( 'text-align:' . esc_attr( $align ), 'display:block', 'width:100%' );
         if ( $is_bold ) $style_parts[] = 'font-weight:bold';
-        if ( ! $strikethrough ) $msrp_html = str_replace( 'text-decoration:line-through;', 'text-decoration:none;', $msrp_html );
 
-        return sprintf( '<div class="cirrusly-msrp-block-wrapper" style="%s">%s</div>', implode( '; ', $style_parts ), $msrp_html );
+        return sprintf( '<div class="%s" style="%s">%s</div>', esc_attr( implode( ' ', $classes ) 
     }
 
     /**
