@@ -393,7 +393,8 @@ class Cirrusly_Commerce_GMC_UI {
             <p>This tool scans your site pages and product descriptions to ensure compliance with Google Merchant Center policies.</p>
         </div>';
         
-        $all_pages = get_pages();
+        $all_pages = get_pages( array( 'number' => 500 ) );
+
         $found_titles = array();
         foreach($all_pages as $p) $found_titles[] = strtolower($p->post_title);
         
@@ -430,7 +431,7 @@ class Cirrusly_Commerce_GMC_UI {
 
         if ( isset( $_POST['run_content_scan'] ) && check_admin_referer( 'cirrusly_content_scan', 'cc_content_scan_nonce' ) ) {
             $issues = $this->execute_content_scan_logic();
-            update_option( 'cirrusly_content_scan_data', array('timestamp'=>time(), 'issues'=>$issues) );
+            update_option( 'cirrusly_content_scan_data', array( 'timestamp' => time(), 'issues' => $issues ), false );
             echo '<div class="notice notice-success inline" style="margin-top:10px;"><p>Scan Complete. Results saved.</p></div>';
         }
 
@@ -514,7 +515,7 @@ class Cirrusly_Commerce_GMC_UI {
         if ( $label ) echo '<span class="gmc-badge gmc-badge-label" title="'.esc_attr($label).'">Label</span> ';
         
         echo '<span class="gmc-hidden-data" 
-            data-custom="'.('no'===$id_ex?'yes':'no').'" 
+            data-custom="' . esc_attr( 'no' === $id_ex ? 'yes' : 'no' ) . '" 
             data-promo="'.esc_attr($promo).'" 
             data-label="'.esc_attr($label).'" 
             style="display:none;"></span>';
