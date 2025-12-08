@@ -107,9 +107,21 @@ class Cirrusly_Commerce_Pricing_Sync {
                 
                 $response = $service->products->custombatch( $batch_req );
                 
-                // Optional: Check $response->getEntries() for individual errors if you want detailed logging
-                if ( $response ) {
+                $failed_ids = array();
+                foreach ( $response->getEntries() as $entry ) {
+                    $errors = $entry->getErrors();
+                    if ( $errors && ! empty( $errors->getErrors() ) ) {
+                        $failed_ids[] = $entry->getBatchId();
+                        if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+                            error_log( 'Cirrusly GMC Sync: Product ' . $entry->getBatchId() . ' failed.' );
+                        }
+                    }
+                }
+                
+                if ( empty( $failed_ids ) ) {
                     $this->log_global_sync_success();
+                } else {
+                    $this->log_global_sync_failure( count( $failed_ids ) . ' products failed to sync.' );
                 }
 
             } catch ( Exception $e ) {
