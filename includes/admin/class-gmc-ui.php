@@ -18,7 +18,7 @@ class Cirrusly_Commerce_GMC_UI {
     }
 
     /**
-     * Render the Google Merchant Center (Google Merchant Center) admin hub page with tabbed navigation.
+     * Render the Google Merchant Center admin hub page with tabbed navigation.
      *
      * Displays the hub header, a three-tab navigation (Health Check, Promotion Manager, Site Content),
      * and delegates rendering to the corresponding view for the currently selected tab.
@@ -77,7 +77,7 @@ class Cirrusly_Commerce_GMC_UI {
         echo '</form></div>';
 
         if ( isset( $_POST['run_gmc_scan'] ) && check_admin_referer( 'cirrusly_gmc_scan', 'cc_gmc_scan_nonce' ) ) {
-            $results = $this->run_gmc_scan_logic();
+            $results = Cirrusly_Commerce_GMC::run_gmc_scan_logic();
             update_option( 'woo_gmc_scan_data', array( 'timestamp' => current_time( 'timestamp' ), 'results' => $results ), false );
             echo '<div class="notice notice-success inline"><p>Scan Complete.</p></div>';
         }
@@ -569,7 +569,7 @@ class Cirrusly_Commerce_GMC_UI {
      * @return array The modified columns array including the `gmc_status` key labeled "GMC Data".
      */
     public function add_gmc_admin_columns( $columns ) {
-        $columns['gmc_status'] = 'Google Merchant Center Data';
+        $columns['gmc_status'] = __( 'Google Merchant Center Data', 'cirrusly-commerce' );
         return $columns;
     }
 

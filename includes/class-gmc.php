@@ -142,7 +142,7 @@ class Cirrusly_Commerce_GMC {
      * Moved from UI class to allow scheduled background scanning.
      * * @return array List of products with issues.
      */
-    public function run_gmc_scan_logic() {
+    public static function run_gmc_scan_logic() {
         $results = array();
         
         // 1. Fetch Pro Statuses (Real data from Google)
@@ -189,8 +189,8 @@ class Cirrusly_Commerce_GMC {
                 );
             }
 
-            // CHECK: Price
-            if ( ! $p->get_price() ) {
+            // CHECK: Price - Fixed if statement to handle free products
+            if ( '' === $p->get_price() ) {
                 $product_issues[] = array(
                     'type' => 'critical',
                     'msg'  => 'Missing Price',

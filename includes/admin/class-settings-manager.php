@@ -340,10 +340,11 @@ class Cirrusly_Commerce_Settings_Manager {
         echo '<div class="cc-card-header"><h3>Content API <span class="cc-pro-badge">PRO</span></h3><span class="dashicons dashicons-cloud"></span></div>
             <div class="cc-card-body">
                 <table class="form-table cc-settings-table">
-                    <tr><th>Service Account JSON</th><td><input type="file" name="cirrusly_service_account" '.esc_attr($disabled_attr).'>'.($uploaded_file ? '<br><small>Uploaded: '.esc_html($uploaded_file).'</small>' : '').'</td></tr>
-                    <tr><th>Merchant ID</th><td><input type="text" name="cirrusly_scan_config[merchant_id_pro]" value="'.esc_attr($merchant_id_pro).'" '.esc_attr($disabled_attr).'></td></tr>
-                </table>
-            </div></div>';
+                <tr><th>Service Account JSON</th><td><input type="file" name="cirrusly_service_account" accept=".json" '.esc_attr($disabled_attr).'>'.($uploaded_file ? '<br><small>Uploaded: '.esc_html($uploaded_file).'</small>' : '').'</td></tr>
+            
+                <tr><th>Merchant ID</th><td><input type="text" name="cirrusly_scan_config[merchant_id_pro]" value="'.esc_attr($merchant_id_pro).'" '.esc_attr($disabled_attr).'></td></tr>
+            </table>
+        </div></div>';
 
         // Advanced Alerts (Pro)
         echo '<div class="cc-settings-card '.esc_attr($pro_class).'">';
