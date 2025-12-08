@@ -77,7 +77,10 @@ class Cirrusly_Commerce_GMC_UI {
         echo '</form></div>';
 
         if ( isset( $_POST['run_gmc_scan'] ) && check_admin_referer( 'cirrusly_gmc_scan', 'cc_gmc_scan_nonce' ) ) {
-            $results = Cirrusly_Commerce_GMC::run_gmc_scan_logic();
+            // Unwrap new result structure
+            $scan_result = Cirrusly_Commerce_GMC::run_gmc_scan_logic();
+            $results     = isset( $scan_result['results'] ) ? $scan_result['results'] : array();
+            
             update_option( 'woo_gmc_scan_data', array( 'timestamp' => current_time( 'timestamp' ), 'results' => $results ), false );
             echo '<div class="notice notice-success inline"><p>Scan Complete.</p></div>';
         }

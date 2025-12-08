@@ -40,7 +40,7 @@ class Cirrusly_Commerce_Core {
             Cirrusly_Commerce_Reports::init();
         }
 
-// 1. Initialize GMC Core (This registers the hooks ONCE)
+        // 1. Initialize GMC Core (This registers the hooks ONCE)
         if ( class_exists( 'Cirrusly_Commerce_GMC' ) ) {
             $gmc = new Cirrusly_Commerce_GMC();
             $gmc->init();

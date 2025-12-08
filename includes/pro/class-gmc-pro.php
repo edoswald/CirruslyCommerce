@@ -545,8 +545,8 @@ class Cirrusly_Commerce_GMC_Pro {
      * @return Google\Service\CloudNaturalLanguage\AnnotateTextResponse|WP_Error
      */
     public function analyze_text_with_nlp( $text, $post_id ) {
-        if ( empty( $post_id ) ) {
-            return new WP_Error( 'missing_id', 'Post ID required for NLP analysis.' );
+    if ( ! is_numeric( $post_id ) || $post_id <= 0 ) {
+        return new WP_Error( 'invalid_post_id', 'Valid Post ID required for NLP analysis.' );
         }
 
         // 1. Clean & Truncate Text

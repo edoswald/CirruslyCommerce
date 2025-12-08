@@ -26,13 +26,18 @@ class Cirrusly_Commerce_Pricing_Sync {
      * @param int $product_id
      */
     public function add_to_queue( $product_id ) {
-        $queue = get_option( self::QUEUE_OPTION, array() );
-        
-        // Avoid duplicates in the queue
-        if ( ! in_array( $product_id, $queue ) ) {
-            $queue[] = $product_id;
-            update_option( self::QUEUE_OPTION, $queue, false );
-        }
+    global $wpdb;
+    $wpdb->query( 'START TRANSACTION' );
+    
+    $queue = get_option( self::QUEUE_OPTION, array() );
+    
+    // Avoid duplicates in the queue (use strict comparison)
+    if ( ! in_array( $product_id, $queue, true ) ) {
+        $queue[] = $product_id;
+        update_option( self::QUEUE_OPTION, $queue, true );
+    }
+    
+    $wpdb->query( 'COMMIT' );
 
         // Schedule the runner if it isn't already scheduled
         if ( ! wp_next_scheduled( self::CRON_HOOK ) ) {
@@ -60,8 +65,10 @@ class Cirrusly_Commerce_Pricing_Sync {
         $scan_config = get_option( 'cirrusly_scan_config' );
         $merchant_id = isset( $scan_config['merchant_id_pro'] ) ? $scan_config['merchant_id_pro'] : get_option( 'cirrusly_gmc_merchant_id', '' );
         
-        if ( empty( $merchant_id ) ) return;
-
+        if ( empty( $merchant_id ) ) {
+            $this->log_global_sync_failure( 'Missing Merchant ID configuration.' );
+            return;
+        }
         $service = new Google\Service\ShoppingContent( $client );
         $batch_entries = array();
         

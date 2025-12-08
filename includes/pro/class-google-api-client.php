@@ -67,9 +67,12 @@ class Cirrusly_Commerce_Google_API_Client {
         if ( ! class_exists( 'Cirrusly_Commerce_GMC' ) ) return;
 
         $scanner = new Cirrusly_Commerce_GMC();
-        // Uses the scanner logic (which will now call API logic if Pro)
-        $results = $scanner->run_gmc_scan_logic();
         
+        // Unwrap new return structure: ['results' => array, 'has_more' => bool]
+        $scan_result = $scanner->run_gmc_scan_logic();
+        $results     = isset($scan_result['results']) ? $scan_result['results'] : array();
+        
+        // Pass only the actual results array to storage and email logic
         $scan_data = array( 'timestamp' => time(), 'results' => $results );
         update_option( 'woo_gmc_scan_data', $scan_data, false );
         
