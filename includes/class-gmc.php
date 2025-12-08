@@ -145,12 +145,16 @@ class Cirrusly_Commerce_GMC {
         );
     }
 
-/**
+    /**
      * Performs the Google Merchant Center health scan logic on local products.
      * Moved from UI class to allow scheduled background scanning.
      * * @return array List of products with issues.
      */
-    public static function run_gmc_scan_logic() {
+    public static function run_gmc_scan_logic( $batch_size = 100, $paged = 1 ) {
+        if ( ! current_user_can( 'edit_products' ) ) {
+            return array();
+        }
+        
         $results = array();
         
         // 1. Fetch Pro Statuses (Real data from Google)
@@ -165,7 +169,8 @@ class Cirrusly_Commerce_GMC {
         // 2. Scan Local Products
         $args = array(
             'post_type'      => 'product',
-            'posts_per_page' => -1,
+            'posts_per_page' => $batch_size,
+            'paged'          => $paged,
             'post_status'    => 'publish',
             'fields'         => 'ids'
         );
@@ -221,7 +226,10 @@ class Cirrusly_Commerce_GMC {
             }
         }
 
-        return $results;
+        return array(
+            'results' => $results,
+            'has_more' => count( $products ) === $batch_size
+        );
     }
 
 }

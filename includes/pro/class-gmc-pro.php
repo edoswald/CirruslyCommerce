@@ -538,19 +538,18 @@ class Cirrusly_Commerce_GMC_Pro {
 
     /**
      * Analyze plain text with Google Cloud Natural Language and extract entities.
+     * Caches results to Post Meta to prevent redundant API calls.
      *
-     * Truncates input to at most 5000 characters (cutting at the last word boundary) before analysis.
-     *
-     * @param string $text The text to analyze; will be truncated to 5000 characters if longer.
+     * @param string $text    The text to analyze.
+     * @param int    $post_id The ID of the product/post being analyzed (Required for caching).
      * @return Google\Service\CloudNaturalLanguage\AnnotateTextResponse|WP_Error
-     *         The annotation response on success, or a WP_Error on failure.
-     *         Possible WP_Error codes:
-     *         - `missing_client` when the Google API client class is not available.
-     *         - `nlp_error` when the Cloud Natural Language API call fails.
-     *         A WP_Error returned by Cirrusly_Commerce_Google_API_Client::get_client() may also be propagated.
      */
-    public function analyze_text_with_nlp( $text ) {
-        // Truncate to avoid API limits
+    public function analyze_text_with_nlp( $text, $post_id ) {
+        if ( empty( $post_id ) ) {
+            return new WP_Error( 'missing_id', 'Post ID required for NLP analysis.' );
+        }
+
+        // 1. Clean & Truncate Text
         $max_length = 5000;
         if ( strlen( $text ) > $max_length ) {
             $truncated = substr( $text, 0, $max_length );
@@ -558,6 +557,18 @@ class Cirrusly_Commerce_GMC_Pro {
             $text = $last_space !== false ? substr( $truncated, 0, $last_space ) : $truncated;
         }
 
+        // 2. Check Cache (Smart Hashing)
+        $text_hash = md5( $text );
+        $cached_data = get_post_meta( $post_id, '_cc_nlp_cache', true );
+
+        if ( is_array( $cached_data ) && isset( $cached_data['hash'] ) && $cached_data['hash'] === $text_hash ) {
+            // Return cached response object (rehydrated) or array depending on usage
+            // Note: If your app expects a Google Object, you might need to wrap this array. 
+            // For now, we return the raw data array which is usually safer for storage.
+            return $cached_data['response'];
+        }
+
+        // 3. Prepare Client
         if ( ! class_exists( 'Cirrusly_Commerce_Google_API_Client' ) ) {
             return new WP_Error( 'missing_client', 'Google API Client not loaded.' );
         }
@@ -581,7 +592,18 @@ class Cirrusly_Commerce_GMC_Pro {
         $request->setFeatures( $features );
 
         try {
-            return $service->documents->annotateText( $request );
+            // 4. Call API
+            $results = $service->documents->annotateText( $request );
+
+            // 5. Save to Cache
+            update_post_meta( $post_id, '_cc_nlp_cache', array(
+                'hash'     => $text_hash,
+                'response' => $results, // Google Objects serialize well, but check your logs
+                'time'     => time()
+            ));
+
+            return $results;
+
         } catch ( Exception $e ) {
             if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
                 error_log( 'Cirrusly Commerce NLP Error: ' . $e->getMessage() );

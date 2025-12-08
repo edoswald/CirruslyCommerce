@@ -31,7 +31,9 @@ class Cirrusly_Commerce_Core {
     }
 
     private function define_hooks() {
-        add_action('init', array('Cirrusly_Commerce_Audit', 'init'));
+        if ( class_exists( 'Cirrusly_Commerce_Audit' ) ) {
+            add_action('init', array('Cirrusly_Commerce_Audit', 'init'));
+        }
         
         // Reports (Weekly Email)
         if ( class_exists( 'Cirrusly_Commerce_Reports' ) ) {
