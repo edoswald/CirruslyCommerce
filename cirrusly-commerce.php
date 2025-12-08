@@ -70,19 +70,6 @@ if ( ! function_exists( 'cc_fs' ) ) {
     // Init Freemius.
     cc_fs();
 
-    // Override Freemius strings
-    cc_fs()->override_i18n( array(
-        'yee-haw' => 'Success',
-        'woot'    => 'Success',
-        'oops'    => 'Notice',
-        'hmm'     => 'Notice',
-        'hey'     => 'Hello',
-        'right-on'=> 'Success',
-        'license-activated-message' => 'Your license has been successfully activated.',
-        'plan-upgraded-message'     => 'Your plan was successfully upgraded.',
-        'plan-activated-message'    => 'Your plan was successfully activated.',
-    ) );
-
     do_action( 'cc_fs_loaded' );
 }
 
