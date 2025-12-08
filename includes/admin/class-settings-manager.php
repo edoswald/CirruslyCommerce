@@ -168,7 +168,7 @@ class Cirrusly_Commerce_Settings_Manager {
             foreach ( $input['matrix_rules'] as $idx => $rule ) {
                 $key = isset($rule['key']) ? sanitize_title($rule['key']) : 'rule_'.$idx;
                 if ( ! empty( $key ) && isset( $rule['label'] ) ) {
-                    $clean_matrix[ $key ] = array( 'key' => $key, 'label' => sanitize_text_field( $rule['label'] ), 'cost_mult' => floatval( $rule['cost_mult'] ) );
+                    $clean_matrix[ $key ] = array( 'key' => $key, 'label' => sanitize_text_field( $rule['label'] ), 'cost_mult' => isset( $rule['cost_mult'] ) ? floatval( $rule['cost_mult'] ) : 1.0 );
                 }
             }
             $input['matrix_rules_json'] = json_encode( $clean_matrix );
@@ -213,28 +213,13 @@ class Cirrusly_Commerce_Settings_Manager {
      * Get global shipping config (Used by Pricing/Audit logic)
      */
     public static function get_global_config() {
-        $saved = get_option( 'cirrusly_shipping_config' );
-        $defaults = array(
-            'revenue_tiers_json' => json_encode(array(
-                array( 'min' => 0,     'max' => 10.00, 'charge' => 3.99 ),
-                array( 'min' => 10.01, 'max' => 20.00, 'charge' => 4.99 ),
-                array( 'min' => 60.00, 'max' => 99999, 'charge' => 0.00 ),
-            )),
-            'matrix_rules_json' => json_encode(array(
-                'economy'   => array( 'key'=>'economy',   'label' => 'Eco',      'cost_mult' => 1.0 ),
-                'standard'  => array( 'key'=>'standard',  'label' => 'Std',      'cost_mult' => 1.4 ),
-                'twoday'    => array( 'key'=>'twoday',    'label' => '2Day',     'cost_mult' => 2.5 ),
-                'overnight' => array( 'key'=>'overnight', 'label' => 'Over',     'cost_mult' => 5.0 ),
-            )),
-            'class_costs_json' => json_encode(array('default' => 10.00)),
-            'payment_pct' => 2.9,
-            'payment_flat' => 0.30,
-            'profile_mode' => 'single',
-            'payment_pct_2' => 3.49,
-            'payment_flat_2' => 0.49,
-            'profile_split' => 100
-        );
-        return wp_parse_args( $saved, $defaults );
+        // Delegate to Core class to avoid duplication
+        if ( class_exists( 'Cirrusly_Commerce_Core' ) ) {
+            $core = new Cirrusly_Commerce_Core();
+            return $core->get_global_config();
+        }
+        // Fallback if Core not loaded (shouldn't happen in admin)
+        return get_option( 'cirrusly_shipping_config', array() );
     }
 
     /**

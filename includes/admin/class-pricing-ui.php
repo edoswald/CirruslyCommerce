@@ -23,9 +23,9 @@ class Cirrusly_Commerce_Pricing_UI {
         $new_columns = array();
         foreach ( $columns as $key => $title ) {
             $new_columns[$key] = $title;
-        if ( 'price' === $key ) {
-            $new_columns['cw_margin'] = __( 'Margin', 'cirrusly-commerce' );
-        }
+            if ( 'price' === $key ) {
+                $new_columns['cw_margin'] = __( 'Margin', 'cirrusly-commerce' );
+            }
 
         }
         return $new_columns;
@@ -79,6 +79,13 @@ class Cirrusly_Commerce_Pricing_UI {
         echo '</div>';
     }
 
+    /**
+     * Render pricing fields for variable products.
+     *
+     * @param int    $loop           Loop index.
+     * @param array  $variation_data Variation data (unused, required by hook).
+     * @param object $variation      Variation post object.
+    */
     public function pe_render_variable_fields( $loop, $variation_data, $variation ) {
         $ship = get_post_meta( $variation->ID, '_cw_est_shipping', true );
         $map  = get_post_meta( $variation->ID, '_cirrusly_map_price', true ); 
@@ -158,14 +165,21 @@ class Cirrusly_Commerce_Pricing_UI {
 
     public function pe_save_variable( $vid, $i ) {
         // phpcs:ignore WordPress.Security.NonceVerification.Missing
-        if ( isset( $_POST['_cw_est_shipping'][$i] ) ) update_post_meta( $vid, '_cw_est_shipping', wc_format_decimal( sanitize_text_field( wp_unslash( $_POST['_cw_est_shipping'][$i] ) ) ) );
+        if ( isset( $_POST['_cw_est_shipping'] ) && is_array( $_POST['_cw_est_shipping'] ) && isset( $_POST['_cw_est_shipping'][$i] ) ) {
+            update_post_meta( $vid, '_cw_est_shipping', wc_format_decimal( sanitize_text_field( wp_unslash( $_POST['_cw_est_shipping'][$i] ) ) ) );
+        }
         // phpcs:ignore WordPress.Security.NonceVerification.Missing
-        if ( isset( $_POST['_cirrusly_map_price'][$i] ) ) update_post_meta( $vid, '_cirrusly_map_price', wc_format_decimal( sanitize_text_field( wp_unslash( $_POST['_cirrusly_map_price'][$i] ) ) ) );
+        if ( isset( $_POST['_cirrusly_map_price'] ) && is_array( $_POST['_cirrusly_map_price'] ) && isset( $_POST['_cirrusly_map_price'][$i] ) ) {
+            update_post_meta( $vid, '_cirrusly_map_price', wc_format_decimal( sanitize_text_field( wp_unslash( $_POST['_cirrusly_map_price'][$i] ) ) ) );
+        }
         // phpcs:ignore WordPress.Security.NonceVerification.Missing
-        if ( isset( $_POST['_alg_msrp'][$i] ) ) update_post_meta( $vid, '_alg_msrp', wc_format_decimal( sanitize_text_field( wp_unslash( $_POST['_alg_msrp'][$i] ) ) ) );
+        if ( isset( $_POST['_alg_msrp'] ) && is_array( $_POST['_alg_msrp'] ) && isset( $_POST['_alg_msrp'][$i] ) ) {
+            update_post_meta( $vid, '_alg_msrp', wc_format_decimal( sanitize_text_field( wp_unslash( $_POST['_alg_msrp'][$i] ) ) ) );
+        }
         // phpcs:ignore WordPress.Security.NonceVerification.Missing
-        if ( isset( $_POST['_auto_pricing_min_price'][$i] ) ) update_post_meta( $vid, '_auto_pricing_min_price', wc_format_decimal( sanitize_text_field( wp_unslash( $_POST['_auto_pricing_min_price'][$i] ) ) ) );
-        
+        if ( isset( $_POST['_auto_pricing_min_price'] ) && is_array( $_POST['_auto_pricing_min_price'] ) && isset( $_POST['_auto_pricing_min_price'][$i] ) ) {
+            update_post_meta( $vid, '_auto_pricing_min_price', wc_format_decimal( sanitize_text_field( wp_unslash( $_POST['_auto_pricing_min_price'][$i] ) ) ) );
+        }        
         $this->schedule_gmc_sync( $vid );
     }
 
