@@ -136,4 +136,84 @@ class Cirrusly_Commerce_GMC {
             )
         );
     }
+
+/**
+     * Performs the Google Merchant Center health scan logic on local products.
+     * Moved from UI class to allow scheduled background scanning.
+     * * @return array List of products with issues.
+     */
+    public function run_gmc_scan_logic() {
+        $results = array();
+        
+        // 1. Fetch Pro Statuses (Real data from Google)
+        $google_issues = array();
+        // Check if Pro class exists to avoid dependency errors
+        if ( class_exists( 'Cirrusly_Commerce_Core' ) && 
+             Cirrusly_Commerce_Core::cirrusly_is_pro() && 
+             class_exists( 'Cirrusly_Commerce_GMC_Pro' ) ) {
+            $google_issues = Cirrusly_Commerce_GMC_Pro::fetch_google_real_statuses();
+        }
+
+        // 2. Scan Local Products
+        $args = array(
+            'post_type'      => 'product',
+            'posts_per_page' => -1,
+            'post_status'    => 'publish',
+            'fields'         => 'ids'
+        );
+        $products = get_posts( $args );
+
+        foreach ( $products as $pid ) {
+            $product_issues = array();
+            $p = wc_get_product( $pid );
+            if ( ! $p ) continue;
+
+            // CHECK: GTIN / MPN Existence
+            $is_custom = get_post_meta( $pid, '_gla_identifier_exists', true );
+            
+            // Basic health check simulation
+            if ( 'no' !== $is_custom && ! $p->get_sku() ) {
+                $product_issues[] = array(
+                    'type' => 'warning',
+                    'msg'  => 'Missing SKU (Identifier)',
+                    'reason' => 'Products generally require unique identifiers.'
+                );
+            }
+            
+            // CHECK: Missing Image
+            if ( ! $p->get_image_id() ) {
+                $product_issues[] = array(
+                    'type' => 'critical',
+                    'msg'  => 'Missing Image',
+                    'reason' => 'Google requires an image URL.'
+                );
+            }
+
+            // CHECK: Price
+            if ( ! $p->get_price() ) {
+                $product_issues[] = array(
+                    'type' => 'critical',
+                    'msg'  => 'Missing Price',
+                    'reason' => 'Price is mandatory.'
+                );
+            }
+
+            // Merge Google API Issues
+            if ( isset( $google_issues[ $pid ] ) ) {
+                foreach ( $google_issues[ $pid ] as $g_issue ) {
+                    $product_issues[] = $g_issue;
+                }
+            }
+
+            if ( ! empty( $product_issues ) ) {
+                $results[] = array(
+                    'product_id' => $pid,
+                    'issues'     => $product_issues
+                );
+            }
+        }
+
+        return $results;
+    }
+
 }
