@@ -561,7 +561,11 @@ class Cirrusly_Commerce_GMC_Pro {
         $text_hash = md5( $text );
         $cached_data = get_post_meta( $post_id, '_cc_nlp_cache', true );
 
-        if ( is_array( $cached_data ) && isset( $cached_data['hash'] ) && $cached_data['hash'] === $text_hash ) {
+        $cache_ttl = 7 * DAY_IN_SECONDS;
+        if ( is_array( $cached_data ) 
+            && isset( $cached_data['hash'], $cached_data['time'] ) 
+            && $cached_data['hash'] === $text_hash 
+            && ( time() - $cached_data['time'] ) < $cache_ttl ) {
             // Return cached response object (rehydrated) or array depending on usage
             // Note: If your app expects a Google Object, you might need to wrap this array. 
             // For now, we return the raw data array which is usually safer for storage.
