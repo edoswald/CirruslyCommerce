@@ -6,13 +6,18 @@ if ( ! defined( 'ABSPATH' ) ) {
 class Cirrusly_Commerce_GMC {
 
     /**
-     * Initialize the GMC integration: load admin and pro submodules when available and register core hooks.
-     *
-     * Registers handlers for product meta saving (standard, quick-edit, and bulk-edit) and for the admin
-     * "mark as custom" redirect action; loads the admin UI when running in admin context and loads the
-     * Pro module when the site is pro and the pro file exists.
+     * CONSTRUCTOR: Left empty to allow instantiation without side effects.
+     * Used by the scanner to access logic methods without re-registering hooks.
      */
     public function __construct() {
+        // Intentionally empty
+    }
+
+    /**
+     * INITIALIZER: Registers hooks and loads sub-modules.
+     * Must be called ONCE by the Core class.
+     */
+    public function init() {
         // 1. Load Sub-Modules
         if ( is_admin() ) {
             require_once plugin_dir_path( __FILE__ ) . 'admin/class-gmc-ui.php';
@@ -20,7 +25,8 @@ class Cirrusly_Commerce_GMC {
         }
 
         // 2. Pro Logic Loading (API & Automation)
-        if ( Cirrusly_Commerce_Core::cirrusly_is_pro() && file_exists( plugin_dir_path( __FILE__ ) . 'pro/class-gmc-pro.php' ) ) {
+        // Note: Ensure Core class is loaded before running this check
+        if ( class_exists('Cirrusly_Commerce_Core') && Cirrusly_Commerce_Core::cirrusly_is_pro() && file_exists( plugin_dir_path( __FILE__ ) . 'pro/class-gmc-pro.php' ) ) {
             require_once plugin_dir_path( __FILE__ ) . 'pro/class-gmc-pro.php';
             new Cirrusly_Commerce_GMC_Pro();
         }
@@ -55,15 +61,15 @@ class Cirrusly_Commerce_GMC {
      * @param int $post_id The ID of the product post being saved.
      */
     public function save_product_meta( $post_id ) {
-        // phpcs:ignore WordPress.Security.NonceVerification.Missing
+        if ( ! isset( $_POST['woocommerce_meta_nonce'] ) || ! wp_verify_nonce( $_POST['woocommerce_meta_nonce'], 'woocommerce_save_data' ) ) {
+            return;
+        }       
         $val = isset( $_POST['gmc_is_custom_product'] ) ? 'no' : 'yes';
         update_post_meta( $post_id, '_gla_identifier_exists', $val );
         
-        // phpcs:ignore WordPress.Security.NonceVerification.Missing
         if ( isset( $_POST['_gmc_promotion_id'] ) ) {
             update_post_meta( $post_id, '_gmc_promotion_id', sanitize_text_field( wp_unslash( $_POST['_gmc_promotion_id'] ) ) );
         }
-        // phpcs:ignore WordPress.Security.NonceVerification.Missing
         if ( isset( $_POST['_gmc_custom_label_0'] ) ) {
             update_post_meta( $post_id, '_gmc_custom_label_0', sanitize_text_field( wp_unslash( $_POST['_gmc_custom_label_0'] ) ) );
         }
@@ -80,8 +86,10 @@ class Cirrusly_Commerce_GMC {
      * @param \WC_Product $product The product being edited; its ID is used to update post meta.
      */
     public function save_quick_bulk_edit( $product ) {
+        if ( ! isset( $_POST['woocommerce_meta_nonce'] ) || ! wp_verify_nonce( $_POST['woocommerce_meta_nonce'], 'woocommerce_save_data' ) ) {
+            return;
+        }    
         $post_id = $product->get_id();
-        // phpcs:ignore WordPress.Security.NonceVerification.Missing
         if ( isset( $_REQUEST['gmc_is_custom_product'] ) ) {
             update_post_meta( $post_id, '_gla_identifier_exists', 'no' );
         } elseif ( isset( $_REQUEST['woocommerce_quick_edit'] ) && ! isset( $_REQUEST['bulk_edit'] ) ) {

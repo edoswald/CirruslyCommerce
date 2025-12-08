@@ -12,6 +12,10 @@ class Cirrusly_Commerce_Core {
         // Utilities (Always needed)
         require_once plugin_dir_path( __FILE__ ) . 'class-security.php';
         require_once plugin_dir_path( __FILE__ ) . 'class-reports.php';
+        require_once plugin_dir_path( __FILE__ ) . 'class-gmc.php';
+        if ( file_exists( plugin_dir_path( __FILE__ ) . 'class-audit.php' ) ) {
+            require_once plugin_dir_path( __FILE__ ) . 'class-audit.php';
+        }
 
         // Admin-Specific Loading
         if ( is_admin() ) {
@@ -34,6 +38,13 @@ class Cirrusly_Commerce_Core {
             Cirrusly_Commerce_Reports::init();
         }
 
+// 1. Initialize GMC Core (This registers the hooks ONCE)
+        if ( class_exists( 'Cirrusly_Commerce_GMC' ) ) {
+            $gmc = new Cirrusly_Commerce_GMC();
+            $gmc->init();
+        }
+
+        // 2. Existing Admin Hooks
         if ( is_admin() ) {
             $settings = new Cirrusly_Commerce_Settings_Manager();
             $assets   = new Cirrusly_Commerce_Admin_Assets();
