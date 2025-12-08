@@ -4,7 +4,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 class Cirrusly_Commerce_GMC_UI {
 
     /**
-     * Initialize the GMC admin UI by registering WordPress and WooCommerce admin hooks and filters.
+     * Initialize the Google Merchant Center admin UI by registering WordPress and WooCommerce admin hooks and filters.
      *
      * Registers column, column-rendering, product-settings, quick-edit, and admin-notice hooks used by the
      * Google Merchant Center integration UI.
@@ -18,7 +18,7 @@ class Cirrusly_Commerce_GMC_UI {
     }
 
     /**
-     * Render the Google Merchant Center (GMC) admin hub page with tabbed navigation.
+     * Render the Google Merchant Center (Google Merchant Center) admin hub page with tabbed navigation.
      *
      * Displays the hub header, a three-tab navigation (Health Check, Promotion Manager, Site Content),
      * and delegates rendering to the corresponding view for the currently selected tab.
@@ -655,7 +655,7 @@ class Cirrusly_Commerce_GMC_UI {
     }
 
     /**
-     * Performs the GMC health scan logic on local products and merges with Pro API results if available.
+     * Performs the Google Merchant Center health scan logic on local products and merges with Pro API results if available.
      * * @return array List of products with issues.
      */
     private function run_gmc_scan_logic() {
@@ -730,7 +730,7 @@ class Cirrusly_Commerce_GMC_UI {
     }
 
     /**
-     * Scans site content (pages and products) for restricted terms defined in GMC core.
+     * Scans site content (pages and products) for restricted terms defined in Google Merchant Center core.
      * * @return array List of content pieces with found restricted terms.
      */
     private function execute_content_scan_logic() {
