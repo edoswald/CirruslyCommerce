@@ -28,7 +28,7 @@ class Cirrusly_Commerce_GMC_UI {
         $tab = isset( $_GET['tab'] ) ? sanitize_text_field( wp_unslash( $_GET['tab'] ) ) : 'scan';
         ?>
         <div class="wrap">
-            <?php Cirrusly_Commerce_Core::render_global_header( 'GMC Hub' ); ?>
+            <?php Cirrusly_Commerce_Core::render_global_header( 'Compliance Hub' ); ?>
             
             <nav class="nav-tab-wrapper">
                 <a href="?page=cirrusly-gmc&tab=scan" class="nav-tab <?php echo 'scan'===$tab?'nav-tab-active':''; ?>">Health Check</a>
@@ -67,7 +67,7 @@ class Cirrusly_Commerce_GMC_UI {
         $auto_strip = isset($scan_cfg['auto_strip_banned']) ? 'checked' : '';
 
         // CORE 1: Manual Helper
-        echo '<div class="cc-manual-helper"><h4>Health Check</h4><p>Scans product data for critical GMC issues.</p></div>';
+        echo '<div class="cc-manual-helper"><h4>Health Check</h4><p>Scans product data for critical Google Merchant Center issues.</p></div>';
         
         // CORE 2: Scan Button
         echo '<div style="background:#fff; padding:20px; border-bottom:1px solid #ccc;"><form method="post">';
@@ -569,7 +569,7 @@ class Cirrusly_Commerce_GMC_UI {
      * @return array The modified columns array including the `gmc_status` key labeled "GMC Data".
      */
     public function add_gmc_admin_columns( $columns ) {
-        $columns['gmc_status'] = 'GMC Data';
+        $columns['gmc_status'] = 'Google Merchant Center Data';
         return $columns;
     }
 
@@ -631,7 +631,7 @@ class Cirrusly_Commerce_GMC_UI {
         ?>
         <fieldset class="inline-edit-col-right inline-edit-gmc">
             <div class="inline-edit-col">
-                <h4>GMC Data</h4>
+                <h4>Google Merchant Center Data</h4>
                 <label class="alignleft"><input type="checkbox" name="gmc_is_custom_product" value="yes"><span class="checkbox-title">Custom Product? (No GTIN)</span></label>
             </div>
         </fieldset>

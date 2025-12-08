@@ -156,7 +156,7 @@ class Cirrusly_Commerce_Core {
         
         $nav_items = array(
             'cirrusly-commerce' => 'Dashboard',
-            'cirrusly-gmc'      => 'GMC Hub',
+            'cirrusly-gmc'      => 'Compliance Hub',
             'cirrusly-audit'    => 'Financial Audit',
             'cirrusly-settings' => 'Settings',
         );

@@ -31,11 +31,7 @@ define( 'CIRRUSLY_COMMERCE_URL', plugin_dir_url( __FILE__ ) );
 // FREEMIUS INTEGRATION
 // -------------------------------------------------------------------------
 if ( ! function_exists( 'cc_fs' ) ) {
-    /**
-     * Initializes and returns the Freemius SDK instance for the plugin.
-     *
-     * @return object The Freemius SDK instance.
-     */
+    // Create a helper function for easy SDK access.
     function cc_fs() {
         global $cc_fs;
 
@@ -50,16 +46,20 @@ if ( ! function_exists( 'cc_fs' ) ) {
                 'public_key'          => 'pk_34dc77b4bc7764037f0e348daac4a',
                 'is_premium'          => true,
                 'premium_suffix'      => 'Pro',
+                // If your plugin is a serviceware, set this option to false.
                 'has_premium_version' => true,
                 'has_addons'          => false,
                 'has_paid_plans'      => true,
+                // Automatically removed in the free version. If you're not using the
+                // auto-generated free version, delete this line before uploading to wp.org.
                 'wp_org_gatekeeper'   => 'OA7#BoRiBNqdf52FvzEf!!074aRLPs8fspif$7K1#4u4Csys1fQlCecVcUTOs2mcpeVHi#C2j9d09fOTvbC0HloPT7fFee5WdS3G',
                 'trial'               => array(
                     'days'               => 3,
                     'is_require_payment' => false,
                 ),
                 'menu'                => array(
-                    'slug'           => 'cirrusly-commerce',
+                    'slug'           => 'cirrusly-settings',
+                    'contact'        => false,
                     'support'        => false,
                 ),
             ) );
@@ -70,7 +70,7 @@ if ( ! function_exists( 'cc_fs' ) ) {
 
     // Init Freemius.
     cc_fs();
-
+    // Signal that SDK was initiated.
     do_action( 'cc_fs_loaded' );
 }
 

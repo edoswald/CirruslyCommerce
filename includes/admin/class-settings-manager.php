@@ -18,17 +18,18 @@ class Cirrusly_Commerce_Settings_Manager {
         
         // Submenus
         if ( class_exists( 'Cirrusly_Commerce_GMC' ) ) {
-            add_submenu_page( 'cirrusly-commerce', 'GMC Hub', 'GMC Hub', 'edit_products', 'cirrusly-gmc', array( 'Cirrusly_Commerce_GMC', 'render_page' ) );
+            add_submenu_page( 'cirrusly-commerce', 'Compliance Hub', 'Compliance Hub', 'edit_products', 'cirrusly-gmc', array( 'Cirrusly_Commerce_GMC', 'render_page' ) );
         }
         if ( class_exists( 'Cirrusly_Commerce_Audit' ) ) {
             add_submenu_page( 'cirrusly-commerce', 'Financial Audit', 'Financial Audit', 'edit_products', 'cirrusly-audit', array( 'Cirrusly_Commerce_Audit', 'render_page' ) );
         }
-        add_submenu_page( 'cirrusly-commerce', 'Settings', 'Settings', 'manage_options', 'cirrusly-settings', array( $this, 'render_settings_page' ) );
         
-        // Manual (If exists)
         if ( class_exists( 'Cirrusly_Commerce_Manual' ) ) {
             add_submenu_page( 'cirrusly-commerce', 'User Manual', 'User Manual', 'edit_products', 'cirrusly-manual', array( 'Cirrusly_Commerce_Manual', 'render_page' ) );
         }
+
+        add_submenu_page( 'cirrusly-commerce', 'Settings', 'Settings', 'manage_options', 'cirrusly-settings', array( $this, 'render_settings_page' ) );
+        
     }
 
     /**
