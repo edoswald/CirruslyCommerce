@@ -46,9 +46,9 @@ class Cirrusly_Commerce_Mailer {
      */
     private static function get_headers() {
         $admin_email = get_option( 'admin_email' );
-    if ( ! is_email( $admin_email ) ) {
-        $admin_email = ''; // Let wp_mail use its default
-    }
+        if ( ! is_email( $admin_email ) ) {
+            return array(); // Let wp_mail use its default From header
+        }
         $site_title  = wp_specialchars_decode( get_option( 'blogname' ), ENT_QUOTES );
         
         // You could add a filter here to allow overriding the sender
