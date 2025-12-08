@@ -61,7 +61,7 @@ class Cirrusly_Commerce_Pricing_UI {
         
         woocommerce_wp_text_input( array( 
             'id' => '_auto_pricing_min_price', 
-            'label' => 'Google Min ($) <span class="dashicons dashicons-info" title="Automated Discounts Floor."></span>', 
+            'label' => 'Google Min ($) <span class="dashicons dashicons-info" title="' . esc_attr__( 'Automated Discounts Floor.', 'cirrusly-commerce' ) . '"></span>',
             'class' => 'wc_input_price short cw-min-input', 
             'value' => $min, 
             'data_type' => 'price', 
@@ -149,6 +149,11 @@ class Cirrusly_Commerce_Pricing_UI {
     }
 
     public function pe_save_simple( $post_id ) {
+        // Verify nonce for security
+        if ( ! isset( $_POST['_wpnonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['_wpnonce'] ) ), 'update-post_' . $post_id ) ) {
+        return;
+        }
+
         // phpcs:ignore WordPress.Security.NonceVerification.Missing
         if ( isset( $_POST['_cw_est_shipping'] ) ) update_post_meta( $post_id, '_cw_est_shipping', wc_format_decimal( sanitize_text_field( wp_unslash( $_POST['_cw_est_shipping'] ) ) ) );
         // phpcs:ignore WordPress.Security.NonceVerification.Missing
@@ -164,6 +169,11 @@ class Cirrusly_Commerce_Pricing_UI {
     }
 
     public function pe_save_variable( $vid, $i ) {
+        // Verify nonce for security
+        if ( ! isset( $_POST['_wpnonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['_wpnonce'] ) ), 'update-post_' . get_post_field( 'post_parent', $vid ) ) ) {
+        return;
+        }
+    
         // phpcs:ignore WordPress.Security.NonceVerification.Missing
         if ( isset( $_POST['_cw_est_shipping'] ) && is_array( $_POST['_cw_est_shipping'] ) && isset( $_POST['_cw_est_shipping'][$i] ) ) {
             update_post_meta( $vid, '_cw_est_shipping', wc_format_decimal( sanitize_text_field( wp_unslash( $_POST['_cw_est_shipping'][$i] ) ) ) );

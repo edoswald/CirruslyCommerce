@@ -36,7 +36,8 @@ class Cirrusly_Commerce_Reports {
         
         if ( file_exists( $pro_file ) ) {
             require_once $pro_file;
-            Cirrusly_Commerce_Reports_Pro::generate_and_send( $scan_cfg );
-        }
+    if ( class_exists( 'Cirrusly_Commerce_Reports_Pro' ) ) {
+        Cirrusly_Commerce_Reports_Pro::generate_and_send( $scan_cfg );
+    }        }
     }
 }

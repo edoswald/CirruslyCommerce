@@ -19,10 +19,11 @@ class Cirrusly_Commerce_Mailer {
         // Enforce HTML content type for this specific email
         add_filter( 'wp_mail_content_type', array( __CLASS__, 'get_html_content_type' ) );
         
+    try {
         $result = wp_mail( $to, $subject, $message, $headers );
-        
+    } finally {
         // Clean up filter to avoid affecting other plugins/emails
-        remove_filter( 'wp_mail_content_type', array( __CLASS__, 'get_html_content_type' ) );
+        remove_filter( 'wp_mail_content_type', array( __CLASS__, 'get_html_content_type' ) );+    }
 
         return $result;
     }
@@ -40,6 +41,9 @@ class Cirrusly_Commerce_Mailer {
      */
     private static function get_headers() {
         $admin_email = get_option( 'admin_email' );
+    if ( ! is_email( $admin_email ) ) {
+        $admin_email = ''; // Let wp_mail use its default
+    }
         $site_title  = wp_specialchars_decode( get_option( 'blogname' ), ENT_QUOTES );
         
         // You could add a filter here to allow overriding the sender

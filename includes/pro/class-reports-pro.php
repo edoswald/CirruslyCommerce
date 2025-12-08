@@ -42,8 +42,8 @@ class Cirrusly_Commerce_Reports_Pro {
      */
     private static function get_weekly_data() {
         $date_query = array(
-            'after'     => wp_date('Y-m-d', strtotime('-7 days')),
-            'before'    => wp_date('Y-m-d', current_time('timestamp')),
+            'after'     => wp_date('Y-m-d', current_time('timestamp') - ( 7 * DAY_IN_SECONDS )),
+            'before'    => wp_date('Y-m-d', time()),
             'inclusive' => true,
         );
         

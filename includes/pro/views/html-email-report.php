@@ -1,12 +1,19 @@
 <?php 
 /**
  * View for the Weekly Profit Report Email
- * * @var array $data Contains 'orders' (array) and 'totals' (array)
+ * @var array $data Contains 'orders' (array) and 'totals' (array)
  */
 defined( 'ABSPATH' ) || exit;
 
-$t = $data['totals'];
-$row_style = 'border-bottom:1px solid #eee; padding: 10px;';
+$t = wp_parse_args( $data['totals'], array(
+    'count'      => 0,
+    'revenue'    => 0,
+    'cogs'       => 0,
+    'shipping'   => 0,
+    'fees'       => 0,
+    'net_profit' => 0,
+    'margin'     => 0,
+) );$row_style = 'border-bottom:1px solid #eee; padding: 10px;';
 $net_color = $t['net_profit'] > 0 ? '#008a20' : '#d63638';
 ?>
 <h2>Weekly Store Performance</h2>
