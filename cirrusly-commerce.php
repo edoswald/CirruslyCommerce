@@ -167,7 +167,7 @@ class Cirrusly_Commerce_Main {
     public function add_weekly_schedule( $schedules ) {
         if ( ! isset( $schedules['weekly'] ) ) {
             $schedules['weekly'] = array(
-                'interval' => 604800, // 7 days
+                'interval' => 7 * DAY_IN_SECONDS, // 7 days
                 'display'  => __( 'Once Weekly', 'cirrusly-commerce' )
             );
         }

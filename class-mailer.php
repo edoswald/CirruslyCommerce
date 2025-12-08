@@ -14,6 +14,10 @@ class Cirrusly_Commerce_Mailer {
      * @return bool           True on success, false on failure.
      */
     public static function send_html( $to, $subject, $message ) {
+    if ( ! is_email( $to ) ) {
+        return false;
+    }
+    
         $headers = self::get_headers();
 
         // Enforce HTML content type for this specific email

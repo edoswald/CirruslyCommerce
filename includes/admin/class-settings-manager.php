@@ -76,7 +76,8 @@ class Cirrusly_Commerce_Settings_Manager {
             $align = isset( $rule['align'] ) ? sanitize_key( $rule['align'] ) : 'left';
             $clean_rule['align'] = in_array( $align, array('left', 'right', 'center'), true ) ? $align : 'left';
 
-            if ( ! empty( $clean_rule['taxonomy'] ) || ! empty( $clean_rule['term'] ) || ! empty( $clean_rule['end'] ) ) {
+            if ( ! empty( $clean_rule['taxonomy'] ) && ! empty( $clean_rule['term'] ) && ! empty( $clean_rule['end'] ) ) {
+
                 $clean_rules[] = $clean_rule;
             }
         }
@@ -117,6 +118,7 @@ class Cirrusly_Commerce_Settings_Manager {
 
     public function sanitize_settings( $input ) {
         if ( isset( $input['revenue_tiers'] ) && is_array( $input['revenue_tiers'] ) ) {
+
             $clean_tiers = array();
             foreach ( $input['revenue_tiers'] as $tier ) {
                 if ( isset($tier['min']) && is_numeric($tier['min']) ) {
@@ -163,6 +165,12 @@ class Cirrusly_Commerce_Settings_Manager {
             }
             $input['custom_badges_json'] = json_encode( $clean_badges );
             unset( $input['custom_badges'] );
+        }
+       if ( isset( $input['scheduler_start'] ) ) {
+            $input['scheduler_start'] = sanitize_text_field( $input['scheduler_start'] );
+        }
+        if ( isset( $input['scheduler_end'] ) ) {
+            $input['scheduler_end'] = sanitize_text_field( $input['scheduler_end'] );
         }
         
         $fields = ['payment_pct', 'payment_flat', 'payment_pct_2', 'payment_flat_2', 'profile_split'];
@@ -405,13 +413,15 @@ class Cirrusly_Commerce_Settings_Manager {
         $config = self::get_global_config();
         $revenue_tiers = json_decode( $config['revenue_tiers_json'], true );
         $matrix_rules = json_decode( $config['matrix_rules_json'], true );
-        $class_costs = json_decode( $config['class_costs_json'], true );
+        $class_costs  = json_decode( $config['class_costs_json'], true );
         
         $payment_pct = isset($config['payment_pct']) ? $config['payment_pct'] : 2.9;
         $payment_flat = isset($config['payment_flat']) ? $config['payment_flat'] : 0.30;
         $profile_mode = isset($config['profile_mode']) ? $config['profile_mode'] : 'single';
 
         if ( ! is_array( $revenue_tiers ) ) $revenue_tiers = array();
+        if ( ! is_array( $matrix_rules ) )  $matrix_rules  = array();
+        if ( ! is_array( $class_costs ) )   $class_costs   = array();
 
         $terms = get_terms( array( 'taxonomy' => 'product_shipping_class', 'hide_empty' => false ) );
         $all_classes = array( 'default' => 'Default (No Class)' );
