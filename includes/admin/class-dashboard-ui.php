@@ -59,10 +59,15 @@ class Cirrusly_Commerce_Dashboard_UI {
             $total_margin = 0; 
             $margin_count = 0;
 
-            if ( is_array($audit_data) ) {
-                foreach($audit_data as $row) {
-                    if ( $row['net'] < 0 ) $loss_makers++;
-                    if ( isset($row['margin']) ) { $total_margin += $row['margin']; $margin_count++; }
+            if ( is_array( $audit_data ) ) {
+                foreach ( $audit_data as $row ) {
+                    if ( isset( $row['net'] ) && (float) $row['net'] < 0 ) {
+                        $loss_makers++;
+                    }
+                    if ( isset( $row['margin'] ) ) {
+                        $total_margin += (float) $row['margin'];
+                        $margin_count++;
+                    }
                 }
             } else {
                 // Fallback lightweight query

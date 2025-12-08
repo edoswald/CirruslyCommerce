@@ -121,8 +121,8 @@ class Cirrusly_Commerce_Reports {
         // Store filter callback for proper removal
         $html_filter = function() { return 'text/html'; };
         
-+        // Add From header for email authentication  
-+        $headers = Cirrusly_Commerce_Core::get_email_from_header();  
+        // Add From header for email authentication  
+        $headers = Cirrusly_Commerce_Core::get_email_from_header();  
 
         add_filter( 'wp_mail_content_type', $html_filter );
         wp_mail( $to, $subject, $message, $headers );

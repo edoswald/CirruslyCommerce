@@ -11,6 +11,7 @@ class Cirrusly_Commerce_Core {
     private function load_dependencies() {
         // Utilities (Always needed)
         require_once plugin_dir_path( __FILE__ ) . 'class-security.php';
+        require_once plugin_dir_path( __FILE__ ) . 'class-reports.php';
 
         // Admin-Specific Loading
         if ( is_admin() ) {

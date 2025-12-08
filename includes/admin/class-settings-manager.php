@@ -243,8 +243,10 @@ class Cirrusly_Commerce_Settings_Manager {
     public function render_settings_page() {
         $tab = isset( $_GET['tab'] ) ? sanitize_text_field( wp_unslash( $_GET['tab'] ) ) : 'general';
         echo '<div class="wrap">';
-        
-        if ( class_exists('Cirrusly_Commerce_Core') ) {
+
+        settings_errors();
+
+        if ( class_exists( 'Cirrusly_Commerce_Core' ) ) {
             Cirrusly_Commerce_Core::render_global_header( 'Settings' );
         } else {
             echo '<h1>Settings</h1>';
@@ -291,7 +293,7 @@ class Cirrusly_Commerce_Settings_Manager {
         $alert_disapproval = isset($scan['alert_gmc_disapproval']) ? $scan['alert_gmc_disapproval'] : '';
         $uploaded_file = isset($scan['service_account_name']) ? $scan['service_account_name'] : '';
 
-        $is_pro = Cirrusly_Commerce_Core::cirrusly_is_pro();
+        $is_pro = class_exists( 'Cirrusly_Commerce_Core' ) && method_exists( 'Cirrusly_Commerce_Core', 'cirrusly_is_pro' ) && Cirrusly_Commerce_Core::cirrusly_is_pro();
         $pro_class = $is_pro ? '' : 'cc-pro-feature';
         $disabled_attr = $is_pro ? '' : 'disabled';
         
@@ -302,7 +304,7 @@ class Cirrusly_Commerce_Settings_Manager {
         
         // Integrations
         echo '<div class="cc-settings-card">
-            <div class="cc-card-header"><h3>Integrations</h3><span class="dashicons dashicons-google"></span></div>
+             <div class="cc-card-header"><h3>Integrations</h3><span class="dashicons dashicons-google"></span></div>
             <div class="cc-card-body">
                 <table class="form-table cc-settings-table">
                     <tr><th scope="row">Google Customer Reviews</th><td><label><input type="checkbox" name="cirrusly_google_reviews_config[enable_reviews]" value="yes" '.checked('yes', $gcr_enable, false).'> Enable</label></td></tr>
@@ -410,7 +412,7 @@ class Cirrusly_Commerce_Settings_Manager {
         $custom_badges = isset($cfg['custom_badges_json']) ? json_decode($cfg['custom_badges_json'], true) : array();
         if(!is_array($custom_badges)) $custom_badges = array();
 
-        $is_pro = Cirrusly_Commerce_Core::cirrusly_is_pro();
+        $is_pro = class_exists( 'Cirrusly_Commerce_Core' ) && method_exists( 'Cirrusly_Commerce_Core', 'cirrusly_is_pro' ) && Cirrusly_Commerce_Core::cirrusly_is_pro();
         $pro_class = $is_pro ? '' : 'cc-pro-feature';
         $disabled_attr = $is_pro ? '' : 'disabled';
 
@@ -463,7 +465,7 @@ class Cirrusly_Commerce_Settings_Manager {
         $all_classes = array( 'default' => 'Default (No Class)' );
         if( ! is_wp_error( $terms ) ) { foreach ( $terms as $term ) { $all_classes[ $term->slug ] = $term->name; } }
 
-        $is_pro = Cirrusly_Commerce_Core::cirrusly_is_pro();
+        $is_pro = class_exists( 'Cirrusly_Commerce_Core' ) && method_exists( 'Cirrusly_Commerce_Core', 'cirrusly_is_pro' ) && Cirrusly_Commerce_Core::cirrusly_is_pro();
         $pro_class = $is_pro ? '' : 'cc-pro-feature';
         $disabled_attr = $is_pro ? '' : 'disabled';
 

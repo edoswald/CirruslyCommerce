@@ -23,9 +23,10 @@ class Cirrusly_Commerce_Pricing_UI {
         $new_columns = array();
         foreach ( $columns as $key => $title ) {
             $new_columns[$key] = $title;
-            if ( $key === 'price' ) {
-                $new_columns['cw_margin'] = 'Margin';
-            }
+        if ( 'price' === $key ) {
+            $new_columns['cw_margin'] = __( 'Margin', 'cirrusly-commerce' );
+        }
+
         }
         return $new_columns;
     }
@@ -44,7 +45,7 @@ class Cirrusly_Commerce_Pricing_UI {
             $margin = (($price - $cost) / $price) * 100;
             $color = $margin < 15 ? '#d63638' : '#008a20';
             echo '<span style="font-weight:bold; color:' . esc_attr($color) . '">' . number_format( $margin, 0 ) . '%</span>';
-        } elseif ( $cost <= 0 ) {
+        } else {
             echo '<span style="color:#999;">-</span>';
         }
     }
