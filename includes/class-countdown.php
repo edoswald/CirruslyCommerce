@@ -20,13 +20,6 @@ class Cirrusly_Commerce_Countdown {
         add_action( 'wp_footer', array( $this, 'render_worker_script' ) );
     }
 
-    private static function get_smart_rules() {
-        if ( ! class_exists( 'Cirrusly_Commerce_Core' ) || ! Cirrusly_Commerce_Core::cirrusly_is_pro() ) {
-            return array();
-        }
-        return get_option( 'cirrusly_countdown_rules', array() ); 
-    }
-
     public function render_shortcode( $atts ) {
         $a = shortcode_atts( array(
             'end'   => '',
@@ -47,7 +40,7 @@ class Cirrusly_Commerce_Countdown {
         if ( ! is_object( $product ) ) return false;
         $pid = $product->get_id();
 
-        // --- PRIORITY 1: Manual Product Meta ---
+        // --- PRIORITY 1: Manual Product Meta (Free Feature) ---
         $manual_end = get_post_meta( $pid, '_cw_sale_end', true );
         if ( ! empty( $manual_end ) && self::is_date_future( $manual_end ) ) {
             return array(
@@ -58,20 +51,15 @@ class Cirrusly_Commerce_Countdown {
         }
 
         // --- PRIORITY 2: Smart Rules (Pro Feature) ---
-        $rules = self::get_smart_rules();
-        foreach ( $rules as $rule ) {
-            if ( empty($rule['term']) || empty($rule['taxonomy']) || empty($rule['end']) ) continue;
-
-            if ( has_term( $rule['term'], $rule['taxonomy'], $pid ) ) {
-                 if ( self::is_date_future( $rule['end'] ) ) {
-                    return array(
-                        'end'   => $rule['end'],
-                        'label' => isset($rule['label']) ? $rule['label'] : 'Ends in:',
-                        'align' => isset($rule['align']) ? $rule['align'] : 'left',
-                    );
-                 }
+        // Refactored: Logic moved to Pro class to clean up Core
+        if ( class_exists( 'Cirrusly_Commerce_Core' ) && Cirrusly_Commerce_Core::cirrusly_is_pro() ) {
+            $pro_class = plugin_dir_path( __FILE__ ) . 'pro/class-countdown-pro.php';
+            if ( file_exists( $pro_class ) ) {
+                require_once $pro_class;
+                return Cirrusly_Commerce_Countdown_Pro::check_smart_rules( $product );
             }
         }
+        
         return false;
     }
 

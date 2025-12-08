@@ -83,7 +83,11 @@ class Cirrusly_Commerce_Settings_Manager {
         return $clean_rules;
     }
 
+    /**
+     * Handle scan schedule settings and delegate service account upload.
+     */
     public function handle_scan_schedule( $input ) {
+        // 1. Schedule Logic (Core Feature)
         wp_clear_scheduled_hook( 'cirrusly_gmc_daily_scan' );
         if ( isset($input['enable_daily_scan']) && $input['enable_daily_scan'] === 'yes' ) {
             if ( ! wp_next_scheduled( 'cirrusly_gmc_daily_scan' ) ) {
@@ -91,57 +95,20 @@ class Cirrusly_Commerce_Settings_Manager {
             }
         }
         
-        // Handle File Upload (Service Account JSON)
+        // 2. File Upload Logic (Pro Feature)
         if ( ! empty( $_FILES['cirrusly_service_account']['tmp_name'] ) && is_uploaded_file( $_FILES['cirrusly_service_account']['tmp_name'] ) ) {
-            $file = $_FILES['cirrusly_service_account'];
-
-            if ( $file['size'] > 65536 ) { // 64KB
-                 add_settings_error( 'cirrusly_scan_config', 'size_error', 'File too large. Max 64KB.' );
-                 return $this->sanitize_options_array( $input );
-            }
-
-            // MIME Check
-            $is_valid_mime = false;
-            $ext = strtolower( pathinfo( $file['name'], PATHINFO_EXTENSION ) );
-            $finfo = finfo_open( FILEINFO_MIME_TYPE );
-            $mime_type = finfo_file( $finfo, $file['tmp_name'] );
-            finfo_close( $finfo );
-            if ( $ext === 'json' && in_array( $mime_type, array( 'application/json', 'text/plain' ), true ) ) {
-                $is_valid_mime = true;
-            }
-            if ( ! $is_valid_mime ) {
-                add_settings_error( 'cirrusly_scan_config', 'mime_error', 'Invalid file type. JSON required.' );
-                return $this->sanitize_options_array( $input );
-            }
-
-            // Validate Content
-            $json_content = file_get_contents( $file['tmp_name'] );
-            $data = json_decode( $json_content, true );
-
-            if ( json_last_error() !== JSON_ERROR_NONE || ! is_array( $data ) ) {
-                add_settings_error( 'cirrusly_scan_config', 'json_error', 'Invalid JSON content.' );
-                return $this->sanitize_options_array( $input );
-            }
-
-            $required_keys = array( 'type', 'project_id', 'private_key_id', 'private_key', 'client_email' );
-            $missing = array_diff( $required_keys, array_keys($data) );
-
-            if ( ! empty( $missing ) ) {
-                add_settings_error( 'cirrusly_scan_config', 'keys_missing', 'Missing keys: ' . implode( ', ', $missing ) );
-                return $this->sanitize_options_array( $input );
-            }
-
-            // Encrypt & Store using Security Class
-            if ( class_exists( 'Cirrusly_Commerce_Security' ) ) {
-                $encrypted = Cirrusly_Commerce_Security::encrypt_data( $json_content );
-                if ( $encrypted ) {
-                    update_option( 'cirrusly_service_account_json', $encrypted, false );
-                    $input['service_account_uploaded'] = 'yes';
-                    $input['service_account_name'] = sanitize_file_name( $file['name'] );
-                    add_settings_error( 'cirrusly_scan_config', 'upload_success', 'Service Account JSON uploaded.', 'updated' );
-                } else {
-                    add_settings_error( 'cirrusly_scan_config', 'encrypt_error', 'Encryption failed.' );
+            
+            // Check Pro and Load Delegate
+            if ( class_exists( 'Cirrusly_Commerce_Core' ) && Cirrusly_Commerce_Core::cirrusly_is_pro() ) {
+                $pro_class = dirname( plugin_dir_path( __FILE__ ) ) . '/pro/class-settings-pro.php';
+                
+                if ( file_exists( $pro_class ) ) {
+                    require_once $pro_class;
+                    // The Pro method returns the modified $input array
+                    $input = Cirrusly_Commerce_Settings_Pro::process_service_account_upload( $input, $_FILES['cirrusly_service_account'] );
                 }
+            } else {
+                 add_settings_error( 'cirrusly_scan_config', 'pro_required', 'Pro version required for Service Account upload.' );
             }
         }
 
