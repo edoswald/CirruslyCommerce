@@ -23,7 +23,8 @@ class Cirrusly_Commerce_Mailer {
         $result = wp_mail( $to, $subject, $message, $headers );
     } finally {
         // Clean up filter to avoid affecting other plugins/emails
-        remove_filter( 'wp_mail_content_type', array( __CLASS__, 'get_html_content_type' ) );+    }
+        remove_filter( 'wp_mail_content_type', array( __CLASS__, 'get_html_content_type' ) );
+        }
 
         return $result;
     }

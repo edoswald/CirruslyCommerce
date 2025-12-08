@@ -8,6 +8,7 @@
  * Text Domain: cirrusly-commerce
  * License:           GPL v2 or later
  * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
+ * @fs_premium_only /includes/pro/, /assets/js/pro/, /assets/css/pro/
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
