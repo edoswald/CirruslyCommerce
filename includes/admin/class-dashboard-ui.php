@@ -43,7 +43,6 @@ class Cirrusly_Commerce_Dashboard_UI {
             }
 
             // 3. Catalog & Cost Stats
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
             $missing_cost = $wpdb->get_var("SELECT count(p.ID) FROM {$wpdb->posts} p LEFT JOIN {$wpdb->postmeta} pm ON (p.ID = pm.post_id AND pm.meta_key = '_cogs_total_value') WHERE p.post_type IN ('product', 'product_variation') AND p.post_status = 'publish' AND (pm.meta_value IS NULL OR pm.meta_value = '' OR pm.meta_value = 0)");
             
             $count_posts = wp_count_posts('product');
@@ -71,7 +70,6 @@ class Cirrusly_Commerce_Dashboard_UI {
                 }
             } else {
                 // Fallback lightweight query
-                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
                 $margin_query = $wpdb->get_results("SELECT pm.meta_value as cost, p.ID FROM {$wpdb->postmeta} pm JOIN {$wpdb->posts} p ON p.ID = pm.post_id WHERE pm.meta_key = '_cogs_total_value' AND p.post_type = 'product' AND p.post_status = 'publish' LIMIT 200");
                 
                 foreach($margin_query as $row) {
@@ -107,7 +105,6 @@ class Cirrusly_Commerce_Dashboard_UI {
 
             // 6. Low Stock
             $low_stock_threshold = get_option( 'woocommerce_notify_low_stock_amount', 2 );
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
             $low_stock_count = $wpdb->get_var( $wpdb->prepare( "
                 SELECT count(p.ID) 
                 FROM {$wpdb->posts} p 

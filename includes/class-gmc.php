@@ -86,9 +86,22 @@ class Cirrusly_Commerce_GMC {
      * @param \WC_Product $product The product being edited; its ID is used to update post meta.
      */
     public function save_quick_bulk_edit( $product ) {
-        if ( ! isset( $_POST['woocommerce_meta_nonce'] ) || ! wp_verify_nonce( $_POST['woocommerce_meta_nonce'], 'woocommerce_save_data' ) ) {
+        // [Security] Updated to verify the correct nonce for Quick/Bulk edit contexts
+        $nonce_verified = false;
+
+        // 1. Check Quick Edit Nonce
+        if ( isset( $_POST['woocommerce_quick_edit_nonce'] ) && wp_verify_nonce( $_POST['woocommerce_quick_edit_nonce'], 'woocommerce_quick_edit' ) ) {
+            $nonce_verified = true;
+        }
+        // 2. Check Bulk Edit Nonce (Standard WP Bulk Edit)
+        elseif ( isset( $_POST['_wpnonce'] ) && wp_verify_nonce( $_POST['_wpnonce'], 'bulk-posts' ) ) {
+            $nonce_verified = true;
+        }
+
+        if ( ! $nonce_verified ) {
             return;
-        }    
+        }
+
         $post_id = $product->get_id();
         if ( isset( $_REQUEST['gmc_is_custom_product'] ) ) {
             update_post_meta( $post_id, '_gla_identifier_exists', 'no' );
@@ -97,7 +110,6 @@ class Cirrusly_Commerce_GMC {
         }
         delete_transient( 'cirrusly_active_promos_stats' );
     }
-
     /**
      * Marks a product as non-custom and redirects to the GMC admin scan tab.
      *

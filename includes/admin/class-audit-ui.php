@@ -219,10 +219,10 @@ class Cirrusly_Commerce_Audit_UI {
                 <h3>Data Management <span class="cc-pro-badge">PRO</span></h3>
               </div>
               <div class="cc-card-body" style="display:flex; gap:20px; align-items:center;">
-                 <div>
+<div>
                     <h4>Export Data</h4>
                     <p>Download your full financial audit as a CSV file.</p>
-                    <a href="'.esc_url( add_query_arg('action', 'export_csv') ).'" class="button button-secondary" '.esc_attr($disabled_attr).'>
+                    <a href="'.esc_url( wp_nonce_url( add_query_arg('action', 'export_csv'), 'cc_export_csv' ) ).'" class="button button-secondary" '.esc_attr($disabled_attr).'>
                         <span class="dashicons dashicons-download"></span> Download CSV
                     </a>
                  </div>
