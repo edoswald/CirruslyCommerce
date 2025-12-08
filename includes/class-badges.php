@@ -6,10 +6,29 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class Cirrusly_Commerce_Badges {
 
+    /**
+     * Initialize frontend badge integration and load Pro badge logic when available.
+     *
+     * Registers the 'wp' action to attach frontend hooks and conditionally requires the Pro badges class file if the Pro feature is active and the file exists.
+     */
     public function __construct() {
         add_action( 'wp', array( $this, 'init_frontend_hooks' ) );
+        
+        // Load Pro Badges Logic if active
+        if ( Cirrusly_Commerce_Core::cirrusly_is_pro() && file_exists( plugin_dir_path( __FILE__ ) . 'pro/class-badges-pro.php' ) ) {
+            require_once plugin_dir_path( __FILE__ ) . 'pro/class-badges-pro.php';
+        }
     }
 
+    /**
+     * Register frontend WordPress hooks required to render product badges when badges are enabled.
+     *
+     * Reads the badge configuration and, if badges are enabled, attaches handlers for:
+     * - single product badge rendering,
+     * - shop loop payload insertion,
+     * - frontend badge relocation script,
+     * - and printing critical badge CSS in the page head.
+     */
     public function init_frontend_hooks() {
         $badge_cfg = get_option( 'cirrusly_badge_config', array() );
         if ( empty($badge_cfg['enable_badges']) || $badge_cfg['enable_badges'] !== 'yes' ) return;
@@ -20,60 +39,31 @@ class Cirrusly_Commerce_Badges {
         add_action( 'wp_head', array( $this, 'print_critical_css' ) );
     }
 
+    /**
+     * Outputs critical inline CSS that styles Cirrusly Commerce product badges and hides default WooCommerce sale badges.
+     *
+     * Reads the `cirrusly_badge_config` option to determine `badge_size` (small, medium, large) and adjusts badge font size,
+     * padding, and image width accordingly before printing the inline style block.
+     */
     public function print_critical_css() {
+        // ... (Keep existing CSS generation logic exactly as is) ...
         $badge_cfg = get_option( 'cirrusly_badge_config', array() );
         $size = isset($badge_cfg['badge_size']) ? $badge_cfg['badge_size'] : 'medium';
-        
         $font_size = '12px'; $padding = '4px 8px'; $width = '60px';
         if ( $size === 'small' ) { $font_size = '10px'; $padding = '2px 6px'; $width = '50px'; }
         if ( $size === 'large' ) { $font_size = '14px'; $padding = '6px 10px'; $width = '80px'; }
-
         ?>
         <style>
-        /* --- 1. NUCLEAR OPTION: HIDE DEFAULT BADGES --- */
-        html body .wc-block-components-sale-badge, 
-        html body .wc-block-grid__product-onsale,
-        html body .wp-block-woocommerce-product-sale-badge,
-        html body .onsale,
-        html body span.onsale,
-        html body .woocommerce-badges .badge-sale { 
-            display: none !important; visibility: hidden !important; opacity: 0 !important; z-index: -999 !important;
-        }
-        /* --- 2. CUSTOM BADGE STYLES --- */
-        .cw-badge-pill {
-            background-color: #d63638; color: #fff; font-weight: bold; 
-            font-size: <?php echo esc_attr($font_size); ?>;
-            text-transform: uppercase; 
-            padding: <?php echo esc_attr($padding); ?>; 
-            margin-bottom: 5px; display: inline-block;
-            border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.2); width: fit-content; line-height: 1.2;
-        }
+        html body .wc-block-components-sale-badge, html body .wc-block-grid__product-onsale, html body .wp-block-woocommerce-product-sale-badge, html body .onsale, html body span.onsale, html body .woocommerce-badges .badge-sale { display: none !important; visibility: hidden !important; opacity: 0 !important; z-index: -999 !important; }
+        .cw-badge-pill { background-color: #d63638; color: #fff; font-weight: bold; font-size: <?php echo esc_attr($font_size); ?>; text-transform: uppercase; padding: <?php echo esc_attr($padding); ?>; margin-bottom: 5px; display: inline-block; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.2); width: fit-content; line-height: 1.2; }
         .cw-badge-pill.cw-new { background-color: #2271b1; }
-        
-        .cw-shop-badge-layer {
-            position: absolute; bottom: 10px; left: 10px; z-index: 99; pointer-events: none;
-            display: flex; flex-direction: column; align-items: flex-start;
-        }
-        .cw-shop-badge-layer .cw-badge-img { 
-            width: <?php echo esc_attr($width); ?> !important; 
-            height: auto; display: block; margin: 0; box-shadow: none !important; 
-        }
-        
+        .cw-shop-badge-layer { position: absolute; bottom: 10px; left: 10px; z-index: 99; pointer-events: none; display: flex; flex-direction: column; align-items: flex-start; }
+        .cw-shop-badge-layer .cw-badge-img { width: <?php echo esc_attr($width); ?> !important; height: auto; display: block; margin: 0; box-shadow: none !important; }
         .cw-badge-container.cw-single-page { margin-bottom: 15px; display: flex; gap: 10px; align-items: center; width: fit-content; }
-        .cw-badge-container.cw-single-page .cw-badge-img { 
-            width: <?php echo esc_attr(intval($width) * 1.5) . 'px'; ?> !important; 
-            height: auto; display: block; margin: 0; 
-        }
+        .cw-badge-container.cw-single-page .cw-badge-img { width: <?php echo esc_attr(intval($width) * 1.5) . 'px'; ?> !important; height: auto; display: block; margin: 0; }
         .cw-badge-container.cw-single-page .cw-badge-pill { margin-bottom: 0; font-size: 14px; padding: 6px 10px; }
-
-        /* Tooltip */
         .cw-has-tooltip { cursor: help; position: relative; }
-        .cw-has-tooltip:hover::after {
-            content: attr(data-tooltip); position: absolute; bottom: 120%; left: 0;
-            background-color: #333; color: #fff; font-size: 10px; font-weight: normal;
-            text-transform: none; white-space: nowrap; padding: 5px 10px; border-radius: 4px;
-            z-index: 9999; box-shadow: 0 2px 6px rgba(0,0,0,0.3); pointer-events: none;
-        }
+        .cw-has-tooltip:hover::after { content: attr(data-tooltip); position: absolute; bottom: 120%; left: 0; background-color: #333; color: #fff; font-size: 10px; font-weight: normal; text-transform: none; white-space: nowrap; padding: 5px 10px; border-radius: 4px; z-index: 9999; box-shadow: 0 2px 6px rgba(0,0,0,0.3); pointer-events: none; }
         .cw-badge-wrap { display: block; line-height: 0; width: fit-content; }
         </style>
         <?php
@@ -86,6 +76,13 @@ class Cirrusly_Commerce_Badges {
         if ( $html ) echo '<div class="cw-badge-container cw-single-page">' . wp_kses_post( $html ) . '</div>';
     }
 
+    /**
+     * Outputs a hidden payload container with product badge HTML for grid/list views.
+     *
+     * If a global product is available and badge HTML exists for it, echoes a
+     * visually hidden <div class="cw-badge-payload"> containing the sanitized badge
+     * markup so frontend scripts can relocate badges into product image areas.
+     */
     public function render_grid_payload() {
         global $product;
         if ( ! $product ) return;
@@ -93,7 +90,16 @@ class Cirrusly_Commerce_Badges {
         if ( $html ) echo '<div class="cw-badge-payload" style="display:none;">' . wp_kses_post( $html ) . '</div>';
     }
 
+    /**
+     * Injects frontend JavaScript that relocates badge payloads into product image containers
+     * and re-applies the placement when product grid content changes.
+     *
+     * The script runs on DOMContentLoaded and uses a MutationObserver to handle dynamic
+     * updates (e.g., AJAX-loaded or re-rendered product lists). This method does nothing
+     * in admin contexts.
+     */
     public function render_badge_script() {
+        // ... (Keep existing JS logic) ...
         if ( is_admin() ) return;
         ?>
         <script>
@@ -124,16 +130,14 @@ class Cirrusly_Commerce_Badges {
     }
 
     /**
-     * Builds HTML for product badges based on site configuration and the product's state.
+     * Build HTML markup for all badges that apply to a product.
      *
-     * Generates zero or more badge elements for:
-     * - premium "SMART" badges (Inventory, Performance, Scheduler, Sentiment) when the site is PRO and corresponding features are enabled,
-     * - sale-based discount badges calculated from MSRP or regular price,
-     * - "New" arrival badges based on product age,
-     * - custom tag-based image badges configured via JSON.
+     * Produces a concatenated HTML string containing sale badges (percentage or "Save up to" for variable products),
+     * a "New" badge when the product was created within the configured number of days, and image badges for matching
+     * product_tag-based custom badges. If a Pro extension is active, additional Pro-only smart badges may be included.
      *
-     * @param \WC_Product|null $product The product to evaluate. If null or invalid, an empty string is returned.
-     * @return string HTML containing the concatenated badge elements (may be an empty string).
+     * @param \WC_Product|null|false $product The product object to evaluate. If falsy, an empty string is returned.
+     * @return string HTML markup for the product's badges (empty string when no badges apply).
      */
     private function get_badge_html( $product ) {
         if ( ! $product ) return '';
@@ -146,63 +150,17 @@ class Cirrusly_Commerce_Badges {
         $output = '';
         $min_threshold = 5; 
 
-    /* --------------------------------------------------------- */ 
-    /* fs_premium_only start                                     */
-    /* --------------------------------------------------------- */
-    
-    // Only render SMART badges for PRO users
-    $is_pro = Cirrusly_Commerce_Core::cirrusly_is_pro();
-    
-    // 1. SMART: INVENTORY (Low Stock)
-    if ( $is_pro && ! empty($badge_cfg['smart_inventory']) && $badge_cfg['smart_inventory'] === 'yes' ) {
-        if ( $product->managing_stock() && $product->get_stock_quantity() > 0 && $product->get_stock_quantity() < 5 ) {
-            $output .= '<span class="cw-badge-pill" style="background-color:#dba617;">Low Stock</span>';
+        // 1. SMART BADGES (Delegated to Pro Class)
+        if ( Cirrusly_Commerce_Core::cirrusly_is_pro() && class_exists( 'Cirrusly_Commerce_Badges_Pro' ) ) {
+            $output .= Cirrusly_Commerce_Badges_Pro::get_smart_badges_html( $product, $badge_cfg );
         }
-    }
 
-    // 2. SMART: PERFORMANCE (Best Seller)
-    // Check if total sales > 50 (Simple threshold) or use transient for Top 10
-    if ( $is_pro && ! empty($badge_cfg['smart_performance']) && $badge_cfg['smart_performance'] === 'yes' ) {
-        // Optimization: Check simple sales count to avoid heavy queries on every load
-        if ( $product->get_total_sales() > 50 ) {
-            $output .= '<span class="cw-badge-pill" style="background-color:#00a32a;">Best Seller</span>';
-        }
-    }
-
-    // 3. SMART: SCHEDULER (Date Range)
-    if ( $is_pro && ! empty($badge_cfg['smart_scheduler']) && $badge_cfg['smart_scheduler'] === 'yes' ) {
-        $start = !empty($badge_cfg['scheduler_start']) ? strtotime($badge_cfg['scheduler_start']) : 0;
-        $end   = !empty($badge_cfg['scheduler_end']) ? strtotime($badge_cfg['scheduler_end']) : 0;
-        $now   = current_time('timestamp');
-
-        if ( $start && $end && $now >= $start && $now <= $end ) {
-            $output .= '<span class="cw-badge-pill" style="background-color:#826eb4;">Event</span>';
-        }
-    }
-
-    // 4. SMART BADGE: SENTIMENT (Customer Love)
-    if ( $is_pro ) {
-        $client = Cirrusly_Commerce_GMC::get_google_client();
-        
-        if ( ! is_wp_error( $client ) ) {
-            $sentiment_badge = $this->get_sentiment_badge( $product, $client );
-            if ( $sentiment_badge ) $output .= $sentiment_badge;
-
-        }
-    } 
-
-    /* --------------------------------------------------------- */
-    /* fs_premium_only end                                       */
-    /* --------------------------------------------------------- */
-
-        // 1. SALE MATH
+        // 2. SALE MATH (Free Feature)
         if ( $product->is_on_sale() ) {
             $percentage = 0;
             $prefix = 'Save ';
-            
             $clean = function($v) { return (float) preg_replace('/[^0-9.]/', '', $v); };
             
-            // Base Price Logic
             $msrp = get_post_meta( $product->get_id(), '_alg_msrp', true );
             if ( !$msrp && $product->is_type('variation') ) {
                 $msrp = get_post_meta( $product->get_parent_id(), '_alg_msrp', true );
@@ -218,12 +176,10 @@ class Cirrusly_Commerce_Badges {
                 foreach ( $children as $child_id ) {
                     $var = wc_get_product($child_id);
                     if ( ! $var ) continue;
-                    
                     $v_reg = $clean($var->get_regular_price());
                     $v_sale = $clean($var->get_price());
                     $v_msrp = get_post_meta($child_id, '_alg_msrp', true) ?: get_post_meta($product->get_id(), '_alg_msrp', true);
                     $v_base = ($calc_from === 'msrp' && $clean($v_msrp)) ? $clean($v_msrp) : $v_reg;
-                    
                     if ( $v_base > $v_sale && $v_sale > 0 ) {
                         $discounts[] = round( ( ($v_base - $v_sale) / $v_base ) * 100 );
                     }
@@ -245,27 +201,24 @@ class Cirrusly_Commerce_Badges {
             }
         }
 
-        // 2. NEW ARRIVAL BADGE
+        // 3. NEW ARRIVAL BADGE (Free Feature)
         if ( $new_days > 0 ) {
             $created_date = $product->get_date_created();
             if ( $created_date ) {
-                $created_ts = $created_date->getTimestamp();
-                $diff = (time() - $created_ts) / (60 * 60 * 24); // Days
+                $diff = (time() - $created_date->getTimestamp()) / (60 * 60 * 24);
                 if ( $diff <= $new_days ) {
                     $output .= '<span class="cw-badge-pill cw-new">New</span>';
                 }
             }
         }
 
-        // 3. CUSTOM TAG BADGES
+        // 4. CUSTOM TAG BADGES (Free Feature)
         if ( ! empty( $custom_badges ) && is_array( $custom_badges ) ) {
             foreach ( $custom_badges as $badge ) {
                 if ( empty($badge['tag']) || empty($badge['url']) ) continue;
-                
                 if ( has_term( $badge['tag'], 'product_tag', $product->get_id() ) ) {
                     $width = !empty($badge['width']) ? intval($badge['width']) . 'px' : '60px';
                     $tooltip_attr = !empty($badge['tooltip']) ? ' class="cw-badge-wrap cw-has-tooltip" data-tooltip="' . esc_attr($badge['tooltip']) . '"' : ' class="cw-badge-wrap"';
-                    
                     $output .= '<span' . $tooltip_attr . '>';
                     $output .= '<img src="' . esc_url($badge['url']) . '" style="width:' . esc_attr($width) . ' !important;" class="cw-badge-img" />';
                     $output .= '</span>';
@@ -274,68 +227,5 @@ class Cirrusly_Commerce_Badges {
         }
 
         return $output;
-    }
-
-    /**
-     * Determine whether recent approved reviews exhibit strong positive sentiment and return a "Customer Fave" badge HTML when they do.
-     *
-     * Uses the Google Cloud Natural Language API to analyze up to 5 approved comments for the given product, computes the average sentiment score, and returns a small HTML badge when the average score exceeds 0.6. Results are cached in a transient: a positive badge is cached for 7 days; an empty result is cached for 1 day. On any error or if there are no comments, an empty string is returned (and cached for 1 day).
-     *
-     * @param \WC_Product $product The product to analyze.
-     * @param \Google\Client $client An authenticated Google API client configured for Cloud Natural Language.
-     * @return string The badge HTML ("Customer Fave ❤️") when sentiment is highly positive, or an empty string otherwise.
-     */
-    private function get_sentiment_badge( $product, $client ) {
-        // Simple caching to avoid API costs/latency on every page load
-        $cache_key = 'cc_sentiment_' . $product->get_id();
-        $cached = get_transient( $cache_key );
-        if ( false !== $cached ) return $cached;
-
-        $comments = get_comments( array(
-            'post_id' => $product->get_id(),
-            'number'  => 5,
-            'status'  => 'approve',
-            'type'    => 'review', // Only product reviews
-        ) ); 
-        
-        if ( empty( $comments ) ) {
-            set_transient( $cache_key, '', DAY_IN_SECONDS );
-            return '';
-        }
-
-        try {
-            $service = new Google\Service\CloudNaturalLanguage( $client );
-            
-            // Combine reviews into single document to minimize API calls
-            $combined_text = implode( "\n\n", array_map( function( $c ) {
-                return $c->comment_content;
-            }, $comments ) );
-            
-            $doc = new Google\Service\CloudNaturalLanguage\Document();
-            $doc->setContent( $combined_text );
-            $doc->setType( 'PLAIN_TEXT' );
-            
-            $request = new Google\Service\CloudNaturalLanguage\AnalyzeSentimentRequest();
-            $request->setDocument( $doc );
-            
-            $resp = $service->documents->analyzeSentiment( $request );
-            $score = $resp->getDocumentSentiment()->getScore();
-
-            // If average sentiment is > 0.6 (Highly Positive)
-            if ( $score > 0.6 ) {
-                $html = '<span class="cw-badge-pill" style="background-color:#e0115f;">Customer Fave ❤️</span>';
-                set_transient( $cache_key, $html, 7 * DAY_IN_SECONDS );
-                return $html;
-            }
-
-        } catch ( Exception $e ) {
-            // Log error for debugging, do not crash frontend
-            if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
-                error_log( 'Cirrusly Sentiment Analysis Error: ' . $e->getMessage() );
-            }
-        }
-        
-        set_transient( $cache_key, '', DAY_IN_SECONDS );
-        return '';
     }
 }

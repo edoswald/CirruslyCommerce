@@ -4,7 +4,7 @@ Contributors: edoswald
 Tags: Google Merchant Center, WooCommerce, pricing, MSRP, profit margin
 Requires at least: 5.8 
 Tested up to: 6.9 
-Stable tag: 1.2 
+Stable tag: 1.3 
 Requires PHP: 8.0 
 License: GPLv2 or later 
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
@@ -89,9 +89,12 @@ Store Audit: A financial breakdown of every product to spot profit leaks.
 
 == Changelog ==
 
-= 1.2.1 =
-
+= 1.3 =
 **Note:** Effective from this release, only changes to the free version of the plugin will be listed. For changes to the Pro version of the plugin (which also include the free changes), please refer to the pro version README instead.
+* Refactor of entire plugin to improve both frontend and admin loading times
+* **New Feature:** Gutenberg Blocks! 
+
+= 1.2.1 =
 * **New Feature:** Introduced "Freemium" architecture. Pro features are now visible in the interface (grayed out) to showcase advanced capabilities if downloading from Freemius. They are not visible from the WP Plugin Directory version. 
 * **Enhancement:** Added "System Info" tool to the support menu (header) to easily copy environment details for faster troubleshooting.
 * **Enhancement:** Pricing Engine now supports 5%, 15%, and 25% "Off MSRP" strategies.
