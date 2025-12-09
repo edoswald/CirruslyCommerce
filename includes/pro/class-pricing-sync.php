@@ -73,7 +73,6 @@ class Cirrusly_Commerce_Pricing_Sync {
         }
 
         // 1. Setup Client
-        if ( ! class_exists( 'Cirrusly_Commerce_Google_API_Client' ) ) return;
         if ( ! class_exists( 'Cirrusly_Commerce_Google_API_Client' ) ) {
             $this->log_global_sync_failure( 'GMC API Client class not loaded.' );
             return;
@@ -85,8 +84,10 @@ class Cirrusly_Commerce_Pricing_Sync {
             return;
         }
 
-        $scan_config = get_option( 'cirrusly_scan_config' );
-        $merchant_id = isset( $scan_config['merchant_id_pro'] ) ? $scan_config['merchant_id_pro'] : get_option( 'cirrusly_gmc_merchant_id', '' );
+        $scan_config = get_option( 'cirrusly_scan_config', array() );
+        $merchant_id = ! empty( $scan_config['merchant_id_pro'] )
+            ? $scan_config['merchant_id_pro']
+            : get_option( 'cirrusly_gmc_merchant_id', '' );
         
         if ( empty( $merchant_id ) ) {
             $this->log_global_sync_failure( 'Missing Merchant ID configuration.' );
