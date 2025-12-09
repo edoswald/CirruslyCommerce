@@ -32,7 +32,7 @@ class Cirrusly_Commerce_Pricing_Sync {
     // Avoid duplicates in the queue (use strict comparison)
     if ( ! in_array( $product_id, $queue, true ) ) {
         $queue[] = $product_id;
-        update_option( self::QUEUE_OPTION, $queue, true );
+        update_option( self::QUEUE_OPTION, $queue, false );
     }
     
 
@@ -128,6 +128,9 @@ class Cirrusly_Commerce_Pricing_Sync {
                 if ( empty( $failed_ids ) ) {
                     $this->log_global_sync_success();
                 } else {
+                    // Re-add failed items to the queue for retry
+                    $queue = array_merge( $failed_ids, $queue );
+                    update_option( self::QUEUE_OPTION, $queue, false );
                     $this->log_global_sync_failure( count( $failed_ids ) . ' products failed to sync.' );
                 }
 

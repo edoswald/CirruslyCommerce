@@ -6,6 +6,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 class Cirrusly_Commerce_GMC {
 
     /**
+     * Track initialization state to prevent duplicate hook registration.
+     *
+     * @var bool
+     */
+    private static $initialized = false;
+
+    /**
      * CONSTRUCTOR: Left empty to allow instantiation without side effects.
      * Used by the scanner to access logic methods without re-registering hooks.
      */
@@ -18,6 +25,12 @@ class Cirrusly_Commerce_GMC {
      * Must be called ONCE by the Core class.
      */
     public function init() {
+        // [Security] Prevent multiple calls to init()
+        if ( self::$initialized ) {
+            return;
+        }
+        self::$initialized = true;
+
         // 1. Load Sub-Modules
         if ( is_admin() ) {
             require_once plugin_dir_path( __FILE__ ) . 'admin/class-gmc-ui.php';
@@ -52,13 +65,7 @@ class Cirrusly_Commerce_GMC {
 
     /**
      * Persist GMC-related product meta and clear related promo statistics.
-     *
-     * Updates the product's `_gla_identifier_exists` meta to `'no'` when the
-     * POST field `gmc_is_custom_product` is present, otherwise sets it to `'yes'`.
-     * When present in POST, saves sanitized values for `_gmc_promotion_id` and
-     * `_gmc_custom_label_0`. Deletes the transient `cirrusly_active_promos_stats`.
-     *
-     * @param int $post_id The ID of the product post being saved.
+     * ...
      */
     public function save_product_meta( $post_id ) {
         if ( ! isset( $_POST['woocommerce_meta_nonce'] ) || ! wp_verify_nonce( $_POST['woocommerce_meta_nonce'], 'woocommerce_save_data' ) ) {
@@ -78,30 +85,22 @@ class Cirrusly_Commerce_GMC {
     }
 
     /**
-     * Update a product's GMC identifier flag based on quick/bulk edit input and clear cached promotion stats.
-     *
-     * When the request includes `gmc_is_custom_product`, the product meta `_gla_identifier_exists` is set to `no`.
-     * When the request indicates a quick edit (`woocommerce_quick_edit`) but not a bulk edit, the meta is set to `yes`.
-     *
-     * @param \WC_Product $product The product being edited; its ID is used to update post meta.
+     * Update a product's GMC identifier flag based on quick/bulk edit input.
+     * Includes updated nonce verification for Quick/Bulk edit contexts.
      */
     public function save_quick_bulk_edit( $product ) {
-        // [Security] Updated to verify the correct nonce for Quick/Bulk edit contexts
+        // [Security] Verify correct nonce for Quick vs Bulk Edit
         $nonce_verified = false;
-
-        // 1. Check Quick Edit Nonce
         if ( isset( $_POST['woocommerce_quick_edit_nonce'] ) && wp_verify_nonce( $_POST['woocommerce_quick_edit_nonce'], 'woocommerce_quick_edit' ) ) {
             $nonce_verified = true;
-        }
-        // 2. Check Bulk Edit Nonce (Standard WP Bulk Edit)
-        elseif ( isset( $_POST['_wpnonce'] ) && wp_verify_nonce( $_POST['_wpnonce'], 'bulk-posts' ) ) {
+        } elseif ( isset( $_POST['_wpnonce'] ) && wp_verify_nonce( $_POST['_wpnonce'], 'bulk-posts' ) ) {
             $nonce_verified = true;
         }
 
         if ( ! $nonce_verified ) {
             return;
-        }
-
+        } 
+        
         $post_id = $product->get_id();
         if ( isset( $_REQUEST['gmc_is_custom_product'] ) ) {
             update_post_meta( $post_id, '_gla_identifier_exists', 'no' );
@@ -110,13 +109,10 @@ class Cirrusly_Commerce_GMC {
         }
         delete_transient( 'cirrusly_active_promos_stats' );
     }
+
     /**
      * Marks a product as non-custom and redirects to the GMC admin scan tab.
-     *
-     * Verifies the current user has the 'edit_products' capability and the request nonce for the provided `pid`,
-     * updates the product meta `_gla_identifier_exists` to `'no'` for that post ID, then redirects to the
-     * Cirrusly GMC scan page and exits. If the user lacks capability, the request is terminated with an error;
-     * nonce verification will also halt the request on failure.
+     * ...
      */
     public function handle_mark_custom() {
         if ( ! current_user_can( 'edit_products' ) ) wp_die('No permission');
@@ -131,15 +127,8 @@ class Cirrusly_Commerce_GMC {
     }
 
     /**
-     * Returns the set of GMC-monitored terms grouped by category and their enforcement metadata.
-     *
-     * Each top-level key is a category (e.g., 'promotional', 'medical'). Each category maps terms to an
-     * associative array with keys:
-     * - `severity`: enforcement level such as "Medium", "High", or "Critical".
-     * - `scope`: where the term is monitored (e.g., "title", "all").
-     * - `reason`: short explanation for monitoring or restriction.
-     *
-     * @return array<string, array<string, array{severity:string,scope:string,reason:string}>> Associative array of categories to term metadata.
+     * Returns the set of GMC-monitored terms.
+     * ...
      */
     public static function get_monitored_terms() {
         return array(
@@ -162,8 +151,7 @@ class Cirrusly_Commerce_GMC {
 
     /**
      * Performs the Google Merchant Center health scan logic on local products.
-     * Moved from UI class to allow scheduled background scanning.
-     * * @return array List of products with issues.
+     * ...
      */
     public static function run_gmc_scan_logic( $batch_size = 100, $paged = 1 ) {
         if ( ! current_user_can( 'edit_products' ) ) {
@@ -174,7 +162,6 @@ class Cirrusly_Commerce_GMC {
         
         // 1. Fetch Pro Statuses (Real data from Google)
         $google_issues = array();
-        // Check if Pro class exists to avoid dependency errors
         if ( class_exists( 'Cirrusly_Commerce_Core' ) && 
              Cirrusly_Commerce_Core::cirrusly_is_pro() && 
              class_exists( 'Cirrusly_Commerce_GMC_Pro' ) ) {
@@ -217,7 +204,7 @@ class Cirrusly_Commerce_GMC {
                 );
             }
 
-            // CHECK: Price - Fixed if statement to handle free products
+            // CHECK: Price
             if ( '' === $p->get_price() ) {
                 $product_issues[] = array(
                     'type' => 'critical',
@@ -246,5 +233,4 @@ class Cirrusly_Commerce_GMC {
             'has_more' => count( $products ) === $batch_size
         );
     }
-
 }
