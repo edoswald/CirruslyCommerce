@@ -602,7 +602,7 @@ class Cirrusly_Commerce_GMC_Pro {
             // 5. Save to Cache
             update_post_meta( $post_id, '_cc_nlp_cache', array(
                 'hash'     => $text_hash,
-                'response' => $results, // Google Objects serialize well, but check your logs
+                'response' => json_decode( $results->serializeToJsonString(), true ),
                 'time'     => time()
             ));
 

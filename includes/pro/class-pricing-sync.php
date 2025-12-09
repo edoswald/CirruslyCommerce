@@ -26,8 +26,6 @@ class Cirrusly_Commerce_Pricing_Sync {
      * @param int $product_id
      */
     public function add_to_queue( $product_id ) {
-    global $wpdb;
-    $wpdb->query( 'START TRANSACTION' );
     
     $queue = get_option( self::QUEUE_OPTION, array() );
     
@@ -37,7 +35,6 @@ class Cirrusly_Commerce_Pricing_Sync {
         update_option( self::QUEUE_OPTION, $queue, true );
     }
     
-    $wpdb->query( 'COMMIT' );
 
         // Schedule the runner if it isn't already scheduled
         if ( ! wp_next_scheduled( self::CRON_HOOK ) ) {
@@ -67,6 +64,9 @@ class Cirrusly_Commerce_Pricing_Sync {
         
         if ( empty( $merchant_id ) ) {
             $this->log_global_sync_failure( 'Missing Merchant ID configuration.' );
+            if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+                error_log( 'Cirrusly GMC Sync: Cannot process queue - Merchant ID not configured. Queue size: ' . count( $queue ) );
+            }
             return;
         }
         $service = new Google\Service\ShoppingContent( $client );
@@ -133,7 +133,14 @@ class Cirrusly_Commerce_Pricing_Sync {
 
             } catch ( Exception $e ) {
                 $this->log_global_sync_failure( 'Batch API Exception: ' . $e->getMessage() );
-                // If failed, maybe don't remove from queue? For now, we assume we remove them to prevent loops.
+                // Re-add failed items to the front of the queue for retry
+                $queue = array_merge( $chunk, $queue );
+                update_option( self::QUEUE_OPTION, $queue, false );
+                // Schedule retry with exponential backoff (5 minutes)
+                if ( ! wp_next_scheduled( self::CRON_HOOK ) ) {
+                    wp_schedule_single_event( time() + 300, self::CRON_HOOK );
+                }
+                return;
             }
         }
 

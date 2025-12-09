@@ -12,7 +12,9 @@ class Cirrusly_Commerce_Core {
         // Utilities (Always needed)
         require_once plugin_dir_path( __FILE__ ) . 'class-security.php';
         require_once plugin_dir_path( __FILE__ ) . 'class-reports.php';
-        require_once plugin_dir_path( __FILE__ ) . 'class-gmc.php';
+        if ( file_exists( plugin_dir_path( __FILE__ ) . 'class-gmc.php' ) ) {
+            require_once plugin_dir_path( __FILE__ ) . 'class-gmc.php';
+        }
         if ( file_exists( plugin_dir_path( __FILE__ ) . 'class-audit.php' ) ) {
             require_once plugin_dir_path( __FILE__ ) . 'class-audit.php';
         }

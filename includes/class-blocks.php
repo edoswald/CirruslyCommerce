@@ -128,8 +128,9 @@ class Cirrusly_Commerce_Blocks {
         }
 
         $msrp_html = '';
-        if ( class_exists( 'Cirrusly_Commerce_Pricing' ) ) {
-            $msrp_html = Cirrusly_Commerce_Pricing::get_msrp_html( $product );
+        // FIXED: Check for and call the Frontend class directly, as that is where get_msrp_html resides.
+        if ( class_exists( 'Cirrusly_Commerce_Pricing_Frontend' ) ) {
+            $msrp_html = Cirrusly_Commerce_Pricing_Frontend::get_msrp_html( $product );
         }
         
         if ( empty( $msrp_html ) ) {
