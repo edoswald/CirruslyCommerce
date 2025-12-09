@@ -319,6 +319,11 @@ class Cirrusly_Commerce_Analytics_Pro {
             GROUP BY product_id
         ", wp_date( 'Y-m-d', strtotime( '-30 days' ) ) ) );
 
+        if ( is_null( $order_items ) || $wpdb->last_error ) {
+            error_log( 'Cirrusly Analytics: Inventory velocity query failed - ' . $wpdb->last_error );
+            return array(); // Return empty on error
+        }
+
         foreach ( $order_items as $row ) {
             $sold_map[$row->product_id] = $row->qty;
         }
