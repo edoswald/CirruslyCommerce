@@ -29,6 +29,9 @@ class Cirrusly_Commerce_Pricing_Sync {
      */
     public function add_to_queue( $product_id ) {
         $queue = get_option( self::QUEUE_OPTION, array() );
+        if ( ! is_array( $queue ) ) {
+            $queue = array();
+        }
         
         // Check existence (handling both old scalar IDs and new array format)
         $exists = false;
@@ -42,7 +45,10 @@ class Cirrusly_Commerce_Pricing_Sync {
         
         if ( ! $exists ) {
             // Push structured entry
-            $queue[] = array( 'id' => (int) $product_id, 'attempts' => 0 );
+            $queue[] = array(
+                'id'       => (int) $product_id,
+                'attempts' => 0,
+            );
             update_option( self::QUEUE_OPTION, $queue, false );
         }
 
@@ -60,6 +66,11 @@ class Cirrusly_Commerce_Pricing_Sync {
     public function process_batch_queue() {
         $queue = get_option( self::QUEUE_OPTION, array() );
         if ( empty( $queue ) || ! is_array( $queue ) ) return;
+
+    if ( ! function_exists( 'wc_get_product' ) ) {
+        $this->log_global_sync_failure( 'WooCommerce is not available.' );
+        return;
+    }
 
         // 1. Setup Client
         if ( ! class_exists( 'Cirrusly_Commerce_Google_API_Client' ) ) return;
@@ -88,6 +99,12 @@ class Cirrusly_Commerce_Pricing_Sync {
         // Map to track attempt counts for items in this batch
         $processing_items = array();
 
+        // Base country is store-level; compute once per run.
+        $base_country = apply_filters(
+            'cirrusly_gmc_target_country',
+            WC()->countries->get_base_country()
+        );
+
         foreach ( $chunk as $q_item ) {
             // Normalize scalar IDs to array structure
             if ( ! is_array( $q_item ) ) {
@@ -113,7 +130,7 @@ class Cirrusly_Commerce_Pricing_Sync {
             // Build Product Object
             $offer_id = $product->get_sku() ?: $product->get_id();
             $language = apply_filters( 'cirrusly_gmc_content_language', get_bloginfo( 'language' ) );
-            $country  = apply_filters( 'cirrusly_gmc_target_country', WC()->countries->get_base_country() );
+            $country  = $base_country;
             
             $gmc_product = new Google\Service\ShoppingContent\Product();
             $gmc_product->setOfferId( (string) $offer_id );
@@ -218,7 +235,12 @@ class Cirrusly_Commerce_Pricing_Sync {
         $error_data = get_option( 'cirrusly_gmc_global_sync_error' );
 
         if ( ! empty( $error_data ) && is_array( $error_data ) ) {
-            $msg = sprintf( '<strong>Cirrusly Commerce Warning:</strong> Batch sync failed. Last Error: <code>%s</code>', esc_html( $error_data['message'] ) );
+            $msg = sprintf(
+                '<strong>%s</strong> %s <code>%s</code>',
+                esc_html__( 'Cirrusly Commerce Warning:', 'cirrusly-commerce' ),
+                esc_html__( 'Batch sync failed. Last Error:', 'cirrusly-commerce' ),
+                esc_html( $error_data['message'] )
+            );
             echo '<div class="notice notice-error is-dismissible"><p>' . wp_kses_post( $msg ) . '</p></div>';
         }
     }
