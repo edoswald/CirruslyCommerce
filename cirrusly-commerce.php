@@ -124,7 +124,7 @@ class Cirrusly_Commerce_Main {
 
         // 2. Load Pro-Only Modules
         // Automated Discounts was completely moved to the Pro directory.
-        if ( Cirrusly_Commerce_Core::cirrusly_is_pro() ) {
+        if ( Cirrusly_Commerce_Core::cirrusly_is_pro_plus() ) {
             if ( file_exists( $includes_path . 'pro/class-automated-discounts.php' ) ) {
                 require_once $includes_path . 'pro/class-automated-discounts.php';
             }
@@ -143,7 +143,7 @@ class Cirrusly_Commerce_Main {
         new Cirrusly_Commerce_Manual();
 
         
-        // Only init Automated Discounts if the class was loaded (i.e., user is Pro)
+        // Only init Automated Discounts if the class was loaded (i.e., user is Pro Plus)
         if ( class_exists( 'Cirrusly_Commerce_Automated_Discounts' ) ) {
             new Cirrusly_Commerce_Automated_Discounts();
         }
