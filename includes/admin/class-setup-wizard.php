@@ -44,6 +44,10 @@ class Cirrusly_Commerce_Setup_Wizard {
      * Redirect to wizard after plugin activation if configuration is missing.
      */
     public function redirect_on_activation() {
+        if ( ! current_user_can( 'manage_options' ) ) {
+            return;
+        }
+
         if ( get_transient( 'cirrusly_activation_redirect' ) ) {
             delete_transient( 'cirrusly_activation_redirect' );
             
@@ -105,6 +109,10 @@ class Cirrusly_Commerce_Setup_Wizard {
      * Display a notice prompting the user to run the wizard.
      */
     public function render_upgrade_notice() {
+        if ( ! current_user_can( 'manage_options' ) ) {
+            return;
+        }
+
         $type = get_transient( 'cirrusly_upgrade_prompt' );
         if ( ! $type ) return;
 
@@ -154,6 +162,14 @@ class Cirrusly_Commerce_Setup_Wizard {
         // Handle Save Logic
         if ( isset( $_POST['save_step'] ) && check_admin_referer( 'cirrusly_wizard_step_' . $step ) ) {
             $this->save_step( $step );
+            
+            // If finishing the wizard (Step 5), redirect to dashboard
+            if ( $step === 5 ) {
+                wp_safe_redirect( admin_url( 'admin.php?page=cirrusly-commerce' ) );
+                exit;
+            }
+
+            // Otherwise, go to next step
             $step++;
             wp_safe_redirect( admin_url( 'admin.php?page=cirrusly-setup&step=' . $step ) );
             exit;
@@ -321,7 +337,12 @@ class Cirrusly_Commerce_Setup_Wizard {
         $conf = get_option( 'cirrusly_shipping_config', array() );
         $pct = isset( $conf['payment_pct'] ) ? $conf['payment_pct'] : 2.9;
         $flat = isset( $conf['payment_flat'] ) ? $conf['payment_flat'] : 0.30;
+        
         $costs = isset( $conf['class_costs_json'] ) ? json_decode( $conf['class_costs_json'], true ) : array();
+        // Fallback if decode failed or wasn't an array
+        if ( ! is_array( $costs ) ) {
+            $costs = array();
+        }
         $def_cost = isset( $costs['default'] ) ? $costs['default'] : 10.00;
         
         $is_pro = Cirrusly_Commerce_Core::cirrusly_is_pro();
@@ -368,13 +389,22 @@ class Cirrusly_Commerce_Setup_Wizard {
      */
     private function render_step_visuals() {
         $is_pro = Cirrusly_Commerce_Core::cirrusly_is_pro();
+        
+        $msrp_config = get_option( 'cirrusly_msrp_config', array() );
+        $badge_config = get_option( 'cirrusly_badge_config', array() );
+
+        // Determine states, default to 'yes' for new installs
+        $enable_msrp = isset( $msrp_config['enable_display'] ) ? $msrp_config['enable_display'] : 'yes';
+        $enable_badges = isset( $badge_config['enable_badges'] ) ? $badge_config['enable_badges'] : 'yes';
+        $smart_inventory = isset( $badge_config['smart_inventory'] ) ? $badge_config['smart_inventory'] : 'yes';
+        $smart_performance = isset( $badge_config['smart_performance'] ) ? $badge_config['smart_performance'] : 'yes';
         ?>
         <h3>Storefront Appearance</h3>
         <p>Enable visual features to increase urgency and conversion.</p>
         
         <div style="background: #fff; border: 1px solid #ddd; padding: 15px; border-radius: 4px; margin-bottom: 15px;">
             <label>
-                <input type="checkbox" name="enable_msrp" value="yes" checked> 
+                <input type="checkbox" name="enable_msrp" value="yes" <?php checked( 'yes', $enable_msrp ); ?>> 
                 <strong>MSRP Strikethrough</strong>
             </label>
             <p class="description" style="margin-left: 25px;">Shows "Original Price" crossed out.</p>
@@ -382,7 +412,7 @@ class Cirrusly_Commerce_Setup_Wizard {
 
         <div style="background: #fff; border: 1px solid #ddd; padding: 15px; border-radius: 4px; margin-bottom: 15px;">
             <label>
-                <input type="checkbox" name="enable_badges" value="yes" checked> 
+                <input type="checkbox" name="enable_badges" value="yes" <?php checked( 'yes', $enable_badges ); ?>> 
                 <strong>Smart Badges</strong>
             </label>
             <p class="description" style="margin-left: 25px;">Standard "New" and "Sale" badges.</p>
@@ -390,8 +420,8 @@ class Cirrusly_Commerce_Setup_Wizard {
             <?php if ( $is_pro ): ?>
             <div style="margin-left: 25px; margin-top: 10px; padding-top: 10px; border-top: 1px dashed #ccc;">
                 <span class="cc-tag">PRO</span><br>
-                <label><input type="checkbox" name="smart_inventory" value="yes" checked> Low Stock Warning (Qty < 5)</label><br>
-                <label><input type="checkbox" name="smart_performance" value="yes" checked> Best Seller Badge</label>
+                <label><input type="checkbox" name="smart_inventory" value="yes" <?php checked( 'yes', $smart_inventory ); ?>> Low Stock Warning (Qty < 5)</label><br>
+                <label><input type="checkbox" name="smart_performance" value="yes" <?php checked( 'yes', $smart_performance ); ?>> Best Seller Badge</label>
             </div>
             <?php endif; ?>
         </div>
@@ -412,7 +442,7 @@ class Cirrusly_Commerce_Setup_Wizard {
             <h3>Setup Complete!</h3>
             <p>Your store is now configured.</p>
             <br>
-            <a href="<?php echo esc_url( admin_url( 'admin.php?page=cirrusly-commerce' ) ); ?>" class="button button-primary button-hero">Go to Dashboard</a>
+            <button type="submit" name="save_step" class="button button-primary button-hero">Complete Setup</button>
         </div>
         <?php
     }
@@ -446,8 +476,12 @@ class Cirrusly_Commerce_Setup_Wizard {
         if ( $step === 3 ) {
             // Save Finance
             $data = get_option( 'cirrusly_shipping_config', array() );
-            $data['payment_pct'] = isset( $_POST['payment_pct'] ) ? floatval( $_POST['payment_pct'] ) : 2.9;
-            $data['payment_flat'] = isset( $_POST['payment_flat'] ) ? floatval( $_POST['payment_flat'] ) : 0.30;
+            if ( isset( $_POST['payment_pct'] ) ) {
+                $data['payment_pct'] = floatval( $_POST['payment_pct'] );
+            }
+            if ( isset( $_POST['payment_flat'] ) ) {
+                $data['payment_flat'] = floatval( $_POST['payment_flat'] );
+            }
             
             if ( isset( $_POST['profile_mode'] ) ) {
                 $data['profile_mode'] = sanitize_text_field( $_POST['profile_mode'] );
@@ -456,7 +490,10 @@ class Cirrusly_Commerce_Setup_Wizard {
             // Map default shipping cost to the 'default' key in the class costs JSON
             $costs = isset($data['class_costs_json']) ? json_decode($data['class_costs_json'], true) : array();
             if ( ! is_array( $costs ) ) $costs = array();
-            $costs['default'] = isset( $_POST['default_shipping'] ) ? floatval( $_POST['default_shipping'] ) : 10.00;;
+            
+            if ( isset( $_POST['default_shipping'] ) ) {
+                $costs['default'] = floatval( $_POST['default_shipping'] );
+            }
             $data['class_costs_json'] = json_encode( $costs );
             
             update_option( 'cirrusly_shipping_config', $data );

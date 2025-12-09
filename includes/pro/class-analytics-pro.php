@@ -237,64 +237,74 @@ class Cirrusly_Commerce_Analytics_Pro {
             return $cached;
         }
 
-
-        $orders = wc_get_orders( array(
-            'limit'        => 1000, // Add a safety limit or paginate
-            'status'       => array( 'wc-completed', 'wc-processing' ),
-            'date_created' => $date_query,
-        ) );
-
+        // Initialize Stats
         $stats = array(
             'revenue' => 0,
             'cogs'    => 0,
             'shipping'=> 0,
             'fees'    => 0,
             'refunds' => 0,
-            'count'   => count( $orders ),
+            'count'   => 0,
             'products'=> array() // For leaderboard
         );
 
         // Fetch Fee Config
         $fee_config = get_option( 'cirrusly_shipping_config', array() );
-        
-        foreach ( $orders as $order ) {
-            $stats['revenue'] += $order->get_total();
-            $stats['refunds'] += $order->get_total_refunded();
-            
-            // Fee Logic (Simplified from Reports Pro)
-            $stats['fees'] += self::calculate_single_order_fee( $order->get_total(), $fee_config );
 
-            foreach ( $order->get_items() as $item ) {
-                $product = $item->get_product();
-                if ( ! $product ) continue;
+        // Loop using pagination to avoid memory/limit issues
+        $page = 1;
+        while( true ) {
+            $orders = wc_get_orders( array(
+                'limit'        => 250,
+                'page'         => $page,
+                'status'       => array( 'wc-completed', 'wc-processing' ),
+                'date_created' => $date_query,
+            ) );
 
-                $qty = $item->get_quantity();
-                $line_total = $item->get_total();
-                
-                // Retrieve stored COGS/Shipping or fall back to 0
-                $cogs_val = (float) $product->get_meta( '_cogs_total_value' );
-                $ship_val = (float) $product->get_meta( '_cw_est_shipping' );
-                
-                $cost_basis = ($cogs_val + $ship_val) * $qty;
-                
-                $stats['cogs']     += ($cogs_val * $qty);
-                $stats['shipping'] += ($ship_val * $qty);
+            if ( empty( $orders ) ) break;
 
-                // Leaderboard Logic
-                $pid = $item->get_product_id();
-                if ( ! isset( $stats['products'][$pid] ) ) {
-                    $stats['products'][$pid] = array(
-                        'id' => $pid, 
-                        'name' => $product->get_name(), 
-                        'qty' => 0, 
-                        'net' => 0 
-                    );
+            $stats['count'] += count( $orders );
+
+            foreach ( $orders as $order ) {
+                $stats['revenue'] += $order->get_total();
+                $stats['refunds'] += $order->get_total_refunded();
+                
+                // Fee Logic (Simplified from Reports Pro)
+                $stats['fees'] += self::calculate_single_order_fee( $order->get_total(), $fee_config );
+
+                foreach ( $order->get_items() as $item ) {
+                    $product = $item->get_product();
+                    if ( ! $product ) continue;
+
+                    $qty = $item->get_quantity();
+                    $line_total = $item->get_total();
+                    
+                    // Retrieve stored COGS/Shipping or fall back to 0
+                    $cogs_val = (float) $product->get_meta( '_cogs_total_value' );
+                    $ship_val = (float) $product->get_meta( '_cw_est_shipping' );
+                    
+                    $cost_basis = ($cogs_val + $ship_val) * $qty;
+                    
+                    $stats['cogs']     += ($cogs_val * $qty);
+                    $stats['shipping'] += ($ship_val * $qty);
+
+                    // Leaderboard Logic
+                    $pid = $item->get_product_id();
+                    if ( ! isset( $stats['products'][$pid] ) ) {
+                        $stats['products'][$pid] = array(
+                            'id' => $pid, 
+                            'name' => $product->get_name(), 
+                            'qty' => 0, 
+                            'net' => 0 
+                        );
+                    }
+                    
+                    // Net Profit per product (approximate, excluding global fees/refunds for simplicity in leaderboard)
+                    $stats['products'][$pid]['qty'] += $qty;
+                    $stats['products'][$pid]['net'] += ($line_total - $cost_basis);
                 }
-                
-                // Net Profit per product (approximate, excluding global fees/refunds for simplicity in leaderboard)
-                $stats['products'][$pid]['qty'] += $qty;
-                $stats['products'][$pid]['net'] += ($line_total - $cost_basis);
             }
+            $page++;
         }
 
         $stats['total_costs'] = $stats['cogs'] + $stats['shipping'] + $stats['fees'] + $stats['refunds'];
@@ -305,6 +315,9 @@ class Cirrusly_Commerce_Analytics_Pro {
         usort( $stats['products'], function($a, $b) {
             return $b['net'] <=> $a['net'];
         });
+
+        // Store result in transient to cache it
+        set_transient( $cache_key, $stats, HOUR_IN_SECONDS );
 
         return $stats;
     }

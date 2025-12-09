@@ -91,7 +91,10 @@ Store Audit: A financial breakdown of every product to spot profit leaks.
 
 = 1.3.1 =
 
-* **New Feature:** Plugin setup wizard - now runs on install and can be rerun at any time.
+* **New Feature:** Plugin setup wizard - now runs on activation with milestone-driven prompts, multi-step saves, and the ability to rerun at any time from the admin menu.
+* **New Feature:** Analytics (Pro Plus)
+* **Enhancement:** Better deduplication logic for audits (Pro/Pro Plus)
+
 
 = 1.3 =
 

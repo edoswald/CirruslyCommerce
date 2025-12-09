@@ -170,8 +170,14 @@ class Cirrusly_Commerce_GMC {
         $msg = isset( $issue['msg'] ) ? $issue['msg'] : '';
         
         // Documentation: Strip "[Google API]" prefix to ensure apples-to-apples comparison of the core message.
-        $norm = strtolower( trim( str_replace( '[Google API]', '', $msg ) ) );
+        //  Normalize text first, then strip prefix for case-insensitive matching
+        $norm = strtolower( trim( $msg ) );
+        $norm = str_replace( '[google api]', '', $norm );
         
+        // Additional normalization: collapse multiple spaces, remove common punctuation
+        $norm = preg_replace( '/\s+/', ' ', $norm );
+        $norm = trim( preg_replace( '/[.!?,;:]+/', '', $norm ) );     
+       
         // Documentation: Normalize specific "Missing Identifier" errors.
         // Google often says "Limited performance due to missing value [gtin]" or "Identifier exists".
         // Local validation says "Missing SKU (Identifier)".
