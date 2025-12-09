@@ -31,11 +31,10 @@ class Cirrusly_Commerce_Pricing_Sync {
         $queue = get_option( self::QUEUE_OPTION, array() );
 
         // Avoid duplicates in the queue (use strict comparison)
-    if ( $product_id > 0 && ! in_array( $product_id, $queue, true ) ) {
-        $queue[] = $product_id;
-        update_option( self::QUEUE_OPTION, $queue, false );
-    }
-    
+        if ( $product_id > 0 && ! in_array( $product_id, $queue, true ) ) {
+        $queue[] = array( 'id' => $product_id, 'attempts' => 0 );
+            update_option( self::QUEUE_OPTION, $queue, false );
+        }
 
         // Schedule the runner if it isn't already scheduled
         if ( ! wp_next_scheduled( self::CRON_HOOK ) ) {
@@ -69,6 +68,15 @@ class Cirrusly_Commerce_Pricing_Sync {
                 error_log( 'Cirrusly GMC Sync: Cannot process queue - Merchant ID not configured. Queue size: ' . count( $queue ) );
             }
             return;
+
+        foreach ( $failed_ids as $failed_id ) {
+            $item = array( 'id' => $failed_id, 'attempts' => $original_attempts[$failed_id] + 1 );
+        if ( $item['attempts'] < 3 ) {
+            $queue[] = $item;
+        } else {
+                error_log( "Cirrusly GMC Sync: Dropping product $failed_id after 3 failed attempts." );
+         }
+}
         }
         $service = new Google\Service\ShoppingContent( $client );
         $batch_entries = array();
