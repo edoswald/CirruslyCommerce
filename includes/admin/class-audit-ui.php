@@ -147,10 +147,16 @@ class Cirrusly_Commerce_Audit_UI {
                      </a>
                 <?php endif; ?>
 
-                <a href="<?php echo esc_url( wp_nonce_url( add_query_arg('action', 'export_csv'), 'cc_export_csv' ) ); ?>" class="button button-secondary" <?php echo $disabled_attr; ?> title="Export CSV">
+                <?php if($is_pro): ?>
+                <a href="<?php echo esc_url( wp_nonce_url( add_query_arg('action', 'export_csv'), 'cc_export_csv' ) ); ?>" class="button button-secondary" title="Export CSV">
                     <span class="dashicons dashicons-download"></span> Export
                 </a>
-                
+                <?php else: ?>
+                     <label class="button button-secondary" style="cursor:<?php echo $is_pro ? 'pointer' : 'not-allowed'; ?>; <?php echo $is_pro ? '' : 'opacity:0.6;'; ?>" title="Import Cost CSV">
+                    <span class="dashicons dashicons-download"></span> Export
+                </span>
+                <?php endif; ?>
+
                 <form method="post" enctype="multipart/form-data" style="margin:0;">
                      <?php wp_nonce_field('cc_import_action', 'cc_import_nonce'); ?>
                      <label class="button button-secondary" style="cursor:pointer;" title="Import Cost CSV" <?php echo $disabled_attr; ?>>
