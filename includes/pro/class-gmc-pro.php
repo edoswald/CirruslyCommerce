@@ -115,7 +115,7 @@ class Cirrusly_Commerce_GMC_Pro {
     }
 
     /**
-     * Retrieve account-level status information.
+     * Retrieve account-level status information (policy issues and suspensions) from the Google Content API.
      */
     public static function fetch_google_account_issues() {
         if ( ! class_exists( 'Cirrusly_Commerce_Google_API_Client' ) ) {
@@ -128,14 +128,21 @@ class Cirrusly_Commerce_GMC_Pro {
         }
 
         $scan_config = get_option( 'cirrusly_scan_config' );
-        $merchant_id = isset( $scan_config['merchant_id_pro'] ) ? $scan_config['merchant_id_pro'] : get_option( 'cirrusly_gmc_merchant_id', '' );
         
+        // 1. Get Merchant ID (Aggregator/Auth Scope)
+        $merchant_id = isset( $scan_config['merchant_id_pro'] ) ? $scan_config['merchant_id_pro'] : get_option( 'cirrusly_gmc_merchant_id', '' );
         if ( empty( $merchant_id ) ) {
             return new WP_Error( 'missing_merchant_id', 'Merchant ID not configured in settings.' );
         }
 
-        $account_id = isset( $scan_config['account_id'] ) ? $scan_config['account_id'] : $merchant_id;
+        // 2. Get Account ID (The specific account to query)
+        $account_id = isset( $scan_config['account_id'] ) ? $scan_config['account_id'] : '';
         
+        // Fallback for single accounts: use merchant_id if account_id is not explicitly set
+        if ( empty( $account_id ) ) {
+            $account_id = $merchant_id; 
+        }
+
         if ( empty( $account_id ) ) {
             return new WP_Error( 'missing_account_id', 'Target Account ID not configured.' );
         }
@@ -149,18 +156,261 @@ class Cirrusly_Commerce_GMC_Pro {
         }
     }
 
-    // ... [Promotions API methods handle_promo_api_list and handle_promo_api_submit remain unchanged] ...
+    /**
+     * List promotions from Google Merchant Center and emit a JSON AJAX response.
+     */
     public function handle_promo_api_list() {
         check_ajax_referer( 'cc_promo_api_list', 'security' );
-        if ( ! current_user_can( 'manage_woocommerce' ) ) wp_send_json_error( 'Insufficient permissions.' );
-        // ... (Same logic as provided previously)
-        wp_send_json_success( array() ); 
+
+        if ( ! current_user_can( 'manage_woocommerce' ) ) {
+            wp_send_json_error( 'Insufficient permissions.' );
+        }
+        
+        // Double check Pro status (though this class shouldn't load otherwise)
+        if ( ! Cirrusly_Commerce_Core::cirrusly_is_pro() ) {
+            wp_send_json_error( 'Pro version required.' );
+        }
+        
+        // CACHE CHECK
+        $force = isset($_POST['force_refresh']) && $_POST['force_refresh'] == '1';
+        $cache = get_transient( 'cirrusly_gmc_promos_cache' );
+        
+        if ( ! $force && false !== $cache ) {
+            wp_send_json_success( $cache );
+            return;
+        }
+
+        if ( ! class_exists( 'Cirrusly_Commerce_Google_API_Client' ) ) {
+            wp_send_json_error( 'Google API Client missing.' );
+        }
+
+        $client = Cirrusly_Commerce_Google_API_Client::get_client();
+        if ( is_wp_error( $client ) ) {
+            wp_send_json_error( $client->get_error_message() );
+        }
+
+        // Get Merchant ID from Settings
+        $scan_config = get_option( 'cirrusly_scan_config' );
+        $merchant_id = isset( $scan_config['merchant_id_pro'] ) ? $scan_config['merchant_id_pro'] : '';
+        
+        // Fallback for legacy installs
+        if ( empty( $merchant_id ) ) {
+            $merchant_id = get_option( 'cirrusly_gmc_merchant_id', '' );
+        }
+
+        if ( empty( $merchant_id ) ) {
+            wp_send_json_error( 'Merchant ID missing.' );
+        }
+
+        $service = new Google\Service\ShoppingContent( $client );
+
+        try {
+            $resp = $service->promotions->listPromotions( $merchant_id, array('pageSize' => 50) );
+            $list = $resp->getPromotions();
+            
+            $output = array();
+            if ( ! empty( $list ) ) {
+                foreach ( $list as $p ) {
+                    // Parse Date Range
+                    $range_str = '';
+                    $end_timestamp = 0;
+                    
+                    $period = $p->getPromotionEffectiveTimePeriod();
+                    if ( $period ) {
+                        $start_iso = $period->getStartTime(); 
+                        $end_iso   = $period->getEndTime();
+                        
+                        if ( $start_iso && $end_iso ) {
+                            $start = substr( $start_iso, 0, 10 );
+                            $end   = substr( $end_iso, 0, 10 );
+                            $range_str = $start . '/' . $end;
+                            $end_timestamp = strtotime( $end_iso );
+                        }
+                    }
+                    
+                    // Status Logic
+                    $status = 'unknown';
+                    $pStats = $p->getPromotionStatus(); 
+                                         
+                    if ( $pStats && method_exists( $pStats, 'getDestinationStatuses' ) ) {
+                        $d_statuses = $pStats->getDestinationStatuses();
+                        $is_rejected = false;
+                        $is_expired  = false;
+                        $is_live     = false;
+                        $is_pending  = false;
+                        
+                        $found_statuses = array();
+
+                        if ( ! empty( $d_statuses ) ) {
+                            foreach ( $d_statuses as $ds ) {
+                                $s = strtoupper( $ds->getStatus() );
+                                $found_statuses[] = $s;
+
+                                if ( 'REJECTED' === $s || 'DISAPPROVED' === $s ) $is_rejected = true;
+                                if ( 'EXPIRED' === $s ) $is_expired = true;
+                                if ( 'LIVE' === $s || 'APPROVED' === $s || 'ACTIVE' === $s ) $is_live = true;
+                                if ( 'PENDING' === $s || 'IN_REVIEW' === $s || 'READY_FOR_REVIEW' === $s ) $is_pending = true;
+                            }
+
+                            if ( $is_rejected ) {
+                                $status = 'rejected';
+                            } elseif ( $is_pending ) {
+                                $status = 'pending';
+                            } elseif ( $is_live ) {
+                                $status = 'active';
+                            } elseif ( $is_expired ) {
+                                $status = 'expired';
+                            } else {
+                                if ( !empty($found_statuses) ) {
+                                    $status = strtolower($found_statuses[0]);
+                                }
+                            }
+                        }
+                    }
+
+                    if ( 'unknown' === $status ) {
+                        if ( $end_timestamp > 0 && $end_timestamp < time() ) {
+                            $status = 'expired';
+                        } else {
+                            $status = 'pending';
+                        }
+                    }
+
+                    $output[] = array(
+                        'id'    => $p->getPromotionId(),
+                        'title' => $p->getLongTitle(),
+                        'dates' => $range_str,
+                        'app'   => $p->getProductApplicability(),
+                        'type'  => $p->getOfferType(),
+                        'code'  => $p->getGenericRedemptionCode(),
+                        'status'=> $status
+                    );
+                }
+            }
+            
+            set_transient( 'cirrusly_gmc_promos_cache', $output, 1 * HOUR_IN_SECONDS );
+            wp_send_json_success( $output );
+
+        } catch ( Exception $e ) {
+            wp_send_json_error( 'Google API Error: ' . $e->getMessage() );
+        }
     }
-    
+
+    /**
+     * Handle an AJAX request to create and submit a Promotion to the Google Shopping Content API.
+     */
     public function handle_promo_api_submit() {
-         check_ajax_referer( 'cc_promo_api_submit', 'security' );
-         // ... (Same logic as provided previously)
-         wp_send_json_success( 'Promotion submitted successfully!' );
+        check_ajax_referer( 'cc_promo_api_submit', 'security' );
+
+        if ( ! current_user_can( 'manage_woocommerce' ) ) {
+            wp_send_json_error( 'Insufficient permissions.' );
+        }
+        
+        if ( ! Cirrusly_Commerce_Core::cirrusly_is_pro() ) {
+            wp_send_json_error( 'Pro version required for API access.' );
+        }
+
+        if ( ! class_exists( 'Cirrusly_Commerce_Google_API_Client' ) ) {
+            wp_send_json_error( 'Google API Client missing.' );
+        }
+
+        $client = Cirrusly_Commerce_Google_API_Client::get_client();
+        if ( is_wp_error( $client ) ) {
+            wp_send_json_error( $client->get_error_message() );
+        }
+
+        $scan_config = get_option( 'cirrusly_scan_config' );
+        $merchant_id = isset( $scan_config['merchant_id_pro'] ) ? $scan_config['merchant_id_pro'] : '';
+        
+        if ( empty( $merchant_id ) ) {
+            $merchant_id = get_option( 'cirrusly_gmc_merchant_id', '' );
+        }
+
+        if ( empty( $merchant_id ) ) {
+            wp_send_json_error( 'Merchant ID not configured.' );
+        }
+
+        // Extract POST data
+        $data = isset( $_POST['data'] ) ? wp_unslash( $_POST['data'] ) : array();
+        $data = is_array( $data ) ? $data : array();
+        $id    = isset( $data['id'] ) ? sanitize_text_field( $data['id'] ) : '';
+        $title = isset( $data['title'] ) ? sanitize_text_field( $data['title'] ) : '';
+
+        if ( '' === $id || '' === $title ) {
+            wp_send_json_error( 'Promotion ID and Title are required.' );
+        }
+        
+        $service = new Google\Service\ShoppingContent( $client );
+
+        try {
+            $promo = new Google\Service\ShoppingContent\Promotion();
+            $promo->setPromotionId( $id );
+            $promo->setLongTitle( $title );
+            $content_lang = isset( $scan_config['content_language'] ) ? $scan_config['content_language'] : substr( get_locale(), 0, 2 );
+            $target_country = isset( $scan_config['target_country'] ) ? $scan_config['target_country'] : WC()->countries->get_base_country();
+            $promo->setContentLanguage( $content_lang );
+            $promo->setTargetCountry( $target_country );
+            $promo->setRedemptionChannel( array( 'ONLINE' ) );
+
+            // 1. Parse Dates (Format: YYYY-MM-DD/YYYY-MM-DD)
+            $dates_raw = isset( $data['dates'] ) ? sanitize_text_field( $data['dates'] ) : '';
+            if ( ! empty( $dates_raw ) && strpos( $dates_raw, '/' ) !== false ) {
+                list( $start_str, $end_str ) = explode( '/', $dates_raw );
+                
+                if ( ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $start_str ) || ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $end_str ) ) {
+                  wp_send_json_error( 'Invalid date format. Expected YYYY-MM-DD/YYYY-MM-DD.' );
+                }
+                
+                // Calculate UTC times
+                $tz_string = get_option( 'timezone_string' );
+                if ( ! $tz_string ) {
+                    $offset  = get_option( 'gmt_offset' );
+                    $hours   = (int) $offset;
+                    $minutes = abs( ( $offset - $hours ) * 60 );
+                    $tz_string = sprintf( '%+03d:%02d', $hours, $minutes );
+                }
+
+                try {
+                    $site_tz = new DateTimeZone( $tz_string );
+                } catch ( Exception $e ) {
+                    $site_tz = new DateTimeZone( 'UTC' );
+                }
+                $utc_tz = new DateTimeZone( 'UTC' );
+
+                $dt_start = new DateTime( $start_str . ' 00:00:00', $site_tz );
+                $dt_end   = new DateTime( $end_str . ' 23:59:59', $site_tz );
+
+                $dt_start->setTimezone( $utc_tz );
+                $dt_end->setTimezone( $utc_tz );
+
+                $period = new Google\Service\ShoppingContent\TimePeriod();
+                $period->setStartTime( $dt_start->format( 'Y-m-d\TH:i:s\Z' ) );
+                $period->setEndTime( $dt_end->format( 'Y-m-d\TH:i:s\Z' ) );
+                $promo->setPromotionEffectiveTimePeriod( $period );
+            }
+
+            // 2. Product Applicability
+            $app_val = isset( $data['app'] ) ? sanitize_text_field( $data['app'] ) : 'ALL_PRODUCTS';
+            $promo->setProductApplicability( $app_val );
+
+            // 3. Offer Type & Generic Code
+            $type_val = isset( $data['type'] ) ? sanitize_text_field( $data['type'] ) : 'NO_CODE';
+            $promo->setOfferType( $type_val );
+            
+            if ( 'GENERIC_CODE' === $type_val && ! empty( $data['code'] ) ) {
+                $promo->setGenericRedemptionCode( sanitize_text_field( $data['code'] ) );
+            }
+
+            // Send to Google
+            $service->promotions->create( $merchant_id, $promo );
+
+            // Clear Cache
+            delete_transient( 'cirrusly_gmc_promos_cache' );
+
+            wp_send_json_success( 'Promotion submitted successfully!' );
+        } catch ( Exception $e ) {
+            wp_send_json_error( 'Google Error: ' . $e->getMessage() );
+        }
     }
 
     /**
@@ -442,4 +692,3 @@ class Cirrusly_Commerce_GMC_Pro {
         }
     }
 }
-?>
