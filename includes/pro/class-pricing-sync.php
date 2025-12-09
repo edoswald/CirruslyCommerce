@@ -67,13 +67,17 @@ class Cirrusly_Commerce_Pricing_Sync {
         $queue = get_option( self::QUEUE_OPTION, array() );
         if ( empty( $queue ) || ! is_array( $queue ) ) return;
 
-    if ( ! function_exists( 'wc_get_product' ) ) {
-        $this->log_global_sync_failure( 'WooCommerce is not available.' );
-        return;
-    }
+         if ( ! function_exists( 'wc_get_product' ) || ! function_exists( 'WC' ) || ! WC() ) {
+            $this->log_global_sync_failure( 'WooCommerce is not fully initialized.' );
+            return;
+        }
 
         // 1. Setup Client
         if ( ! class_exists( 'Cirrusly_Commerce_Google_API_Client' ) ) return;
+        if ( ! class_exists( 'Cirrusly_Commerce_Google_API_Client' ) ) {
+            $this->log_global_sync_failure( 'GMC API Client class not loaded.' );
+            return;
+        }
         
         $client = Cirrusly_Commerce_Google_API_Client::get_client();
         if ( is_wp_error( $client ) ) {
@@ -115,9 +119,7 @@ class Cirrusly_Commerce_Pricing_Sync {
             $processing_items[ $q_item['id'] ] = $q_item;
 
             $product = wc_get_product( $q_item['id'] );
-            if ( ! $product ) continue;
-            
-        }   
+            if ( ! $product ) continue; 
 
             $entry = new Google\Service\ShoppingContent\ProductsCustomBatchRequestEntry();
             $entry->setBatchId( $q_item['id'] ); // Use Product ID as Batch ID for tracking
@@ -140,9 +142,9 @@ class Cirrusly_Commerce_Pricing_Sync {
             if ( ! is_numeric( $price ) || $price < 0 ) {
                 if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
                     error_log( 'Cirrusly GMC Sync: Skipping product ' . $q_item['id'] . ' - invalid price.' );
+                }
+                continue;
             }
-            continue;
-       }
             
             $price_obj = new Google\Service\ShoppingContent\Price();
             $price_obj->setValue( $price );
