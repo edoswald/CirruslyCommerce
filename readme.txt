@@ -91,9 +91,9 @@ Store Audit: A financial breakdown of every product to spot profit leaks.
 
 = 1.3.1 =
 
-* **New Feature:** Plugin setup wizard - now runs on activation with milestone-driven prompts, multi-step saves, and the ability to rerun at any time from the admin menu.
-* **New Feature:** Analytics (Pro Plus)
-* **Enhancement:** Better deduplication logic for audits (Pro/Pro Plus)
++* **New Feature:** Admin Setup Wizard (Pro/Pro Plus) - Automated onboarding runs on activation with milestone-based prompts and persistent multi-step saves. Rerun anytime from the admin menu to reconfigure your store's financial settings.
++* **New Feature:** Analytics Dashboard (Pro Plus) - Real-time P&L summaries, inventory velocity tracking, and daily GMC performance snapshots with visual charts.
++* **Enhancement:** Intelligent Issue Deduplication (Pro/Pro Plus) - Signature-based deduplication with Google NLP integration merges related audit issues, reducing noise and improving focus on critical problems.
 
 
 = 1.3 =

@@ -469,6 +469,11 @@ class Cirrusly_Commerce_Setup_Wizard {
                      $input = get_option( 'cirrusly_scan_config', array() );
                      $input = Cirrusly_Commerce_Settings_Pro::process_service_account_upload( $input, $_FILES['cirrusly_service_account'] );
                      update_option( 'cirrusly_scan_config', $input );
+                    // Store success flag for wizard feedback
+                    if ( isset( $input['service_account_uploaded'] ) && $input['service_account_uploaded'] === 'yes' ) {
+                        set_transient( 'cirrusly_wizard_upload_success', true, 30 );
+                    }
+
                 }
             }
         }

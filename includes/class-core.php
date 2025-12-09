@@ -94,8 +94,9 @@ class Cirrusly_Commerce_Core {
         delete_transient( 'cirrusly_dashboard_metrics' );
         // Clear all analytics P&L transients by pattern
         global $wpdb;
-        $wpdb->query( "DELETE FROM {$wpdb->options} WHERE option_name LIKE '_transient_cc_analytics_pnl_%' OR option_name LIKE '_transient_timeout_cc_analytics_pnl_%'" );
-    }
+        $pattern = $wpdb->esc_like( '_transient_cc_analytics_pnl_' ) . '%';
+        $timeout_pattern = $wpdb->esc_like( '_transient_timeout_cc_analytics_pnl_' ) . '%';
+        $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->options} WHERE option_name LIKE %s OR option_name LIKE %s", $pattern, $timeout_pattern ) );    }
 
     public static function cirrusly_is_pro() {
         // 1. Secure Developer Override

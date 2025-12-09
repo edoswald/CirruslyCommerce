@@ -253,7 +253,9 @@ class Cirrusly_Commerce_Analytics_Pro {
 
         // Loop using pagination to avoid memory/limit issues
         $page = 1;
-        while( true ) {
+        $max_pages = 1000; // Safety limit
+
+        while( $page <= $max_pages ) {
             $orders = wc_get_orders( array(
                 'limit'        => 250,
                 'page'         => $page,
