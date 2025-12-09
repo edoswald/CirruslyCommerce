@@ -28,9 +28,6 @@ class Cirrusly_Commerce_Pricing_Sync {
      * @param int $product_id
      */
     public function add_to_queue( $product_id ) {
-        global $wpdb;
-        $wpdb->query( 'START TRANSACTION' );
-        
         $queue = get_option( self::QUEUE_OPTION, array() );
         
         // Check existence (handling both old scalar IDs and new array format)
@@ -46,10 +43,8 @@ class Cirrusly_Commerce_Pricing_Sync {
         if ( ! $exists ) {
             // Push structured entry
             $queue[] = array( 'id' => (int) $product_id, 'attempts' => 0 );
-            update_option( self::QUEUE_OPTION, $queue, true );
+            update_option( self::QUEUE_OPTION, $queue, false );
         }
-        
-        $wpdb->query( 'COMMIT' );
 
         // Schedule the runner if it isn't already scheduled
         if ( ! wp_next_scheduled( self::CRON_HOOK ) ) {
@@ -104,6 +99,11 @@ class Cirrusly_Commerce_Pricing_Sync {
 
             $product = wc_get_product( $q_item['id'] );
             if ( ! $product ) continue;
+    
+            if ( ! function_exists( 'wc_get_product' ) ) {
+                $this->log_global_sync_failure( 'WooCommerce is not available.' );
+            return;
+        }   
 
             $entry = new Google\Service\ShoppingContent\ProductsCustomBatchRequestEntry();
             $entry->setBatchId( $q_item['id'] ); // Use Product ID as Batch ID for tracking
@@ -122,8 +122,16 @@ class Cirrusly_Commerce_Pricing_Sync {
             $gmc_product->setChannel( 'online' );
             $gmc_product->setAvailability( $product->is_in_stock() ? 'in stock' : 'out of stock' );
 
+            $price = $product->get_price();
+            if ( ! is_numeric( $price ) || $price < 0 ) {
+                if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+                    error_log( 'Cirrusly GMC Sync: Skipping product ' . $q_item['id'] . ' - invalid price.' );
+            }
+            continue;
+       }
+            
             $price_obj = new Google\Service\ShoppingContent\Price();
-            $price_obj->setValue( $product->get_price() );
+            $price_obj->setValue( $price );
             $price_obj->setCurrency( get_woocommerce_currency() );
             $gmc_product->setPrice( $price_obj );
 
