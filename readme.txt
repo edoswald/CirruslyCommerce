@@ -89,12 +89,24 @@ Store Audit: A financial breakdown of every product to spot profit leaks.
 
 == Changelog ==
 
+= 1.3.1 =
+
+* **New Feature:** Plugin setup wizard - now runs on install and can be rerun at any time.
+
 = 1.3 =
-**Note:** Effective from this release, only changes to the free version of the plugin will be listed. For changes to the Pro version of the plugin (which also include the free changes), please refer to the pro version README instead.
+
 * Refactor of entire plugin to improve both frontend and admin loading times
-* **New Feature:** Gutenberg Blocks! 
+* Split of plugin into three options: Starter (Free), Pro, and Pro Plus.
+* **New Feature:** Gutenberg Blocks - MSRP display, Sale Countdown, Smart Badges, Automated Discount Notice (Pro)
+* **UI Update:** GMC Hub is now 'Compliance Hub,' to make way for potential inclusion of other shopping services in the future.
+* **UI Update:** Improved explanatory text throughout plugin to limit need to refer to user manual.
+* **Enhancement:** MSRP injection location is now customizable on the product page.
+* **Fix:** Add Google NLP for better audit results (Pro)
+* Plugin now requires PHP 8.1 due to Composer requirements and for security reasons.
 
 = 1.2.1 =
+
+**Note:** in-house development release
 * **New Feature:** Introduced "Freemium" architecture. Pro features are now visible in the interface (grayed out) to showcase advanced capabilities if downloading from Freemius. They are not visible from the WP Plugin Directory version. 
 * **Enhancement:** Added "System Info" tool to the support menu (header) to easily copy environment details for faster troubleshooting.
 * **Enhancement:** Pricing Engine now supports 5%, 15%, and 25% "Off MSRP" strategies.
