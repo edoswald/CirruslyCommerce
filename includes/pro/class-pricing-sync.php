@@ -116,10 +116,7 @@ class Cirrusly_Commerce_Pricing_Sync {
 
             $product = wc_get_product( $q_item['id'] );
             if ( ! $product ) continue;
-    
-            if ( ! function_exists( 'wc_get_product' ) ) {
-                $this->log_global_sync_failure( 'WooCommerce is not available.' );
-            return;
+            
         }   
 
             $entry = new Google\Service\ShoppingContent\ProductsCustomBatchRequestEntry();
