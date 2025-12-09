@@ -683,7 +683,7 @@ class Cirrusly_Commerce_GMC_Pro {
             $results = $service->documents->annotateText( $request );
             update_post_meta( $post_id, '_cc_nlp_cache', array(
                 'hash'     => $text_hash,
-                'response' => $results, 
+                'response' => json_decode( json_encode( $results->toSimpleObject() ), true ),
                 'time'     => time()
             ));
             return $results;

@@ -262,9 +262,12 @@ class Cirrusly_Commerce_GMC {
                 }
             }
             
-            // --- ADVANCED NLP & EDITORIAL CHECK (Pro Only) ---
+            // --- ADVANCED NLP & EDITORIAL CHECK (Pro Plus Only) ---
             // Checks for Editorial Standards (Caps, Punctuation) and NLP Misrepresentation
-            if ( class_exists( 'Cirrusly_Commerce_GMC_Pro' ) && method_exists( 'Cirrusly_Commerce_GMC_Pro', 'scan_product_with_nlp' ) ) {
+            if ( Cirrusly_Commerce_Core::cirrusly_is_pro_plus() && 
+                 class_exists( 'Cirrusly_Commerce_GMC_Pro' ) && 
+                 method_exists( 'Cirrusly_Commerce_GMC_Pro', 'scan_product_with_nlp' ) ) {
+                 
                 $nlp_issues = Cirrusly_Commerce_GMC_Pro::scan_product_with_nlp( $p, $product_issues );
                 if ( ! empty( $nlp_issues ) ) {
                     $product_issues = array_merge( $product_issues, $nlp_issues );

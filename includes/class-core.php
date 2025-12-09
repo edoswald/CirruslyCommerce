@@ -113,6 +113,21 @@ class Cirrusly_Commerce_Core {
         return false;
     }
 
+    public static function cirrusly_is_pro_plus() {
+        // 1. Dev Mode Override (useful for testing)
+        if ( defined('WP_DEBUG') && WP_DEBUG && function_exists('wp_get_current_user') && current_user_can('manage_options') ) {
+            if ( isset( $_GET['cc_dev_mode'] ) && $_GET['cc_dev_mode'] === 'pro_plus' ) return true;
+        }
+
+        // 2. Freemius Check
+        if ( function_exists( 'cc_fs' ) ) {
+            // Check if user is on 'proplus' plan (OR higher, if more tiers are added later).
+            return cc_fs()->is_plan( 'proplus' );
+        }
+
+        return false;
+    }
+
     public static function get_email_from_header() {
         $admin_email = get_option( 'admin_email' );
         $site_title  = wp_specialchars_decode( get_option( 'blogname' ), ENT_QUOTES );

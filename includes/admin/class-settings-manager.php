@@ -138,7 +138,7 @@ class Cirrusly_Commerce_Settings_Manager {
             foreach ( $input['matrix_rules'] as $idx => $rule ) {
                 $key = isset($rule['key']) ? sanitize_title($rule['key']) : 'rule_'.$idx;
                 if ( ! empty( $key ) && isset( $rule['label'] ) ) {
-                    $clean_matrix[ $key ] = array( 'key' => $key, 'label' => sanitize_text_field( $rule['label'] ), 'cost_mult' => isset( $rule['cost_mult'] ) : 1.0 );
+                    $clean_matrix[ $key ] = array( 'key' => $key, 'label' => sanitize_text_field( $rule['label'] ), 'cost_mult' => isset( $rule['cost_mult'] ) ? floatval( $rule['cost_mult'] ) : 1.0 );
                 }
             }
             $input['matrix_rules_json'] = json_encode( $clean_matrix );
