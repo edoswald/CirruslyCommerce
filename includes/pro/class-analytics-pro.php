@@ -375,9 +375,8 @@ class Cirrusly_Commerce_Analytics_Pro {
                 else $warnings++;
             }
         }
-
         $history = get_option( 'cirrusly_gmc_history', array() );
-        $today   = date( 'M j' ); // e.g. "Oct 10"
+        $today   = wp_date( 'Y-m-d' ); // e.g. "2025-10-10"
 
         $history[$today] = array(
             'critical' => $critical,
