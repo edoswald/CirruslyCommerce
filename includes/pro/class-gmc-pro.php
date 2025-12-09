@@ -21,7 +21,6 @@ class Cirrusly_Commerce_GMC_Pro {
 
     /**
      * Retrieve product-level issues reported by the Google Content API for the configured merchant.
-     * ...
      */
     public static function fetch_google_real_statuses() {
         // Relies on the centralized API Client
@@ -81,7 +80,7 @@ class Cirrusly_Commerce_GMC_Pro {
                         foreach ( $issues as $issue ) {
                             $msg = '[Google API] ' . $issue->getDescription();
                             
-                            // Prevent duplicates (e.g., same error for multiple target countries)
+                            // Prevent duplicates
                             $already_exists = false;
                             foreach ( $google_issues[ $wc_id ] as $existing_issue ) {
                                 if ( $existing_issue['msg'] === $msg ) {
@@ -117,7 +116,6 @@ class Cirrusly_Commerce_GMC_Pro {
 
     /**
      * Retrieve account-level status information (policy issues and suspensions) from the Google Content API.
-     * ...
      */
     public static function fetch_google_account_issues() {
         if ( ! class_exists( 'Cirrusly_Commerce_Google_API_Client' ) ) {
@@ -160,7 +158,6 @@ class Cirrusly_Commerce_GMC_Pro {
 
     /**
      * List promotions from Google Merchant Center and emit a JSON AJAX response.
-     * ...
      */
     public function handle_promo_api_list() {
         check_ajax_referer( 'cc_promo_api_list', 'security' );
@@ -301,7 +298,6 @@ class Cirrusly_Commerce_GMC_Pro {
 
     /**
      * Handle an AJAX request to create and submit a Promotion to the Google Shopping Content API.
-     * ...
      */
     public function handle_promo_api_submit() {
         check_ajax_referer( 'cc_promo_api_submit', 'security' );
@@ -419,10 +415,9 @@ class Cirrusly_Commerce_GMC_Pro {
 
     /**
      * Prevents publishing of products that contain monitored medical terms marked as "Critical".
-     * ...
+     * Uses NLP verification if configured.
      */
     public function check_compliance_on_save( $post_id, $post, $update ) {
-        // Double check Pro
         if ( ! Cirrusly_Commerce_Core::cirrusly_is_pro() ) {
             return;
         }
@@ -438,117 +433,231 @@ class Cirrusly_Commerce_GMC_Pro {
         // Uses static method from the main GMC class for term definitions
         $monitored = Cirrusly_Commerce_GMC::get_monitored_terms();
         $violation_found = false;
+        
+        $title_clean = wp_strip_all_tags( $post->post_title );
+        $desc_clean  = wp_strip_all_tags( $post->post_content );
 
-        foreach( $monitored['medical'] as $word => $rules ) {
-             if ( ! isset( $rules['severity'] ) || 'Critical' !== $rules['severity'] ) {
-                 continue;
-             }
+        // Scan all categories (Medical + Misrepresentation)
+        foreach( $monitored as $cat => $terms ) {
+            foreach( $terms as $word => $rules ) {
+                 if ( ! isset( $rules['severity'] ) || 'Critical' !== $rules['severity'] ) {
+                     continue;
+                 }
 
-             $pattern = '/\b' . preg_quote( $word, '/' ) . '\b/i';
-             
-             $content_to_scan = $post->post_title;
-             if ( isset( $rules['scope'] ) && 'all' === $rules['scope'] ) {
-                 $content_to_scan .= ' ' . wp_strip_all_tags( $post->post_content );
-             }
+                 $pattern = '/\b' . preg_quote( $word, '/' ) . '\b/iu';
+                 
+                 $check_title = preg_match( $pattern, $title_clean );
+                 $check_desc  = ( isset( $rules['scope'] ) && 'all' === $rules['scope'] ) ? preg_match( $pattern, $desc_clean ) : false;
 
-             if ( preg_match( $pattern, $content_to_scan ) ) {
-                 $violation_found = true;
-                 break; 
+                 if ( $check_title || $check_desc ) {
+                     $violation_found = true;
+                     break 2; // Break both loops
+                 }
+            }
+        }
+        
+        // --- NLP INTEGRATION (Blocker) ---
+        if ( ! $violation_found && isset( $scan_cfg['enable_nlp_guard'] ) && 'yes' === $scan_cfg['enable_nlp_guard'] ) {
+             $nlp_res = $this->analyze_text_with_nlp( $title_clean . ' ' . substr($desc_clean, 0, 500), $post_id );
+             if ( ! is_wp_error( $nlp_res ) ) {
+                 foreach ( $nlp_res->getEntities() as $entity ) {
+                     // Check for restricted entity types 
+                     if ( 'EVENT' === $entity->getType() || 'OTHER' === $entity->getType() ) {
+                         $e_name = strtolower( $entity->getName() );
+                         if ( strpos( $e_name, 'virus' ) !== false || strpos( $e_name, 'covid' ) !== false ) {
+                             $violation_found = true;
+                             break;
+                         }
+                     }
+                 }
              }
         }
 
         $original_status = get_post_field( 'post_status', $post_id, 'raw' );
         if ( $violation_found && in_array( $original_status, array( 'publish', 'pending', 'future' ) ) ) {
-            
-            // Remove hook to prevent infinite loop
             remove_action( 'save_post_product', array( $this, 'check_compliance_on_save' ), 10 );
-            
-            // Force status to draft
-            wp_update_post( array(
-                'ID'          => $post_id,
-                'post_status' => 'draft'
-            ) );
-
-    if ( $original_status !== 'draft' ) {
-        set_transient( 'cc_gmc_blocked_save_' . get_current_user_id(), 'Product reverted to Draft due to restricted medical terms.', 30 );
-    }
-    
-            // Re-hook
+            wp_update_post( array( 'ID' => $post_id, 'post_status' => 'draft' ) );
+            if ( $original_status !== 'draft' ) {
+                set_transient( 'cc_gmc_blocked_save_' . get_current_user_id(), 'Product reverted to Draft due to restricted terms.', 30 );
+            }
             add_action( 'save_post_product', array( $this, 'check_compliance_on_save' ), 10, 3 );
         }
     }
 
     /**
      * Remove configured banned medical terms from a product's title and content during save.
-     * ...
      */
     public function handle_auto_strip_on_save( $data, $postarr ) {
         $scan_cfg = get_option('cirrusly_scan_config', array());
         if ( empty($scan_cfg['auto_strip_banned']) || $scan_cfg['auto_strip_banned'] !== 'yes' ) return $data;
-        
         if ( $data['post_type'] !== 'product' ) return $data;
 
         $monitored = Cirrusly_Commerce_GMC::get_monitored_terms();
         
-        foreach ( $monitored['medical'] as $word => $rules ) {
-            $pattern = '/\b' . preg_quote($word, '/') . '\b/i';
-            
-            // Strip from Title
-            if ( preg_match( $pattern, $data['post_title'] ) ) {
+        // Strip terms from all configured categories
+        foreach ( $monitored as $cat => $terms ) {
+            foreach ( $terms as $word => $rules ) {
+                $pattern = '/\b' . preg_quote($word, '/') . '\b/iu';
                 $data['post_title'] = preg_replace( $pattern, '', $data['post_title'] );
                 $data['post_title'] = trim( preg_replace('/\s+/', ' ', $data['post_title']) );
-            }
-            
-            // Strip from Content
-            if ( isset( $rules['scope'] ) && $rules['scope'] === 'all' && preg_match( $pattern, $data['post_content'] ) ) {
-                $data['post_content'] = preg_replace( $pattern, '', $data['post_content'] );
+                if ( isset( $rules['scope'] ) && $rules['scope'] === 'all' ) {
+                     $data['post_content'] = preg_replace( $pattern, '', $data['post_content'] );
+                }
             }
         }
-        
         return $data;
+    }
+
+    /**
+     * Helper to scan a product using NLP + Advanced Heuristics during the main Health Scan.
+     * * @param WC_Product $product
+     * @param array $existing_issues
+     * @return array New issues found
+     */
+    public static function scan_product_with_nlp( $product, $existing_issues ) {
+        $issues = array();
+        
+        // 1. Editorial Standards Check (No API Cost)
+        $editorial_issues = self::detect_editorial_violations( $product );
+        if ( ! empty( $editorial_issues ) ) {
+            $issues = array_merge( $issues, $editorial_issues );
+        }
+
+        // 2. NLP-Based Misrepresentation Check
+        $scan_cfg = get_option('cirrusly_scan_config', array());
+        if ( empty($scan_cfg['enable_nlp_scan']) || $scan_cfg['enable_nlp_scan'] !== 'yes' ) {
+            return $issues;
+        }
+
+        $instance = new self();
+        $text = $product->get_name() . ' ' . $product->get_short_description();
+        $result = $instance->analyze_text_with_nlp( $text, $product->get_id() );
+
+        if ( ! is_wp_error( $result ) ) {
+            // Check for Misrepresentation Entities
+            $misrep_issues = self::detect_misrepresentation_nlp( $result );
+            $issues = array_merge( $issues, $misrep_issues );
+        }
+        
+        return $issues;
+    }
+
+    /**
+     * Internal: Checks for Editorial & Professional Standards (Caps, Punctuation, Placeholders).
+     */
+    private static function detect_editorial_violations( $product ) {
+        $issues = array();
+        $text   = wp_strip_all_tags( $product->get_name() ); // Focus on Title mainly for Editorial
+
+        // CHECK 1: Caps Lock Abuse
+        if ( strlen( $text ) > 10 ) {
+            // Count uppercase vs total letters (ignoring spaces/numbers)
+            $letters = preg_replace( '/[^a-zA-Z]/', '', $text );
+            if ( strlen( $letters ) > 0 ) {
+                $upper = preg_match_all( '/[A-Z]/', $letters );
+                $ratio = $upper / strlen( $letters );
+                if ( $ratio > 0.85 ) {
+                    $issues[] = array(
+                        'type' => 'warning',
+                        'msg'  => 'Editorial: Excessive Capitalization',
+                        'reason' => 'GMC requires professional formatting. Avoid ALL CAPS.'
+                    );
+                }
+            }
+        }
+
+        // CHECK 2: Gimmicky Punctuation
+        if ( preg_match( '/([!?.])\1{2,}/', $text ) ) { // Matches !!! or ...
+             // Allow elipses, block !!! or ???
+             if ( strpos( $text, '!!!' ) !== false || strpos( $text, '???' ) !== false ) {
+                 $issues[] = array(
+                     'type' => 'warning',
+                     'msg'  => 'Editorial: Excessive Punctuation',
+                     'reason' => 'Avoid gimmicky punctuation like "!!!" in titles.'
+                 );
+             }
+        }
+
+        // CHECK 3: Placeholder Text
+        $desc = strtolower( wp_strip_all_tags( $product->get_description() ) );
+        $placeholders = array( 'lorem ipsum', 'coming soon', 'test product', 'enter description' );
+        foreach( $placeholders as $ph ) {
+            if ( strpos( $desc, $ph ) !== false ) {
+                $issues[] = array(
+                    'type' => 'critical',
+                    'msg'  => 'Editorial: Placeholder Text Detected',
+                    'reason' => 'Product appears unfinished ("' . $ph . '").'
+                );
+                break; 
+            }
+        }
+
+        return $issues;
+    }
+
+    /**
+     * Internal: Analyzes NLP Entities for Misrepresentation/Trust signals.
+     */
+    private static function detect_misrepresentation_nlp( $nlp_result ) {
+        $issues = array();
+        $banned_orgs = array( 'fda', 'cdc', 'who', 'medicare', 'government' );
+
+        foreach ( $nlp_result->getEntities() as $entity ) {
+            $type = $entity->getType();
+            $name = strtolower( $entity->getName() );
+
+            // 1. False Affiliation (Organization)
+            // If the entity is a prominent organization and it's salient in the text, it implies endorsement.
+            if ( 'ORGANIZATION' === $type && in_array( $name, $banned_orgs ) ) {
+                $issues[] = array(
+                    'type' => 'critical',
+                    'msg'  => 'Misrepresentation: Implied Affiliation (' . strtoupper($name) . ')',
+                    'reason' => 'Mentioning government/health orgs often triggers "False Affiliation" policies unless verified.'
+                );
+            }
+
+            // 2. Sensitive Events (Virus/Pandemic) - Expanded from Regex
+            if ( 'EVENT' === $type ) {
+                if ( strpos( $name, 'virus' ) !== false || strpos( $name, 'covid' ) !== false || strpos( $name, 'pandemic' ) !== false ) {
+                     $issues[] = array(
+                        'type'   => 'critical',
+                        'msg'    => 'Sensitive Event Detected (NLP)',
+                        'reason' => 'Reference to sensitive health event: ' . $entity->getName()
+                    );
+                }
+            }
+        }
+        return $issues;
     }
 
     /**
      * Analyze plain text with Google Cloud Natural Language and extract entities.
      * Caches results to Post Meta to prevent redundant API calls.
-     *
-     * @param string $text    The text to analyze.
-     * @param int    $post_id The ID of the product/post being analyzed (Required for caching).
-     * @return Google\Service\CloudNaturalLanguage\AnnotateTextResponse|WP_Error
      */
     public function analyze_text_with_nlp( $text, $post_id ) {
-    if ( ! is_numeric( $post_id ) || $post_id <= 0 ) {
-        return new WP_Error( 'invalid_post_id', 'Valid Post ID required for NLP analysis.' );
+        if ( ! is_numeric( $post_id ) || $post_id <= 0 ) {
+            return new WP_Error( 'invalid_post_id', 'Valid Post ID required for NLP analysis.' );
         }
 
-        // 1. Clean & Truncate Text
         $max_length = 5000;
+        $text = wp_strip_all_tags( $text );
         if ( strlen( $text ) > $max_length ) {
             $truncated = substr( $text, 0, $max_length );
             $last_space = strrpos( $truncated, ' ' );
             $text = $last_space !== false ? substr( $truncated, 0, $last_space ) : $truncated;
         }
 
-        // 2. Check Cache (Smart Hashing)
+        // Check Cache
         $text_hash = md5( $text );
         $cached_data = get_post_meta( $post_id, '_cc_nlp_cache', true );
-
         $cache_ttl = 7 * DAY_IN_SECONDS;
-        if ( is_array( $cached_data ) 
-            && isset( $cached_data['hash'], $cached_data['time'] ) 
-            && $cached_data['hash'] === $text_hash 
-            && ( time() - $cached_data['time'] ) < $cache_ttl ) {
-            
-            // Rehydrate the cached array into the expected Google Response object to ensure type consistency
-            // The API returns a Google\Service\CloudNaturalLanguage\AnnotateTextResponse object
+        if ( is_array( $cached_data ) && isset( $cached_data['hash'], $cached_data['time'] ) && $cached_data['hash'] === $text_hash && ( time() - $cached_data['time'] ) < $cache_ttl ) {
             if ( class_exists( 'Google\Service\CloudNaturalLanguage\AnnotateTextResponse' ) ) {
                 return new Google\Service\CloudNaturalLanguage\AnnotateTextResponse( $cached_data['response'] );
             }
-
             return $cached_data['response'];
         }
 
-        // 3. Prepare Client
         if ( ! class_exists( 'Cirrusly_Commerce_Google_API_Client' ) ) {
             return new WP_Error( 'missing_client', 'Google API Client not loaded.' );
         }
@@ -559,7 +668,6 @@ class Cirrusly_Commerce_GMC_Pro {
         }
 
         $service = new Google\Service\CloudNaturalLanguage( $client );
-        
         $document = new Google\Service\CloudNaturalLanguage\Document();
         $document->setType( 'PLAIN_TEXT' );
         $document->setContent( $text );
@@ -572,22 +680,14 @@ class Cirrusly_Commerce_GMC_Pro {
         $request->setFeatures( $features );
 
         try {
-            // 4. Call API
             $results = $service->documents->annotateText( $request );
-
-            // 5. Save to Cache
             update_post_meta( $post_id, '_cc_nlp_cache', array(
                 'hash'     => $text_hash,
-                'response' => $results, // Google Objects serialize well, but check your logs
+                'response' => $results, 
                 'time'     => time()
             ));
-
             return $results;
-
         } catch ( Exception $e ) {
-            if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
-                error_log( 'Cirrusly Commerce NLP Error: ' . $e->getMessage() );
-            }
             return new WP_Error( 'nlp_error', $e->getMessage() );
         }
     }

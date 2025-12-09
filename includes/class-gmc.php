@@ -65,7 +65,6 @@ class Cirrusly_Commerce_GMC {
 
     /**
      * Persist GMC-related product meta and clear related promo statistics.
-     * ...
      */
     public function save_product_meta( $post_id ) {
         if ( ! isset( $_POST['woocommerce_meta_nonce'] ) || ! wp_verify_nonce( $_POST['woocommerce_meta_nonce'], 'woocommerce_save_data' ) ) {
@@ -112,7 +111,6 @@ class Cirrusly_Commerce_GMC {
 
     /**
      * Marks a product as non-custom and redirects to the GMC admin scan tab.
-     * ...
      */
     public function handle_mark_custom() {
         if ( ! current_user_can( 'edit_products' ) ) wp_die('No permission');
@@ -128,7 +126,6 @@ class Cirrusly_Commerce_GMC {
 
     /**
      * Returns the set of GMC-monitored terms.
-     * ...
      */
     public static function get_monitored_terms() {
         return array(
@@ -140,18 +137,26 @@ class Cirrusly_Commerce_GMC {
                 'cheapest'      => array('severity' => 'High',   'scope' => 'title', 'reason' => 'Subjective claim.'),
             ),
             'medical' => array( 
-                'cure'        => array('severity' => 'Critical', 'scope' => 'all', 'reason' => 'Medical claim.'),
+                'cure'        => array('severity' => 'Critical', 'scope' => 'all', 'reason' => 'Medical claim (Prohibited).'),
                 'heal'        => array('severity' => 'Critical', 'scope' => 'all', 'reason' => 'Medical claim implying permanent fix.'),
                 'virus'       => array('severity' => 'Critical', 'scope' => 'all', 'reason' => 'Prohibited sensitive event claim.'),
                 'covid'       => array('severity' => 'Critical', 'scope' => 'all', 'reason' => 'Sensitive event.'),
                 'guaranteed'  => array('severity' => 'Medium',   'scope' => 'all', 'reason' => 'Must have linked policy.')
+            ),
+            'misrepresentation' => array(
+                'miracle'       => array('severity' => 'Critical', 'scope' => 'all', 'reason' => 'Unrealistic claim (Misrepresentation).'),
+                'magic'         => array('severity' => 'High',     'scope' => 'all', 'reason' => 'Unrealistic claim unless referring to a game/trick.'),
+                'fda approved'  => array('severity' => 'Critical', 'scope' => 'all', 'reason' => 'False affiliation. Verification required.'),
+                'cdc'           => array('severity' => 'Critical', 'scope' => 'all', 'reason' => 'Government affiliation implied.'),
+                'who'           => array('severity' => 'Critical', 'scope' => 'all', 'reason' => 'International body affiliation implied.'),
+                'instant weight loss' => array('severity' => 'Critical', 'scope' => 'all', 'reason' => 'Prohibited weight loss claim.')
             )
         );
     }
 
     /**
      * Performs the Google Merchant Center health scan logic on local products.
-     * ...
+     * Uses strict regex boundaries and optionally calls Pro NLP analysis.
      */
     public static function run_gmc_scan_logic( $batch_size = 100, $paged = 1 ) {
         // Allow cron/CLI contexts, but require capability for interactive requests.
@@ -183,15 +188,18 @@ class Cirrusly_Commerce_GMC {
         );
         $products = get_posts( $args );
 
+        // Load rules once
+        $monitored_terms = self::get_monitored_terms();
+
         foreach ( $products as $pid ) {
             $product_issues = array();
             $p = wc_get_product( $pid );
             if ( ! $p ) continue;
 
-            // CHECK: GTIN / MPN Existence
+            // --- METADATA CHECKS ---
             $is_custom = get_post_meta( $pid, '_gla_identifier_exists', true );
             
-            // Basic health check simulation
+            // CHECK: GTIN / MPN Existence
             if ( 'no' !== $is_custom && ! $p->get_sku() ) {
                 $product_issues[] = array(
                     'type' => 'warning',
@@ -218,7 +226,52 @@ class Cirrusly_Commerce_GMC {
                 );
             }
 
-            // Merge Google API Issues
+            // --- CONTENT POLICY CHECKS (Local) ---
+            // Prepare text content: Clean, lowercase, and tag-stripped
+            $title_raw   = $p->get_name();
+            $desc_raw    = $p->get_description() . ' ' . $p->get_short_description();
+            $title_clean = strtolower( wp_strip_all_tags( $title_raw ) );
+            $desc_clean  = strtolower( wp_strip_all_tags( $desc_raw ) );
+
+            foreach ( $monitored_terms as $category => $terms ) {
+                foreach ( $terms as $word => $rule ) {
+                    // Use \b and 'u' modifier for robust word boundary detection
+                    // preg_quote ensures special chars in terms don't break regex
+                    $pattern = '/\b' . preg_quote( $word, '/' ) . '\b/iu';
+                    $found   = false;
+
+                    // Check Title
+                    if ( preg_match( $pattern, $title_clean ) ) {
+                        $found = true;
+                    }
+
+                    // Check Description (if scope is 'all')
+                    if ( ! $found && isset( $rule['scope'] ) && 'all' === $rule['scope'] ) {
+                        if ( preg_match( $pattern, $desc_clean ) ) {
+                            $found = true;
+                        }
+                    }
+
+                    if ( $found ) {
+                        $product_issues[] = array(
+                            'type'   => ( isset($rule['severity']) && 'Critical' === $rule['severity'] ) ? 'critical' : 'warning',
+                            'msg'    => 'Restricted Term (' . ucfirst($category) . '): "' . ucfirst($word) . '"',
+                            'reason' => isset($rule['reason']) ? $rule['reason'] : 'Potential policy violation.'
+                        );
+                    }
+                }
+            }
+            
+            // --- ADVANCED NLP & EDITORIAL CHECK (Pro Only) ---
+            // Checks for Editorial Standards (Caps, Punctuation) and NLP Misrepresentation
+            if ( class_exists( 'Cirrusly_Commerce_GMC_Pro' ) && method_exists( 'Cirrusly_Commerce_GMC_Pro', 'scan_product_with_nlp' ) ) {
+                $nlp_issues = Cirrusly_Commerce_GMC_Pro::scan_product_with_nlp( $p, $product_issues );
+                if ( ! empty( $nlp_issues ) ) {
+                    $product_issues = array_merge( $product_issues, $nlp_issues );
+                }
+            }
+
+            // --- MERGE GOOGLE API ISSUES ---
             if ( isset( $google_issues[ $pid ] ) ) {
                 foreach ( $google_issues[ $pid ] as $g_issue ) {
                     $product_issues[] = $g_issue;
@@ -239,3 +292,4 @@ class Cirrusly_Commerce_GMC {
         );
     }
 }
+?>
