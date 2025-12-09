@@ -21,13 +21,7 @@ class Cirrusly_Commerce_GMC_Pro {
 
     /**
      * Retrieve product-level issues reported by the Google Content API for the configured merchant.
-     *
-     * Each issue entry is an associative array with keys:
-     * - `msg` (string): human-readable message prefixed with the source (e.g., "[Google API] ..."),
-     * - `reason` (string): machine-readable detail/reason from the API,
-     * - `type` (string): `'critical'` for disapproved items or `'warning'` otherwise.
-     *
-     * @return array<string, array<int, array{msg:string,reason:string,type:string}>> Associative array mapping WooCommerce product ID (as string) to a list of issue arrays.
+     * ...
      */
     public static function fetch_google_real_statuses() {
         // Relies on the centralized API Client
@@ -122,11 +116,8 @@ class Cirrusly_Commerce_GMC_Pro {
     }
 
     /**
-     * Retrieve account-level status information (policy issues and suspensions) from the Google Content API for the configured merchant/account.
-     *
-     * Returns a WP_Error when the Google API client is unavailable, merchant/account configuration is missing, or the API call fails.
-     *
-     * @return Google_Service_ShoppingContent_AccountStatus|WP_Error The account status object on success, or a WP_Error describing the failure.
+     * Retrieve account-level status information (policy issues and suspensions) from the Google Content API.
+     * ...
      */
     public static function fetch_google_account_issues() {
         if ( ! class_exists( 'Cirrusly_Commerce_Google_API_Client' ) ) {
@@ -169,8 +160,7 @@ class Cirrusly_Commerce_GMC_Pro {
 
     /**
      * List promotions from Google Merchant Center and emit a JSON AJAX response.
-     *
-     * Validates permissions and Pro status, returns cached results when available, requests promotions from the Google Shopping Content API, normalizes each promotion into an array with keys `id`, `title`, `dates`, `app`, `type`, `code`, and `status`, stores the result in a transient cache, and sends a JSON success or error response.
+     * ...
      */
     public function handle_promo_api_list() {
         check_ajax_referer( 'cc_promo_api_list', 'security' );
@@ -311,11 +301,7 @@ class Cirrusly_Commerce_GMC_Pro {
 
     /**
      * Handle an AJAX request to create and submit a Promotion to the Google Shopping Content API.
-     *
-     * Validates the AJAX nonce, user capabilities, and Pro status; reads merchant configuration;
-     * validates and sanitizes incoming promotion data (id, title, optional dates, applicability,
-     * offer type, and generic code); creates a Promotion resource and submits it to Google;
-     * clears the promotion cache and returns a JSON success or error response.
+     * ...
      */
     public function handle_promo_api_submit() {
         check_ajax_referer( 'cc_promo_api_submit', 'security' );
@@ -433,14 +419,7 @@ class Cirrusly_Commerce_GMC_Pro {
 
     /**
      * Prevents publishing of products that contain monitored medical terms marked as "Critical".
-     *
-     * Scans the product title (and content when the term's scope is "all") for critical medical terms from
-     * the monitored terms list and, when a violation is found while the post status is publish/pending/future,
-     * changes the post status to `draft` and sets a short transient explaining the block for the current user.
-     *
-     * @param int      $post_id The post ID being saved.
-     * @param WP_Post  $post    The post object being saved.
-     * @param bool     $update  Unused. Present to match the save_post hook signature.
+     * ...
      */
     public function check_compliance_on_save( $post_id, $post, $update ) {
         // Double check Pro
@@ -501,14 +480,7 @@ class Cirrusly_Commerce_GMC_Pro {
 
     /**
      * Remove configured banned medical terms from a product's title and content during save.
-     *
-     * When the "auto_strip_banned" option is enabled and the post is a product, this function
-     * removes monitored medical terms from the post title and, when a term's scope is "all",
-     * from the post content as well. Whitespace in the title is normalized after removals.
-     *
-     * @param array $data   Sanitized post data that will be inserted/updated (e.g., post_title, post_content, post_type).
-     * @param array $postarr Raw post data originally passed to WP (unused by this function but provided by the save hook).
-     * @return array The potentially modified $data array with banned medical terms removed where applicable.
+     * ...
      */
     public function handle_auto_strip_on_save( $data, $postarr ) {
         $scan_cfg = get_option('cirrusly_scan_config', array());
@@ -538,19 +510,18 @@ class Cirrusly_Commerce_GMC_Pro {
 
     /**
      * Analyze plain text with Google Cloud Natural Language and extract entities.
+     * Caches results to Post Meta to prevent redundant API calls.
      *
-     * Truncates input to at most 5000 characters (cutting at the last word boundary) before analysis.
-     *
-     * @param string $text The text to analyze; will be truncated to 5000 characters if longer.
+     * @param string $text    The text to analyze.
+     * @param int    $post_id The ID of the product/post being analyzed (Required for caching).
      * @return Google\Service\CloudNaturalLanguage\AnnotateTextResponse|WP_Error
-     *         The annotation response on success, or a WP_Error on failure.
-     *         Possible WP_Error codes:
-     *         - `missing_client` when the Google API client class is not available.
-     *         - `nlp_error` when the Cloud Natural Language API call fails.
-     *         A WP_Error returned by Cirrusly_Commerce_Google_API_Client::get_client() may also be propagated.
      */
-    public function analyze_text_with_nlp( $text ) {
-        // Truncate to avoid API limits
+    public function analyze_text_with_nlp( $text, $post_id ) {
+    if ( ! is_numeric( $post_id ) || $post_id <= 0 ) {
+        return new WP_Error( 'invalid_post_id', 'Valid Post ID required for NLP analysis.' );
+        }
+
+        // 1. Clean & Truncate Text
         $max_length = 5000;
         if ( strlen( $text ) > $max_length ) {
             $truncated = substr( $text, 0, $max_length );
@@ -558,6 +529,26 @@ class Cirrusly_Commerce_GMC_Pro {
             $text = $last_space !== false ? substr( $truncated, 0, $last_space ) : $truncated;
         }
 
+        // 2. Check Cache (Smart Hashing)
+        $text_hash = md5( $text );
+        $cached_data = get_post_meta( $post_id, '_cc_nlp_cache', true );
+
+        $cache_ttl = 7 * DAY_IN_SECONDS;
+        if ( is_array( $cached_data ) 
+            && isset( $cached_data['hash'], $cached_data['time'] ) 
+            && $cached_data['hash'] === $text_hash 
+            && ( time() - $cached_data['time'] ) < $cache_ttl ) {
+            
+            // Rehydrate the cached array into the expected Google Response object to ensure type consistency
+            // The API returns a Google\Service\CloudNaturalLanguage\AnnotateTextResponse object
+            if ( class_exists( 'Google\Service\CloudNaturalLanguage\AnnotateTextResponse' ) ) {
+                return new Google\Service\CloudNaturalLanguage\AnnotateTextResponse( $cached_data['response'] );
+            }
+
+            return $cached_data['response'];
+        }
+
+        // 3. Prepare Client
         if ( ! class_exists( 'Cirrusly_Commerce_Google_API_Client' ) ) {
             return new WP_Error( 'missing_client', 'Google API Client not loaded.' );
         }
@@ -581,7 +572,18 @@ class Cirrusly_Commerce_GMC_Pro {
         $request->setFeatures( $features );
 
         try {
-            return $service->documents->annotateText( $request );
+            // 4. Call API
+            $results = $service->documents->annotateText( $request );
+
+            // 5. Save to Cache
+            update_post_meta( $post_id, '_cc_nlp_cache', array(
+                'hash'     => $text_hash,
+                'response' => $results, // Google Objects serialize well, but check your logs
+                'time'     => time()
+            ));
+
+            return $results;
+
         } catch ( Exception $e ) {
             if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
                 error_log( 'Cirrusly Commerce NLP Error: ' . $e->getMessage() );

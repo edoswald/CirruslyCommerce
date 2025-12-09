@@ -6,13 +6,31 @@ if ( ! defined( 'ABSPATH' ) ) {
 class Cirrusly_Commerce_GMC {
 
     /**
-     * Initialize the GMC integration: load admin and pro submodules when available and register core hooks.
+     * Track initialization state to prevent duplicate hook registration.
      *
-     * Registers handlers for product meta saving (standard, quick-edit, and bulk-edit) and for the admin
-     * "mark as custom" redirect action; loads the admin UI when running in admin context and loads the
-     * Pro module when the site is pro and the pro file exists.
+     * @var bool
+     */
+    private static $initialized = false;
+
+    /**
+     * CONSTRUCTOR: Left empty to allow instantiation without side effects.
+     * Used by the scanner to access logic methods without re-registering hooks.
      */
     public function __construct() {
+        // Intentionally empty
+    }
+
+    /**
+     * INITIALIZER: Registers hooks and loads sub-modules.
+     * Must be called ONCE by the Core class.
+     */
+    public function init() {
+        // [Security] Prevent multiple calls to init()
+        if ( self::$initialized ) {
+            return;
+        }
+        self::$initialized = true;
+
         // 1. Load Sub-Modules
         if ( is_admin() ) {
             require_once plugin_dir_path( __FILE__ ) . 'admin/class-gmc-ui.php';
@@ -20,7 +38,8 @@ class Cirrusly_Commerce_GMC {
         }
 
         // 2. Pro Logic Loading (API & Automation)
-        if ( Cirrusly_Commerce_Core::cirrusly_is_pro() && file_exists( plugin_dir_path( __FILE__ ) . 'pro/class-gmc-pro.php' ) ) {
+        // Note: Ensure Core class is loaded before running this check
+        if ( class_exists('Cirrusly_Commerce_Core') && Cirrusly_Commerce_Core::cirrusly_is_pro() && file_exists( plugin_dir_path( __FILE__ ) . 'pro/class-gmc-pro.php' ) ) {
             require_once plugin_dir_path( __FILE__ ) . 'pro/class-gmc-pro.php';
             new Cirrusly_Commerce_GMC_Pro();
         }
@@ -46,24 +65,18 @@ class Cirrusly_Commerce_GMC {
 
     /**
      * Persist GMC-related product meta and clear related promo statistics.
-     *
-     * Updates the product's `_gla_identifier_exists` meta to `'no'` when the
-     * POST field `gmc_is_custom_product` is present, otherwise sets it to `'yes'`.
-     * When present in POST, saves sanitized values for `_gmc_promotion_id` and
-     * `_gmc_custom_label_0`. Deletes the transient `cirrusly_active_promos_stats`.
-     *
-     * @param int $post_id The ID of the product post being saved.
+     * ...
      */
     public function save_product_meta( $post_id ) {
-        // phpcs:ignore WordPress.Security.NonceVerification.Missing
+        if ( ! isset( $_POST['woocommerce_meta_nonce'] ) || ! wp_verify_nonce( $_POST['woocommerce_meta_nonce'], 'woocommerce_save_data' ) ) {
+            return;
+        }       
         $val = isset( $_POST['gmc_is_custom_product'] ) ? 'no' : 'yes';
         update_post_meta( $post_id, '_gla_identifier_exists', $val );
         
-        // phpcs:ignore WordPress.Security.NonceVerification.Missing
         if ( isset( $_POST['_gmc_promotion_id'] ) ) {
             update_post_meta( $post_id, '_gmc_promotion_id', sanitize_text_field( wp_unslash( $_POST['_gmc_promotion_id'] ) ) );
         }
-        // phpcs:ignore WordPress.Security.NonceVerification.Missing
         if ( isset( $_POST['_gmc_custom_label_0'] ) ) {
             update_post_meta( $post_id, '_gmc_custom_label_0', sanitize_text_field( wp_unslash( $_POST['_gmc_custom_label_0'] ) ) );
         }
@@ -72,16 +85,23 @@ class Cirrusly_Commerce_GMC {
     }
 
     /**
-     * Update a product's GMC identifier flag based on quick/bulk edit input and clear cached promotion stats.
-     *
-     * When the request includes `gmc_is_custom_product`, the product meta `_gla_identifier_exists` is set to `no`.
-     * When the request indicates a quick edit (`woocommerce_quick_edit`) but not a bulk edit, the meta is set to `yes`.
-     *
-     * @param \WC_Product $product The product being edited; its ID is used to update post meta.
+     * Update a product's GMC identifier flag based on quick/bulk edit input.
+     * Includes updated nonce verification for Quick/Bulk edit contexts.
      */
     public function save_quick_bulk_edit( $product ) {
+        // [Security] Verify correct nonce for Quick vs Bulk Edit
+        $nonce_verified = false;
+        if ( isset( $_POST['woocommerce_quick_edit_nonce'] ) && wp_verify_nonce( $_POST['woocommerce_quick_edit_nonce'], 'woocommerce_quick_edit' ) ) {
+            $nonce_verified = true;
+        } elseif ( isset( $_POST['_wpnonce'] ) && wp_verify_nonce( $_POST['_wpnonce'], 'bulk-posts' ) ) {
+            $nonce_verified = true;
+        }
+
+        if ( ! $nonce_verified ) {
+            return;
+        } 
+        
         $post_id = $product->get_id();
-        // phpcs:ignore WordPress.Security.NonceVerification.Missing
         if ( isset( $_REQUEST['gmc_is_custom_product'] ) ) {
             update_post_meta( $post_id, '_gla_identifier_exists', 'no' );
         } elseif ( isset( $_REQUEST['woocommerce_quick_edit'] ) && ! isset( $_REQUEST['bulk_edit'] ) ) {
@@ -92,15 +112,14 @@ class Cirrusly_Commerce_GMC {
 
     /**
      * Marks a product as non-custom and redirects to the GMC admin scan tab.
-     *
-     * Verifies the current user has the 'edit_products' capability and the request nonce for the provided `pid`,
-     * updates the product meta `_gla_identifier_exists` to `'no'` for that post ID, then redirects to the
-     * Cirrusly GMC scan page and exits. If the user lacks capability, the request is terminated with an error;
-     * nonce verification will also halt the request on failure.
+     * ...
      */
     public function handle_mark_custom() {
         if ( ! current_user_can( 'edit_products' ) ) wp_die('No permission');
         $pid = intval( $_GET['pid'] );
+        if ( $pid <= 0 ) {
+            wp_die( 'Invalid product ID' );
+        }
         check_admin_referer( 'cc_mark_custom_' . $pid );
         update_post_meta( $pid, '_gla_identifier_exists', 'no' );
         wp_redirect( admin_url('admin.php?page=cirrusly-gmc&tab=scan&msg=custom_marked') );
@@ -108,15 +127,8 @@ class Cirrusly_Commerce_GMC {
     }
 
     /**
-     * Returns the set of GMC-monitored terms grouped by category and their enforcement metadata.
-     *
-     * Each top-level key is a category (e.g., 'promotional', 'medical'). Each category maps terms to an
-     * associative array with keys:
-     * - `severity`: enforcement level such as "Medium", "High", or "Critical".
-     * - `scope`: where the term is monitored (e.g., "title", "all").
-     * - `reason`: short explanation for monitoring or restriction.
-     *
-     * @return array<string, array<string, array{severity:string,scope:string,reason:string}>> Associative array of categories to term metadata.
+     * Returns the set of GMC-monitored terms.
+     * ...
      */
     public static function get_monitored_terms() {
         return array(
@@ -134,6 +146,96 @@ class Cirrusly_Commerce_GMC {
                 'covid'       => array('severity' => 'Critical', 'scope' => 'all', 'reason' => 'Sensitive event.'),
                 'guaranteed'  => array('severity' => 'Medium',   'scope' => 'all', 'reason' => 'Must have linked policy.')
             )
+        );
+    }
+
+    /**
+     * Performs the Google Merchant Center health scan logic on local products.
+     * ...
+     */
+    public static function run_gmc_scan_logic( $batch_size = 100, $paged = 1 ) {
+        // Allow cron/CLI contexts, but require capability for interactive requests.
+        if ( ! wp_doing_cron() && ! ( defined( 'WP_CLI' ) && WP_CLI ) && ! current_user_can( 'edit_products' ) ) {
+            return array();
+        }
+
+        // Normalize paging parameters to safe integers.
+        $batch_size = max( 1, (int) $batch_size );
+        $paged      = max( 1, (int) $paged );
+
+        $results = array();
+        
+        // 1. Fetch Pro Statuses (Real data from Google)
+        $google_issues = array();
+        if ( class_exists( 'Cirrusly_Commerce_Core' ) && 
+             Cirrusly_Commerce_Core::cirrusly_is_pro() && 
+             class_exists( 'Cirrusly_Commerce_GMC_Pro' ) ) {
+            $google_issues = Cirrusly_Commerce_GMC_Pro::fetch_google_real_statuses();
+        }
+
+        // 2. Scan Local Products
+        $args = array(
+            'post_type'      => 'product',
+            'posts_per_page' => $batch_size,
+            'paged'          => $paged,
+            'post_status'    => 'publish',
+            'fields'         => 'ids'
+        );
+        $products = get_posts( $args );
+
+        foreach ( $products as $pid ) {
+            $product_issues = array();
+            $p = wc_get_product( $pid );
+            if ( ! $p ) continue;
+
+            // CHECK: GTIN / MPN Existence
+            $is_custom = get_post_meta( $pid, '_gla_identifier_exists', true );
+            
+            // Basic health check simulation
+            if ( 'no' !== $is_custom && ! $p->get_sku() ) {
+                $product_issues[] = array(
+                    'type' => 'warning',
+                    'msg'  => 'Missing SKU (Identifier)',
+                    'reason' => 'Products generally require unique identifiers.'
+                );
+            }
+            
+            // CHECK: Missing Image
+            if ( ! $p->get_image_id() ) {
+                $product_issues[] = array(
+                    'type' => 'critical',
+                    'msg'  => 'Missing Image',
+                    'reason' => 'Google requires an image URL.'
+                );
+            }
+
+            // CHECK: Price
+            if ( '' === $p->get_price() ) {
+                $product_issues[] = array(
+                    'type' => 'critical',
+                    'msg'  => 'Missing Price',
+                    'reason' => 'Price is mandatory.'
+                );
+            }
+
+            // Merge Google API Issues
+            if ( isset( $google_issues[ $pid ] ) ) {
+                foreach ( $google_issues[ $pid ] as $g_issue ) {
+                    $product_issues[] = $g_issue;
+                }
+            }
+
+            if ( ! empty( $product_issues ) ) {
+                $results[] = array(
+                    'product_id' => $pid,
+                    'issues'     => $product_issues
+                );
+            }
+        }
+
+        return array(
+            'results' => $results,
+            'has_more' => count( $products ) === $batch_size
         );
     }
 }

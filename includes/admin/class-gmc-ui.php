@@ -4,7 +4,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 class Cirrusly_Commerce_GMC_UI {
 
     /**
-     * Initialize the GMC admin UI by registering WordPress and WooCommerce admin hooks and filters.
+     * Initialize the Google Merchant Center admin UI by registering WordPress and WooCommerce admin hooks and filters.
      *
      * Registers column, column-rendering, product-settings, quick-edit, and admin-notice hooks used by the
      * Google Merchant Center integration UI.
@@ -18,7 +18,7 @@ class Cirrusly_Commerce_GMC_UI {
     }
 
     /**
-     * Render the Google Merchant Center (GMC) admin hub page with tabbed navigation.
+     * Render the Google Merchant Center admin hub page with tabbed navigation.
      *
      * Displays the hub header, a three-tab navigation (Health Check, Promotion Manager, Site Content),
      * and delegates rendering to the corresponding view for the currently selected tab.
@@ -28,7 +28,7 @@ class Cirrusly_Commerce_GMC_UI {
         $tab = isset( $_GET['tab'] ) ? sanitize_text_field( wp_unslash( $_GET['tab'] ) ) : 'scan';
         ?>
         <div class="wrap">
-            <?php Cirrusly_Commerce_Core::render_global_header( 'GMC Hub' ); ?>
+            <?php Cirrusly_Commerce_Core::render_global_header( 'Compliance Hub' ); ?>
             
             <nav class="nav-tab-wrapper">
                 <a href="?page=cirrusly-gmc&tab=scan" class="nav-tab <?php echo 'scan'===$tab?'nav-tab-active':''; ?>">Health Check</a>
@@ -67,7 +67,7 @@ class Cirrusly_Commerce_GMC_UI {
         $auto_strip = isset($scan_cfg['auto_strip_banned']) ? 'checked' : '';
 
         // CORE 1: Manual Helper
-        echo '<div class="cc-manual-helper"><h4>Health Check</h4><p>Scans product data for critical GMC issues.</p></div>';
+        echo '<div class="cc-manual-helper"><h4>Health Check</h4><p>Scans product data for critical Google Merchant Center issues.</p></div>';
         
         // CORE 2: Scan Button
         echo '<div style="background:#fff; padding:20px; border-bottom:1px solid #ccc;"><form method="post">';
@@ -77,7 +77,10 @@ class Cirrusly_Commerce_GMC_UI {
         echo '</form></div>';
 
         if ( isset( $_POST['run_gmc_scan'] ) && check_admin_referer( 'cirrusly_gmc_scan', 'cc_gmc_scan_nonce' ) ) {
-            $results = $this->run_gmc_scan_logic();
+            // Unwrap new result structure
+            $scan_result = Cirrusly_Commerce_GMC::run_gmc_scan_logic();
+            $results     = isset( $scan_result['results'] ) ? $scan_result['results'] : array();
+            
             update_option( 'woo_gmc_scan_data', array( 'timestamp' => current_time( 'timestamp' ), 'results' => $results ), false );
             echo '<div class="notice notice-success inline"><p>Scan Complete.</p></div>';
         }
@@ -569,7 +572,7 @@ class Cirrusly_Commerce_GMC_UI {
      * @return array The modified columns array including the `gmc_status` key labeled "GMC Data".
      */
     public function add_gmc_admin_columns( $columns ) {
-        $columns['gmc_status'] = 'GMC Data';
+        $columns['gmc_status'] = __( 'Google Merchant Center Data', 'cirrusly-commerce' );
         return $columns;
     }
 
@@ -631,7 +634,7 @@ class Cirrusly_Commerce_GMC_UI {
         ?>
         <fieldset class="inline-edit-col-right inline-edit-gmc">
             <div class="inline-edit-col">
-                <h4>GMC Data</h4>
+                <h4>Google Merchant Center Data</h4>
                 <label class="alignleft"><input type="checkbox" name="gmc_is_custom_product" value="yes"><span class="checkbox-title">Custom Product? (No GTIN)</span></label>
             </div>
         </fieldset>
@@ -655,82 +658,7 @@ class Cirrusly_Commerce_GMC_UI {
     }
 
     /**
-     * Performs the GMC health scan logic on local products and merges with Pro API results if available.
-     * * @return array List of products with issues.
-     */
-    private function run_gmc_scan_logic() {
-        $results = array();
-        
-        // 1. Fetch Pro Statuses (Real data from Google)
-        $google_issues = array();
-        if ( Cirrusly_Commerce_Core::cirrusly_is_pro() && class_exists( 'Cirrusly_Commerce_GMC_Pro' ) ) {
-            $google_issues = Cirrusly_Commerce_GMC_Pro::fetch_google_real_statuses();
-        }
-
-        // 2. Scan Local Products
-        $args = array(
-            'post_type'      => 'product',
-            'posts_per_page' => -1,
-            'post_status'    => 'publish',
-            'fields'         => 'ids'
-        );
-        $products = get_posts( $args );
-
-        foreach ( $products as $pid ) {
-            $product_issues = array();
-            $p = wc_get_product( $pid );
-            if ( ! $p ) continue;
-
-            // CHECK: GTIN / MPN Existence
-            $is_custom = get_post_meta( $pid, '_gla_identifier_exists', true );
-            
-            // Basic health check simulation
-            if ( 'no' !== $is_custom && ! $p->get_sku() ) {
-                $product_issues[] = array(
-                    'type' => 'warning',
-                    'msg'  => 'Missing SKU (Identifier)',
-                    'reason' => 'Products generally require unique identifiers.'
-                );
-            }
-            
-            // CHECK: Missing Image
-            if ( ! $p->get_image_id() ) {
-                $product_issues[] = array(
-                    'type' => 'critical',
-                    'msg'  => 'Missing Image',
-                    'reason' => 'Google requires an image URL.'
-                );
-            }
-
-            // CHECK: Price
-            if ( ! $p->get_price() ) {
-                $product_issues[] = array(
-                    'type' => 'critical',
-                    'msg'  => 'Missing Price',
-                    'reason' => 'Price is mandatory.'
-                );
-            }
-
-            // Merge Google API Issues
-            if ( isset( $google_issues[ $pid ] ) ) {
-                foreach ( $google_issues[ $pid ] as $g_issue ) {
-                    $product_issues[] = $g_issue;
-                }
-            }
-
-            if ( ! empty( $product_issues ) ) {
-                $results[] = array(
-                    'product_id' => $pid,
-                    'issues'     => $product_issues
-                );
-            }
-        }
-
-        return $results;
-    }
-
-    /**
-     * Scans site content (pages and products) for restricted terms defined in GMC core.
+     * Scans site content (pages and products) for restricted terms defined in Google Merchant Center core.
      * * @return array List of content pieces with found restricted terms.
      */
     private function execute_content_scan_logic() {
