@@ -447,7 +447,7 @@ class Cirrusly_Commerce_Setup_Wizard {
         <?php
     }
 
-    /**
+/**
      * Save handler for all steps.
      */
     private function save_step( $step ) {
@@ -456,8 +456,8 @@ class Cirrusly_Commerce_Setup_Wizard {
         if ( $step === 2 ) {
             // Save Connect Settings
             $data = get_option( 'cirrusly_google_reviews_config', array() );
-            $data['merchant_id'] = isset( $_POST['merchant_id'] ) ? sanitize_text_field( $_POST['merchant_id'] ) : '';
-            if ( ! empty( $data['merchant_id'] ) ) $data['enable_reviews'] = 'yes';
+            $data['merchant_id']    = isset( $_POST['merchant_id'] ) ? sanitize_text_field( $_POST['merchant_id'] ) : '';
+            $data['enable_reviews'] = ! empty( $data['merchant_id'] ) ? 'yes' : 'no';
             update_option( 'cirrusly_google_reviews_config', $data );
 
             // Pro File Upload
@@ -477,58 +477,6 @@ class Cirrusly_Commerce_Setup_Wizard {
                 }
             }
         }
-
-        if ( $step === 3 ) {
-            // Save Finance
-            $data = get_option( 'cirrusly_shipping_config', array() );
-            if ( isset( $_POST['payment_pct'] ) ) {
-                $data['payment_pct'] = floatval( $_POST['payment_pct'] );
-            }
-            if ( isset( $_POST['payment_flat'] ) ) {
-                $data['payment_flat'] = floatval( $_POST['payment_flat'] );
-            }
-            
-            if ( isset( $_POST['profile_mode'] ) ) {
-                $data['profile_mode'] = sanitize_text_field( $_POST['profile_mode'] );
-            }
-
-            // Map default shipping cost to the 'default' key in the class costs JSON
-            $costs = isset($data['class_costs_json']) ? json_decode($data['class_costs_json'], true) : array();
-            if ( ! is_array( $costs ) ) $costs = array();
-            
-            if ( isset( $_POST['default_shipping'] ) ) {
-                $costs['default'] = floatval( $_POST['default_shipping'] );
-            }
-            $data['class_costs_json'] = json_encode( $costs );
-            
-            update_option( 'cirrusly_shipping_config', $data );
-        }
-
-        if ( $step === 4 ) {
-            // Save MSRP
-            $msrp = get_option( 'cirrusly_msrp_config', array() );
-            $msrp['enable_display'] = isset( $_POST['enable_msrp'] ) ? 'yes' : 'no';
-            if ( ! isset( $msrp['position_product'] ) ) $msrp['position_product'] = 'before_price';
-            update_option( 'cirrusly_msrp_config', $msrp );
-
-            // Save Badges
-            $badges = get_option( 'cirrusly_badge_config', array() );
-            $badges['enable_badges'] = isset( $_POST['enable_badges'] ) ? 'yes' : 'no';
-            
-            // Pro visual settings
-            $badges['smart_inventory'] = isset( $_POST['smart_inventory'] ) ? 'yes' : 'no';
-            $badges['smart_performance'] = isset( $_POST['smart_performance'] ) ? 'yes' : 'no';
-            
-            update_option( 'cirrusly_badge_config', $badges );
-        }
-
-        // Record version on finish
-        if ( $step === 5 ) {
-            $current_ver = defined('CIRRUSLY_COMMERCE_VERSION') ? CIRRUSLY_COMMERCE_VERSION : '1.0.0';
-            update_option( 'cirrusly_wizard_completed_version', $current_ver );
-        }
-    }
-}
 
 // Initialize the Wizard
 $wizard = new Cirrusly_Commerce_Setup_Wizard();

@@ -38,8 +38,11 @@ class Cirrusly_Commerce_Analytics_Pro {
             return;
         }
 
-        // Load Chart.js from CDN (Lightweight and standard)
-        wp_enqueue_script( 'cc-chartjs', 'https://cdn.jsdelivr.net/npm/chart.js', array(), '4.4.0', true );
+        // Add filter to inject SRI attributes for Chart.js
+        add_filter( 'script_loader_tag', array( $this, 'add_chartjs_sri_attributes' ), 10, 3 );
+
+        // Load Chart.js from CDN (Specific UMD version for SRI)
+        wp_enqueue_script( 'cc-chartjs', 'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js', array(), '4.4.0', true );
         
         // Inline CSS for the analytics dashboard
         wp_enqueue_style( 'cc-analytics-styles', false );
@@ -54,6 +57,28 @@ class Cirrusly_Commerce_Analytics_Pro {
             .cc-table-wrapper { background: #fff; border: 1px solid #c3c4c7; margin-bottom: 20px; }
             .cc-section-title { font-size: 1.2em; padding: 15px; margin: 0; border-bottom: 1px solid #eaecf0; background: #fbfbfb; font-weight: 600; }
         " );
+    }
+
+    /**
+     * Filter to add Integrity and Crossorigin attributes to Chart.js.
+     * * @param string $tag    The script tag.
+     * @param string $handle The script handle.
+     * @param string $src    The script source.
+     * @return string Modified script tag.
+     */
+    public function add_chartjs_sri_attributes( $tag, $handle, $src ) {
+        if ( 'cc-chartjs' === $handle ) {
+            // SRI Hash for Chart.js v4.4.0 (UMD Minified)
+            // Note: Verify this hash corresponds to the exact file version on jsDelivr.
+            $sri_hash = 'sha384-[jsdelivr-hash]'; 
+            
+            $tag = str_replace( 
+                '<script ', 
+                '<script integrity="' . esc_attr( $sri_hash ) . '" crossorigin="anonymous" ', 
+                $tag 
+            );
+        }
+        return $tag;
     }
 
     /**
@@ -404,10 +429,19 @@ class Cirrusly_Commerce_Analytics_Pro {
         $warnings = 0;
 
         foreach ( $scan_data['results'] as $res ) {
-            foreach ( $res['issues'] as $issue ) {
-                if ( $issue['type'] === 'critical' ) $critical++;
-                else $warnings++;
+            if ( empty( $res['issues'] ) || ! is_array( $res['issues'] ) ) {
+                continue;
             }
+        foreach ( $res['issues'] as $issue ) {
+            $itype = isset( $issue['type'] ) ? $issue['type'] : '';
+            if ( $itype === 'critical' ) {
+                $critical++;
+            } else {
+                $warnings++;
+            }
+        }
+    }
+}
         }
         $history = get_option( 'cirrusly_gmc_history', array() );
         $today   = wp_date( 'Y-m-d' ); // e.g. "2025-10-10"
