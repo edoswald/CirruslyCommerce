@@ -1,15 +1,3 @@
-Here is the complete, fully integrated `includes/admin/class-setup-wizard.php` file.
-
-This version includes:
-
-1.  **Smart Plan Detection:** Automatically detects upgrades (Free → Pro → Pro Plus) and prompts the user to rerun the wizard.
-2.  **Trial-First Onboarding:** Offers 3-day (Pro) and 7-day (Pro Plus) trials to Free users immediately.
-3.  **Conditional Logic:** Dynamically shows/hides fields (like API Uploads or Multi-Profile financial settings) based on the active license.
-4.  **Hidden Admin Page:** Registered as a hidden submenu so it doesn't clutter the UI but remains accessible via the notice or the "Rerun" button in settings.
-
-### `includes/admin/class-setup-wizard.php`
-
-```php
 <?php
 if ( ! defined( 'ABSPATH' ) ) {
     exit;
@@ -450,4 +438,3 @@ class Cirrusly_Commerce_Setup_Wizard {
 // Initialize the Wizard
 $wizard = new Cirrusly_Commerce_Setup_Wizard();
 $wizard->init();
-```
