@@ -6,19 +6,28 @@ if ( ! defined( 'ABSPATH' ) ) {
 class Cirrusly_Commerce_Setup_Wizard {
 
     /**
+     * Define versions that introduced major features requiring setup.
+     * Add to this array when you release significant updates to prompt a re-run.
+     */
+    const MILESTONES = array( '1.5', '2.0' );
+
+    /**
      * Initialize hooks.
      */
     public function init() {
         add_action( 'admin_menu', array( $this, 'register_wizard_page' ) );
         add_action( 'admin_init', array( $this, 'redirect_on_activation' ) );
         
-        // Detect upgrades (e.g., Free -> Pro) and prompt user to configure new features
+        // Triggers for re-running the wizard (Plan changes or Feature updates)
         add_action( 'admin_init', array( $this, 'detect_plan_change' ) );
+        add_action( 'admin_init', array( $this, 'detect_feature_update' ) );
+        
         add_action( 'admin_notices', array( $this, 'render_upgrade_notice' ) );
     }
 
     /**
      * Register the wizard page as a hidden submenu (parent = null).
+     * This keeps it hidden from the sidebar but accessible via URL/redirect.
      */
     public function register_wizard_page() {
         add_submenu_page( 
@@ -47,7 +56,7 @@ class Cirrusly_Commerce_Setup_Wizard {
     }
 
     /**
-     * Check if the user has upgraded their plan since the last check.
+     * Trigger 1: Plan Upgrade (Free -> Pro -> Pro Plus)
      */
     public function detect_plan_change() {
         if ( ! function_exists( 'cc_fs' ) ) return;
@@ -68,38 +77,72 @@ class Cirrusly_Commerce_Setup_Wizard {
             // Define levels to ensure we only prompt on upgrades, not downgrades
             $levels = array( 'free' => 0, 'pro' => 1, 'proplus' => 2 );
             if ( isset( $levels[$current_plan] ) && isset( $levels[$stored_plan] ) && $levels[$current_plan] > $levels[$stored_plan] ) {
-                set_transient( 'cirrusly_upgrade_prompt', true, 48 * HOUR_IN_SECONDS );
+                // Set transient with type 'plan'
+                set_transient( 'cirrusly_upgrade_prompt', 'plan', 48 * HOUR_IN_SECONDS );
             }
         }
     }
 
     /**
-     * Display a notice prompting the user to run the wizard after an upgrade.
+     * Trigger 2: Major Feature Update (Version based)
+     */
+    public function detect_feature_update() {
+        // Get the version of the plugin when the wizard was last completed
+        $last_setup = get_option( 'cirrusly_wizard_completed_version', '0.0.0' );
+        $current_ver = defined('CIRRUSLY_COMMERCE_VERSION') ? CIRRUSLY_COMMERCE_VERSION : '1.0.0';
+
+        foreach ( self::MILESTONES as $milestone ) {
+            // If Milestone is newer than Last Setup AND We have installed the Milestone version
+            if ( version_compare( $milestone, $last_setup, '>' ) && version_compare( $current_ver, $milestone, '>=' ) ) {
+                // Set transient with type 'feature'
+                set_transient( 'cirrusly_upgrade_prompt', 'feature', 48 * HOUR_IN_SECONDS );
+                break;
+            }
+        }
+    }
+
+    /**
+     * Display a notice prompting the user to run the wizard.
      */
     public function render_upgrade_notice() {
-        if ( get_transient( 'cirrusly_upgrade_prompt' ) ) {
-            $url = admin_url( 'admin.php?page=cirrusly-setup' );
-            $dismiss_url = wp_nonce_url( add_query_arg( 'cc_dismiss_wizard', '1' ), 'cc_dismiss_wizard_nonce' );
+        $type = get_transient( 'cirrusly_upgrade_prompt' );
+        if ( ! $type ) return;
 
-            // Handle Dismissal
-            if ( isset( $_GET['cc_dismiss_wizard'] ) && check_admin_referer( 'cc_dismiss_wizard_nonce' ) ) {
-                delete_transient( 'cirrusly_upgrade_prompt' );
-                return;
-            }
+        $url = admin_url( 'admin.php?page=cirrusly-setup' );
+        $dismiss_url = wp_nonce_url( add_query_arg( 'cc_dismiss_wizard', '1' ), 'cc_dismiss_wizard_nonce' );
 
-            echo '<div class="notice notice-info is-dismissible" style="padding:15px; border-left-color:#2271b1;">
-                <div style="display:flex; align-items:center; justify-content:space-between;">
-                    <div>
-                        <h3>Thanks for upgrading Cirrusly Commerce!</h3>
-                        <p>You have unlocked new automation features. We recommend running the setup wizard to configure them.</p>
-                        <p>
-                            <a href="' . esc_url( $url ) . '" class="button button-primary">Run Setup Wizard</a> 
-                            <a href="' . esc_url( $dismiss_url ) . '" class="button button-secondary" style="margin-left:10px;">Dismiss</a>
-                        </p>
-                    </div>
-                </div>
-            </div>';
+        // Handle Dismissal
+        if ( isset( $_GET['cc_dismiss_wizard'] ) && check_admin_referer( 'cc_dismiss_wizard_nonce' ) ) {
+            delete_transient( 'cirrusly_upgrade_prompt' );
+            // If dismissed, assume they are "up to date" to prevent immediate resurfacing
+            update_option( 'cirrusly_wizard_completed_version', defined('CIRRUSLY_COMMERCE_VERSION') ? CIRRUSLY_COMMERCE_VERSION : '1.0.0' );
+            return;
         }
+
+        // Dynamic Message Logic
+        $title = 'Setup Required';
+        $msg   = 'Please run the setup wizard.';
+
+        if ( $type === 'plan' ) {
+            $title = 'Thanks for upgrading!';
+            $msg   = 'You have unlocked new Pro features. Run the wizard to configure them.';
+        } elseif ( $type === 'feature' ) {
+            $title = 'New Features Available!';
+            $msg   = 'We have added major new features that require configuration. Please check your settings.';
+        }
+
+        echo '<div class="notice notice-info is-dismissible" style="padding:15px; border-left-color:#2271b1;">
+            <div style="display:flex; align-items:center; justify-content:space-between;">
+                <div>
+                    <h3>' . esc_html( $title ) . '</h3>
+                    <p>' . esc_html( $msg ) . '</p>
+                    <p>
+                        <a href="' . esc_url( $url ) . '" class="button button-primary">Run Setup Wizard</a> 
+                        <a href="' . esc_url( $dismiss_url ) . '" class="button button-secondary" style="margin-left:10px;">Dismiss</a>
+                    </p>
+                </div>
+            </div>
+        </div>';
     }
 
     /**
@@ -138,7 +181,7 @@ class Cirrusly_Commerce_Setup_Wizard {
 
             <div class="cc-wizard-container">
                 <div class="cc-wizard-header">
-                    <img src="<?php echo esc_url( CIRRUSLY_COMMERCE_URL . 'assets/images/logo.svg' ); ?>" style="height: 40px; width: auto;" alt="Cirrusly Commerce">
+                     <img src="<?php echo esc_url( CIRRUSLY_COMMERCE_URL . 'assets/images/logo.svg' ); ?>" style="height: 40px; width: auto;" alt="Cirrusly Commerce">
                     <h2 style="margin-top: 10px;">Setup Guide</h2>
                 </div>
 
@@ -427,10 +470,16 @@ class Cirrusly_Commerce_Setup_Wizard {
             $badges['enable_badges'] = isset( $_POST['enable_badges'] ) ? 'yes' : 'no';
             
             // Pro visual settings
-            $badges['smart_inventory'] = isset( $_POST['smart_inventory'] ) ? 'yes' : 'no';
-            $badges['smart_performance'] = isset( $_POST['smart_performance'] ) ? 'yes' : 'no';
+            if ( isset( $_POST['smart_inventory'] ) ) $badges['smart_inventory'] = 'yes';
+            if ( isset( $_POST['smart_performance'] ) ) $badges['smart_performance'] = 'yes';
             
             update_option( 'cirrusly_badge_config', $badges );
+        }
+
+        // Record version on finish
+        if ( $step === 5 ) {
+            $current_ver = defined('CIRRUSLY_COMMERCE_VERSION') ? CIRRUSLY_COMMERCE_VERSION : '1.0.0';
+            update_option( 'cirrusly_wizard_completed_version', $current_ver );
         }
     }
 }
