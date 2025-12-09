@@ -64,8 +64,7 @@ class Cirrusly_Commerce_Core {
         add_action( 'wp_ajax_cc_audit_save', array( $this, 'handle_audit_inline_save' ) );
         add_action( 'cirrusly_gmc_daily_scan', array( $this, 'execute_scheduled_scan_router' ) );
         add_action( 'save_post_product', array( $this, 'clear_metrics_cache' ) );
-        add_filter( 'pre_option_woocommerce_enable_cost_of_goods_sold', '__return_yes' );
-    }
+        add_filter( 'pre_option_woocommerce_enable_cost_of_goods_sold', function() { return 'yes'; } );    }
 
     public function execute_scheduled_scan_router() {
         if ( class_exists('Cirrusly_Commerce_Google_API_Client') ) {
