@@ -431,8 +431,10 @@ class Cirrusly_Commerce_Setup_Wizard {
             update_option( 'cirrusly_google_reviews_config', $data );
 
             // Pro File Upload
-            if ( ! empty( $_FILES['cirrusly_service_account']['tmp_name'] ) && Cirrusly_Commerce_Core::cirrusly_is_pro() ) {
-                if ( class_exists( 'Cirrusly_Commerce_Settings_Pro' ) ) {
+            if ( isset( $_FILES['cirrusly_service_account'] ) 
+                 && $_FILES['cirrusly_service_account']['error'] === UPLOAD_ERR_OK
+                 && ! empty( $_FILES['cirrusly_service_account']['tmp_name'] ) 
+                 && Cirrusly_Commerce_Core::cirrusly_is_pro() ) {                if ( class_exists( 'Cirrusly_Commerce_Settings_Pro' ) ) {
                      $input = get_option( 'cirrusly_scan_config', array() );
                      $input = Cirrusly_Commerce_Settings_Pro::process_service_account_upload( $input, $_FILES['cirrusly_service_account'] );
                      update_option( 'cirrusly_scan_config', $input );
@@ -443,8 +445,8 @@ class Cirrusly_Commerce_Setup_Wizard {
         if ( $step === 3 ) {
             // Save Finance
             $data = get_option( 'cirrusly_shipping_config', array() );
-            $data['payment_pct'] = floatval( $_POST['payment_pct'] );
-            $data['payment_flat'] = floatval( $_POST['payment_flat'] );
+            $data['payment_pct'] = isset( $_POST['payment_pct'] ) ? floatval( $_POST['payment_pct'] ) : 2.9;
+            $data['payment_flat'] = isset( $_POST['payment_flat'] ) ? floatval( $_POST['payment_flat'] ) : 0.30;
             
             if ( isset( $_POST['profile_mode'] ) ) {
                 $data['profile_mode'] = sanitize_text_field( $_POST['profile_mode'] );
@@ -470,8 +472,8 @@ class Cirrusly_Commerce_Setup_Wizard {
             $badges['enable_badges'] = isset( $_POST['enable_badges'] ) ? 'yes' : 'no';
             
             // Pro visual settings
-            if ( isset( $_POST['smart_inventory'] ) ) $badges['smart_inventory'] = 'yes';
-            if ( isset( $_POST['smart_performance'] ) ) $badges['smart_performance'] = 'yes';
+            $badges['smart_inventory'] = isset( $_POST['smart_inventory'] ) ? 'yes' : 'no';
+            $badges['smart_performance'] = isset( $_POST['smart_performance'] ) ? 'yes' : 'no';
             
             update_option( 'cirrusly_badge_config', $badges );
         }

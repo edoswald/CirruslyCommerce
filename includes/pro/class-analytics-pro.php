@@ -304,7 +304,7 @@ class Cirrusly_Commerce_Analytics_Pro {
         
         // Lightweight query for speed
         global $wpdb;
-        $order_items = $wpdb->get_results( "
+        $order_items = $wpdb->get_results( $wpdb->prepare( "
             SELECT order_item_meta.meta_value as product_id, SUM( order_item_meta_2.meta_value ) as qty
             FROM {$wpdb->prefix}woocommerce_order_items as order_items
             LEFT JOIN {$wpdb->prefix}woocommerce_order_itemmeta as order_item_meta ON order_items.order_item_id = order_item_meta.order_item_id
@@ -312,12 +312,12 @@ class Cirrusly_Commerce_Analytics_Pro {
             LEFT JOIN {$wpdb->posts} as posts ON order_items.order_id = posts.ID
             WHERE posts.post_type = 'shop_order'
             AND posts.post_status IN ('wc-completed', 'wc-processing')
-            AND posts.post_date > '" . date('Y-m-d', strtotime('-30 days')) . "'
+            AND posts.post_date > %s
             AND order_items.order_item_type = 'line_item'
             AND order_item_meta.meta_key = '_product_id'
             AND order_item_meta_2.meta_key = '_qty'
             GROUP BY product_id
-        " );
+        ", wp_date( 'Y-m-d', strtotime( '-30 days' ) ) ) );
 
         foreach ( $order_items as $row ) {
             $sold_map[$row->product_id] = $row->qty;
