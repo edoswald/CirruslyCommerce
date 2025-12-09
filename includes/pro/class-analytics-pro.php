@@ -164,7 +164,7 @@ class Cirrusly_Commerce_Analytics_Pro {
             if (!ctx) return;
 
             // Prepare Data from PHP
-            const history = <?php echo json_encode( $gmc_history ); ?>;
+            const history = <?php echo wp_json_encode( $gmc_history ); ?>;
             const labels = [];
             const criticalData = [];
             const warningData = [];
