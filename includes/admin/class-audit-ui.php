@@ -51,39 +51,7 @@ class Cirrusly_Commerce_Audit_UI {
         $pro_class = $is_pro ? '' : 'cc-pro-feature';
         $disabled_attr = $is_pro ? '' : 'disabled';
 
-        // DASHBOARD GRID
-        ?>
-        <div style="display:flex; gap:20px; align-items:flex-start;">
-            <div class="cc-dash-grid" style="flex:1; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 20px;">
-                 <div class="cc-dash-card" style="border-top-color: #2271b1; text-align: center;">
-                     <span class="cc-big-num"><?php echo esc_html( $total_skus ); ?></span>
-                     <span class="cc-label">Audited SKUs</span>
-                 </div>
-                 <div class="cc-dash-card" style="border-top-color: #d63638; text-align: center;">
-                     <span class="cc-big-num" style="color:#d63638;"><?php echo esc_html( $loss_count ); ?></span>
-                     <span class="cc-label">Loss Makers (Net &lt; 0)</span>
-                 </div>
-                 <div class="cc-dash-card" style="border-top-color: #dba617; text-align: center;">
-                     <span class="cc-big-num" style="color:#dba617;"><?php echo esc_html( $alert_count ); ?></span>
-                     <span class="cc-label">Data Alerts</span>
-                 </div>
-                 <div class="cc-dash-card" style="border-top-color: #008a20; text-align: center;">
-                     <span class="cc-big-num"><?php echo esc_html( $low_margin_count ); ?></span>
-                     <span class="cc-label">Low Margin (&lt; 15%)</span>
-                 </div>
-            </div>
-            <div style="width:250px; background:#fff; border:1px solid #c3c4c7; padding:15px; font-size:12px; color:#555;">
-                <strong>Dashboard Legend</strong>
-                <ul style="margin:5px 0 0 15px; list-style:disc;">
-                    <li><strong>Ship P/L:</strong> Shipping Charged - Shipping Cost. Positive is good.</li>
-                    <li><strong>Net Profit:</strong> Gross Profit - Payment Fees.</li>
-                    <li><strong>Margin:</strong> (Gross Profit / Price) * 100.</li>
-                </ul>
-            </div>
-        </div>
-        <?php
-
-        // 3. Process Filters & Pagination
+        // 3. Process Filters & Pagination (Moved Up)
         $f_margin = isset($_GET['margin']) ? floatval($_GET['margin']) : 25;
         $f_cat = isset($_GET['cat']) ? sanitize_text_field(wp_unslash($_GET['cat'])) : '';
         $f_oos = isset($_GET['hide_oos']);
@@ -117,8 +85,90 @@ class Cirrusly_Commerce_Audit_UI {
         $pages = ceil($total/$per_page);
         $slice = array_slice($filtered_data, ($paged-1)*$per_page, $per_page);
 
-        $allowed_form_tags = array( 'select' => array('name' => true, 'id' => true, 'class' => true), 'option' => array('value' => true, 'selected' => true) );
-        
+        // DASHBOARD GRID
+        ?>
+        <div class="cc-dashboard-overview" style="margin-bottom:20px;">
+            <div class="cc-dash-grid" style="display:grid; grid-template-columns: repeat(4, 1fr); gap: 20px;">
+                 <div class="cc-dash-card" style="border-top-color: #2271b1; text-align: center;">
+                     <span class="cc-big-num"><?php echo esc_html( $total_skus ); ?></span>
+                     <span class="cc-label">Audited SKUs</span>
+                 </div>
+                 <div class="cc-dash-card" style="border-top-color: #d63638; text-align: center;">
+                     <span class="cc-big-num" style="color:#d63638;"><?php echo esc_html( $loss_count ); ?></span>
+                     <span class="cc-label">Loss Makers (Net &lt; 0)</span>
+                 </div>
+                 <div class="cc-dash-card" style="border-top-color: #dba617; text-align: center;">
+                     <span class="cc-big-num" style="color:#dba617;"><?php echo esc_html( $alert_count ); ?></span>
+                     <span class="cc-label">Data Alerts</span>
+                 </div>
+                 <div class="cc-dash-card" style="border-top-color: #008a20; text-align: center;">
+                     <span class="cc-big-num"><?php echo esc_html( $low_margin_count ); ?></span>
+                     <span class="cc-label">Low Margin (&lt; 15%)</span>
+                 </div>
+                 <div style="grid-column: span 4; background:#f9f9f9; padding:10px; font-size:12px; color:#666; border-radius:4px; display:flex; justify-content:center; gap:30px; border:1px solid #ddd;">
+                    <span><strong style="color:#2271b1;">Ship P/L:</strong> Shipping Charged - Estimated Cost</span>
+                    <span><strong style="color:#2271b1;">Net Profit:</strong> Gross Profit - Payment Fees</span>
+                    <span><strong style="color:#2271b1;">Margin:</strong> (Gross Profit / Price) * 100</span>
+                 </div>
+            </div>
+        </div>
+
+        <div class="cc-audit-toolbar" style="background:#fff; border:1px solid #c3c4c7; padding:15px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:15px; margin-bottom:20px; box-shadow: 0 1px 1px rgba(0,0,0,0.04);">
+            
+            <form method="get" style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; flex:1;">
+                <input type="hidden" name="page" value="cirrusly-audit">
+                
+                <input type="text" name="s" value="<?php echo esc_attr($search); ?>" placeholder="Search product..." style="height:32px; min-width:200px;">
+                
+                <select name="margin" style="height:32px; vertical-align:top;">
+                    <option value="5" <?php selected($f_margin,5); ?>>Margin < 5%</option>
+                    <option value="15" <?php selected($f_margin,15); ?>>Margin < 15%</option>
+                    <option value="25" <?php selected($f_margin,25); ?>>Margin < 25%</option>
+                    <option value="100" <?php selected($f_margin,100); ?>>Show All</option>
+                </select>
+
+                <?php 
+                $allowed_form_tags = array( 'select' => array('name' => true, 'id' => true, 'class' => true, 'style'=>true), 'option' => array('value' => true, 'selected' => true) );
+                echo wp_kses( wc_product_dropdown_categories(array('option_none_text'=>'All Categories','name'=>'cat','selected'=>$f_cat,'value_field'=>'slug','echo'=>0, 'class'=>'', 'style'=>'height:32px; max-width:150px;')), $allowed_form_tags ); 
+                ?>
+
+                <label style="margin-left:5px; white-space:nowrap; background:#f0f0f1; padding:0 8px; border-radius:4px; border:1px solid #ccc; height:30px; line-height:28px; font-size:12px;">
+                    <input type="checkbox" name="hide_oos" value="1" <?php checked($f_oos,true); ?>> Hide OOS
+                </label>
+                
+                <button class="button button-primary" style="height:32px; line-height:30px;">Filter</button>
+                <a href="<?php echo esc_url( wp_nonce_url( '?page=cirrusly-audit&refresh_audit=1', 'cc_refresh_audit' ) ); ?>" class="button" title="Refresh Data from Database" style="height:32px; line-height:30px;"><span class="dashicons dashicons-update" style="line-height:30px;"></span></a>
+            </form>
+
+            <div class="cc-toolbar-actions" style="display:flex; align-items:center; gap:8px; border-left:1px solid #ddd; padding-left:15px;">
+                <?php if(!$is_pro): ?>
+                     <a href="<?php echo esc_url( function_exists('cc_fs') ? cc_fs()->get_upgrade_url() : '#' ); ?>" title="Upgrade to Pro" style="color:#d63638; text-decoration:none; margin-right:5px; font-weight:bold;">
+                        <span class="dashicons dashicons-lock"></span>
+                     </a>
+                <?php endif; ?>
+
+                <?php if($is_pro): ?>
+                <a href="<?php echo esc_url( wp_nonce_url( add_query_arg('action', 'export_csv'), 'cc_export_csv' ) ); ?>" class="button button-secondary" title="Export CSV">
+                    <span class="dashicons dashicons-download"></span> Export
+                </a>
+                <?php else: ?>
+                     <label class="button button-secondary" style="cursor:<?php echo $is_pro ? 'pointer' : 'not-allowed'; ?>; <?php echo $is_pro ? '' : 'opacity:0.6;'; ?>" title="Import Cost CSV">
+                    <span class="dashicons dashicons-download"></span> Export
+                </span>
+                <?php endif; ?>
+
+                <form method="post" enctype="multipart/form-data" style="margin:0;">
+                     <?php wp_nonce_field('cc_import_action', 'cc_import_nonce'); ?>
+                     <label class="button button-secondary" style="cursor:pointer;" title="Import Cost CSV" <?php echo $disabled_attr; ?>>
+                         <span class="dashicons dashicons-upload"></span> Import
+                         <input type="file" name="csv_import" style="display:none;" onchange="this.form.submit()" <?php echo $disabled_attr; ?>>
+                     </label>
+                </form>
+            </div>
+        </div>
+        <?php
+
+        // Pagination
         $pagination_html = '';
         if($pages>1) {
             $pagination_html .= '<div class="tablenav-pages"><span class="displaying-num">'.esc_html($total).' items</span>';
@@ -132,28 +182,11 @@ class Cirrusly_Commerce_Audit_UI {
             $pagination_html .= '</span></div>';
         }
 
-        ?>
-        <div class="tablenav top">
-            <div class="alignleft actions">
-                <form method="get" style="display:inline-flex; gap:5px; align-items:center;">
-                    <input type="hidden" name="page" value="cirrusly-audit">
-                    <input type="text" name="s" value="<?php echo esc_attr($search); ?>" placeholder="Search products...">
-                    <select name="margin">
-                        <option value="5" <?php selected($f_margin,5); ?>>Margin < 5%</option>
-                        <option value="15" <?php selected($f_margin,15); ?>>Margin < 15%</option>
-                        <option value="25" <?php selected($f_margin,25); ?>>Margin < 25%</option>
-                        <option value="100" <?php selected($f_margin,100); ?>>Show All</option>
-                    </select> 
-                    <?php echo wp_kses( wc_product_dropdown_categories(array('option_none_text'=>'All Categories','name'=>'cat','selected'=>$f_cat,'value_field'=>'slug','echo'=>0)), $allowed_form_tags ); ?>
-                    <label style="margin-left:5px;"><input type="checkbox" name="hide_oos" value="1" <?php checked($f_oos,true); ?>> Hide OOS</label>
-                    <button class="button button-primary">Filter</button>
-                    <a href="<?php echo esc_url( wp_nonce_url( '?page=cirrusly-audit&refresh_audit=1', 'cc_refresh_audit' ) ); ?>" class="button" title="Refresh Data from DB">Refresh Data</a>
-                </form>
-            </div>
-            <?php echo wp_kses_post( $pagination_html ); ?>
-        </div>
-        
-        <?php
+        // Render Top Pagination
+        if($pagination_html) {
+             echo '<div class="tablenav top" style="margin-top:0;">' . wp_kses_post( $pagination_html ) . '</div>';
+        }
+
         $sort_link = function($col, $label) use ($orderby, $order) {
             $new_order = ($orderby === $col && $order === 'asc') ? 'desc' : 'asc';
             $arrow = ($orderby === $col) ? ($order === 'asc' ? ' ▲' : ' ▼') : '';
@@ -209,36 +242,9 @@ class Cirrusly_Commerce_Audit_UI {
         }
         echo '</tbody></table>';
 
-        echo '<div class="tablenav bottom">' . wp_kses_post( $pagination_html ) . '</div>';
-
-        // NEW: PRO TOOLS CARD
-        echo '<div class="cc-settings-card '.esc_attr($pro_class).'" style="margin-top:30px; border:1px solid #c3c4c7;">';
-        if(!$is_pro) echo '<div class="cc-pro-overlay"><a href="'.esc_url( function_exists('cc_fs') ? cc_fs()->get_upgrade_url() : '#' ).'" class="cc-upgrade-btn"><span class="dashicons dashicons-lock cc-lock-icon"></span> Unlock Bulk Data Tools</a></div>';
-        
-        echo '<div class="cc-card-header" style="background:#f8f9fa; border-bottom:1px solid #ddd;">
-                <h3>Data Management <span class="cc-pro-badge">PRO</span></h3>
-              </div>
-              <div class="cc-card-body" style="display:flex; gap:20px; align-items:center;">
-<div>
-                    <h4>Export Data</h4>
-                    <p>Download your full financial audit as a CSV file.</p>
-                    <a href="'.esc_url( wp_nonce_url( add_query_arg('action', 'export_csv'), 'cc_export_csv' ) ).'" class="button button-secondary" '.esc_attr($disabled_attr).'>
-                        <span class="dashicons dashicons-download"></span> Download CSV
-                    </a>
-                 </div>
-                 <div style="border-left:1px solid #eee; padding-left:20px;">
-                    <h4>Bulk Import COGS</h4>
-                    <p>Update Cost of Goods and Pricing map via CSV.</p>
-                    <form method="post" enctype="multipart/form-data">
-                        '.wp_nonce_field('cc_import_action', 'cc_import_nonce', true, false).'
-                        <label class="button button-secondary" style="cursor:pointer;">
-                            <span class="dashicons dashicons-upload"></span> Upload CSV
-                            <input type="file" name="csv_import" style="display:none;" onchange="this.form.submit()" '.esc_attr($disabled_attr).'>
-                        </label>
-                    </form>
-                 </div>
-              </div>';
-        echo '</div>';
+        if($pagination_html) {
+             echo '<div class="tablenav bottom">' . wp_kses_post( $pagination_html ) . '</div>';
+        }
 
         if($is_pro) {
             ?>
