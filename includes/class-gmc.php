@@ -154,10 +154,15 @@ class Cirrusly_Commerce_GMC {
      * ...
      */
     public static function run_gmc_scan_logic( $batch_size = 100, $paged = 1 ) {
-        if ( ! current_user_can( 'edit_products' ) ) {
+        // Allow cron/CLI contexts, but require capability for interactive requests.
+        if ( ! wp_doing_cron() && ! current_user_can( 'edit_products' ) ) {
             return array();
         }
-        
+
+        // Normalize paging parameters to safe integers.
+        $batch_size = max( 1, (int) $batch_size );
+        $paged      = max( 1, (int) $paged );
+
         $results = array();
         
         // 1. Fetch Pro Statuses (Real data from Google)

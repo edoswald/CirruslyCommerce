@@ -26,11 +26,12 @@ class Cirrusly_Commerce_Pricing_Sync {
      * @param int $product_id
      */
     public function add_to_queue( $product_id ) {
-    
-    $queue = get_option( self::QUEUE_OPTION, array() );
-    
-    // Avoid duplicates in the queue (use strict comparison)
-    if ( ! in_array( $product_id, $queue, true ) ) {
+        $product_id = (int) $product_id;
+
+        $queue = get_option( self::QUEUE_OPTION, array() );
+
+        // Avoid duplicates in the queue (use strict comparison)
+    if ( $product_id > 0 && ! in_array( $product_id, $queue, true ) ) {
         $queue[] = $product_id;
         update_option( self::QUEUE_OPTION, $queue, false );
     }
