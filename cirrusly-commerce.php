@@ -130,6 +130,14 @@ class Cirrusly_Commerce_Main {
             }
         }
 
+        // 2.5 Load Admin Setup Wizard
+        if ( is_admin() ) {
+            // Check if file exists to prevent errors during updates/git syncs
+            if ( file_exists( $includes_path . 'admin/class-setup-wizard.php' ) ) {
+                require_once $includes_path . 'admin/class-setup-wizard.php';
+            }
+        }
+
         // 3. Initialize Modules
         new Cirrusly_Commerce_Core();
         new Cirrusly_Commerce_GMC();
@@ -199,6 +207,9 @@ class Cirrusly_Commerce_Main {
             $scan_config['merchant_id_pro'] = $legacy_id;
             update_option( 'cirrusly_scan_config', $scan_config );
         }
+
+        // [NEW] Trigger Setup Wizard Redirect
+        set_transient( 'cirrusly_activation_redirect', true, 30 );
     }
 
     /**
