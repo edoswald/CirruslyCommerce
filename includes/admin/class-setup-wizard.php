@@ -439,8 +439,8 @@ class Cirrusly_Commerce_Setup_Wizard {
             $badges['enable_badges'] = isset( $_POST['enable_badges'] ) ? 'yes' : 'no';
             
             // Pro visual settings
-            if ( isset( $_POST['smart_inventory'] ) ) $badges['smart_inventory'] = 'yes';
-            if ( isset( $_POST['smart_performance'] ) ) $badges['smart_performance'] = 'yes';
+            $badges['smart_inventory'] = isset( $_POST['smart_inventory'] ) ? 'yes' : 'no';
+            $badges['smart_performance'] = isset( $_POST['smart_performance'] ) ? 'yes' : 'no';
             
             update_option( 'cirrusly_badge_config', $badges );
         }
