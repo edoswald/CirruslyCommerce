@@ -42,7 +42,8 @@ class Cirrusly_Commerce_Analytics_Pro {
         wp_enqueue_script( 'cc-chartjs', 'https://cdn.jsdelivr.net/npm/chart.js', array(), '4.4.0', true );
         
         // Inline CSS for the analytics dashboard
-        wp_add_inline_style( 'admin-bar', "
+        wp_enqueue_style( 'cc-analytics-styles', false );
+        wp_add_inline_style( 'cc-analytics-styles', "
             .cc-analytics-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 20px; }
             .cc-metric-card { background: #fff; padding: 20px; border-radius: 4px; border: 1px solid #dcdcde; box-shadow: 0 1px 1px rgba(0,0,0,.04); }
             .cc-metric-card h3 { margin: 0 0 10px 0; font-size: 13px; color: #646970; text-transform: uppercase; }
@@ -59,12 +60,17 @@ class Cirrusly_Commerce_Analytics_Pro {
      * Main Render Method.
      */
     public function render_analytics_view() {
+    if ( ! current_user_can( 'manage_woocommerce' ) ) {
+        wp_die( __( 'You do not have sufficient permissions to access this page.' ) );
+    }
+
         if ( class_exists( 'Cirrusly_Commerce_Core' ) ) {
             Cirrusly_Commerce_Core::render_page_header( 'Pro Plus Analytics' );
         }
 
         // Default to last 30 days if no date range picker logic is added yet
         $days = isset($_GET['period']) ? intval($_GET['period']) : 30;
+        $days = max( 1, min( $days, 365 ) ); // Clamp between 1 and 365 days;
         $data = self::get_pnl_data( $days );
         $velocity = self::get_inventory_velocity();
         $gmc_history = get_option( 'cirrusly_gmc_history', array() );
@@ -224,8 +230,16 @@ class Cirrusly_Commerce_Analytics_Pro {
             'inclusive' => true,
         );
 
+        // Check cache first
+        $cache_key = 'cc_analytics_pnl_' . $days;
+        $cached = get_transient( $cache_key );
+        if ( false !== $cached ) {
+            return $cached;
+        }
+
+
         $orders = wc_get_orders( array(
-            'limit'        => -1,
+            'limit'        => 1000, // Add a safety limit or paginate
             'status'       => array( 'wc-completed', 'wc-processing' ),
             'date_created' => $date_query,
         ) );

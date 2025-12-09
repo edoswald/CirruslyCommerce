@@ -434,7 +434,8 @@ class Cirrusly_Commerce_Setup_Wizard {
             if ( isset( $_FILES['cirrusly_service_account'] ) 
                  && $_FILES['cirrusly_service_account']['error'] === UPLOAD_ERR_OK
                  && ! empty( $_FILES['cirrusly_service_account']['tmp_name'] ) 
-                 && Cirrusly_Commerce_Core::cirrusly_is_pro() ) {                if ( class_exists( 'Cirrusly_Commerce_Settings_Pro' ) ) {
+                 && Cirrusly_Commerce_Core::cirrusly_is_pro() ) {
+                if ( class_exists( 'Cirrusly_Commerce_Settings_Pro' ) ) {
                      $input = get_option( 'cirrusly_scan_config', array() );
                      $input = Cirrusly_Commerce_Settings_Pro::process_service_account_upload( $input, $_FILES['cirrusly_service_account'] );
                      update_option( 'cirrusly_scan_config', $input );
@@ -454,7 +455,8 @@ class Cirrusly_Commerce_Setup_Wizard {
 
             // Map default shipping cost to the 'default' key in the class costs JSON
             $costs = isset($data['class_costs_json']) ? json_decode($data['class_costs_json'], true) : array();
-            $costs['default'] = floatval( $_POST['default_shipping'] );
+            if ( ! is_array( $costs ) ) $costs = array();
+            $costs['default'] = isset( $_POST['default_shipping'] ) ? floatval( $_POST['default_shipping'] ) : 10.00;;
             $data['class_costs_json'] = json_encode( $costs );
             
             update_option( 'cirrusly_shipping_config', $data );
