@@ -426,7 +426,7 @@ class Cirrusly_Commerce_Setup_Wizard {
         if ( $step === 2 ) {
             // Save Connect Settings
             $data = get_option( 'cirrusly_google_reviews_config', array() );
-            $data['merchant_id'] = sanitize_text_field( $_POST['merchant_id'] );
+            $data['merchant_id'] = isset( $_POST['merchant_id'] ) ? sanitize_text_field( $_POST['merchant_id'] ) : '';
             if ( ! empty( $data['merchant_id'] ) ) $data['enable_reviews'] = 'yes';
             update_option( 'cirrusly_google_reviews_config', $data );
 
