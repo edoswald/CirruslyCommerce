@@ -582,7 +582,7 @@ class Cirrusly_Commerce_Analytics_Pro {
         return $stats;
     }
 
-    /****
+    /**
      * Identify inventory items at risk of stockout based on 30-day sales velocity.
      *
      * Computes average daily sales for each product over the last 30 days and returns

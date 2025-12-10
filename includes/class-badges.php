@@ -139,7 +139,7 @@ class Cirrusly_Commerce_Badges {
         if ( $html ) echo '<div class="cw-badge-payload" style="display:none;">' . wp_kses_post( $html ) . '</div>';
     }
 
-    / **
+    /**
      * Generate the HTML markup for badges applicable to the given product.
      *
      * Produces concatenated badge elements for smart badges (Pro), sale-based discounts,
