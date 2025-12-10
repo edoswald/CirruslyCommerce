@@ -107,7 +107,7 @@ class Cirrusly_Commerce_Settings_Manager {
                 if ( file_exists( $pro_class ) ) {
                     require_once $pro_class;
                     // The Pro method returns the modified $input array
-                    $input = Cirrusly_Commerce_Settings_Pro::process_service_account_upload( $input, $_FILES['cirrusly_service_account'] );
+                    $input = Cirrusly_Commerce_Settings_Pro::cirrusly_process_service_account_upload( $input, $_FILES['cirrusly_service_account'] );
                 }
             } else {
                  add_settings_error( 'cirrusly_scan_config', 'pro_required', 'Using this feature requires Pro or higher. Upgrade today.' );

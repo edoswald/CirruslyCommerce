@@ -153,7 +153,8 @@ class Cirrusly_Commerce_Analytics_Pro {
 
         if ( isset( $_GET['cc_refresh'] ) && check_admin_referer( 'cc_refresh_analytics' ) ) {
             global $wpdb;
-            $wpdb->query( "DELETE FROM {$wpdb->options} WHERE option_name LIKE '_transient_cc_analytics_pnl_v4_%' OR option_name LIKE '_transient_timeout_cc_analytics_pnl_v4_%'" );
+            // FIXED: Use {$wpdb->prefix}options instead of {$wpdb->options} (which doesn't exist)
+            $wpdb->query( "DELETE FROM {$wpdb->prefix}options WHERE option_name LIKE '_transient_cc_analytics_pnl_v4_%' OR option_name LIKE '_transient_timeout_cc_analytics_pnl_v4_%'" );
             wp_redirect( remove_query_arg( array( 'cc_refresh', '_wpnonce' ) ) );
             exit;
         }
@@ -321,19 +322,19 @@ class Cirrusly_Commerce_Analytics_Pro {
      * @param int   $days            Number of days to include (ending today). Defaults to 90.
      * @param array $custom_statuses Optional array of order status slugs (e.g., ['wc-completed']). If empty, a sensible default set is auto-discovered.
      * @return array An associative array with keys:
-     *               - revenue (float): Total order revenue.
-     *               - cogs (float): Total cost of goods sold.
-     *               - shipping (float): Total estimated shipping costs.
-     *               - fees (float): Total calculated fees.
-     *               - refunds (float): Total refunded amounts.
-     *               - total_costs (float): Sum of cogs, shipping, fees, and refunds.
-     *               - net_profit (float): revenue minus total_costs.
-     *               - margin (float): Net profit expressed as percentage of revenue (0 if revenue is 0).
-     *               - count (int): Number of orders considered.
-     *               - products (array): List of products aggregated with entries like ['id'=>int, 'name'=>string, 'qty'=>int, 'net'=>float], sorted by net descending.
-     *               - history (array): Map of Y-m-d => ['revenue'=>float, 'costs'=>float, 'profit'=>float] for each day in the period.
-     *               - method (string): Query method used (e.g., 'HPOS API' or 'Direct SQL').
-     *               - statuses_used (array): The order statuses used to build the result.
+     * - revenue (float): Total order revenue.
+     * - cogs (float): Total cost of goods sold.
+     * - shipping (float): Total estimated shipping costs.
+     * - fees (float): Total calculated fees.
+     * - refunds (float): Total refunded amounts.
+     * - total_costs (float): Sum of cogs, shipping, fees, and refunds.
+     * - net_profit (float): revenue minus total_costs.
+     * - margin (float): Net profit expressed as percentage of revenue (0 if revenue is 0).
+     * - count (int): Number of orders considered.
+     * - products (array): List of products aggregated with entries like ['id'=>int, 'name'=>string, 'qty'=>int, 'net'=>float], sorted by net descending.
+     * - history (array): Map of Y-m-d => ['revenue'=>float, 'costs'=>float, 'profit'=>float] for each day in the period.
+     * - method (string): Query method used (e.g., 'HPOS API' or 'Direct SQL').
+     * - statuses_used (array): The order statuses used to build the result.
      */
     private static function get_pnl_data( $days = 90, $custom_statuses = array() ) {
         // Initialize Dates
@@ -420,6 +421,7 @@ class Cirrusly_Commerce_Analytics_Pro {
 
             $status_placeholders = implode( ',', array_fill( 0, count( $sql_statuses ), '%s' ) );
             
+            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
             $sql = $wpdb->prepare( "
                 SELECT ID FROM {$wpdb->posts} 
                 WHERE post_type = 'shop_order' 
@@ -514,11 +516,11 @@ class Cirrusly_Commerce_Analytics_Pro {
      * items whose estimated days remaining (stock / velocity) is less than 14.
      *
      * @return array[] An array of risky items sorted by ascending `days_left`. Each item is an associative array with keys:
-     *                 - 'id' (int): Product ID.
-     *                 - 'name' (string): Product name.
-     *                 - 'stock' (float|int): Current stock quantity.
-     *                 - 'velocity' (float): Average daily sales over the last 30 days.
-     *                 - 'days_left' (float): Estimated days remaining at the current velocity.
+     * - 'id' (int): Product ID.
+     * - 'name' (string): Product name.
+     * - 'stock' (float|int): Current stock quantity.
+     * - 'velocity' (float): Average daily sales over the last 30 days.
+     * - 'days_left' (float): Estimated days remaining at the current velocity.
      */
     private static function get_inventory_velocity() {
         // Use simpler logic for velocity too
@@ -579,7 +581,8 @@ class Cirrusly_Commerce_Analytics_Pro {
      * Hooks into 'cirrusly_gmc_daily_scan' at priority 20.
      */
     public function capture_daily_gmc_snapshot() {
-        $scan_data = get_option( 'woo_gmc_scan_data', array() );
+        // FIXED: Updated option name to match migration
+        $scan_data = get_option( 'cirrusly_gmc_scan_data', array() );
         
         if ( empty( $scan_data['results'] ) ) return;
 

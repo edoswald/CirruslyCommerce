@@ -9,7 +9,7 @@ Requires PHP: 8.1
 License: GPLv2 or later 
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
-The Financial Operating System for WooCommerce. Google Merchant Center Compliance, Profit Audits, and Dynamic Pricing in one suite.
+The Financial Operating System for WooCommerce. Compliance, Profit/Loss, and Dynamic Pricing in one suite.
 
 **Stop guessing if your Google Ads are profitable. Stop worrying about Merchant Center suspensions.**
 

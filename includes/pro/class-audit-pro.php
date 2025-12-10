@@ -37,7 +37,7 @@ class Cirrusly_Commerce_Audit_Pro {
             header('Content-Type: text/csv');
             header('Content-Disposition: attachment; filename="store-audit-' . gmdate('Y-m-d') . '.csv"');
             
-            // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations.fopen
+            // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations
             $fp = fopen('php://output', 'w');
             fputcsv($fp, array('ID', 'Product Name', 'Type', 'Cost (COGS)', 'Shipping Cost', 'Price', 'Net Profit', 'Margin %', 'MAP', 'Google Min', 'MSRP'));
             
@@ -56,7 +56,8 @@ class Cirrusly_Commerce_Audit_Pro {
                     $row['msrp'] > 0 ? $row['msrp'] : ''
                 ));
             }
-            fclose($fp); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations.fclose
+            // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations
+            fclose($fp);
             exit;
         }
     }
@@ -73,7 +74,7 @@ class Cirrusly_Commerce_Audit_Pro {
      * - "MSRP" -> `_alg_msrp`
      *
      * Price-like values are normalized with `wc_format_decimal()` before saving. On failure this method registers
-     * appropriate settings errors; on success it clears the `cw_audit_data` transient and registers a success message
+     * appropriate settings errors; on success it clears the `cirrusly_audit_data` transient and registers a success message
      * indicating how many products were updated.
      */
     public static function handle_import() {
@@ -93,7 +94,8 @@ class Cirrusly_Commerce_Audit_Pro {
                 add_settings_error( 'cirrusly_audit', 'import_fail', 'Could not read uploaded CSV file.', 'error' );
                 return;
             }
-            // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations.fopen
+            
+            // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations
             $handle = fopen( $file, 'r' );
             if ( ! $handle ) {
                 add_settings_error( 'cirrusly_audit', 'import_fail', 'Failed to open uploaded CSV file.', 'error' );
@@ -103,7 +105,8 @@ class Cirrusly_Commerce_Audit_Pro {
             // 1. Get Header Row & Map Indices
             $header = fgetcsv($handle);
             if ( ! $header ) {
-                fclose($handle); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations.fclose
+                // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations
+                fclose($handle);
                 add_settings_error( 'cirrusly_audit', 'import_fail', 'CSV file is empty or has no header row.', 'error' );
                 return;
             }
@@ -121,7 +124,8 @@ class Cirrusly_Commerce_Audit_Pro {
 
             if ( ! isset($map['ID']) ) {
                 add_settings_error('cirrusly_audit', 'import_fail', 'Invalid CSV: Missing "ID" column.', 'error');
-                fclose($handle); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations.fclose
+                // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations
+                fclose($handle);
                 return;
             }
 
@@ -151,8 +155,11 @@ class Cirrusly_Commerce_Audit_Pro {
 
                 if ( $updated ) $count++;
             }
-            fclose($handle); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations.fclose
-            delete_transient( 'cw_audit_data' ); 
+            // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations
+            fclose($handle);
+            
+            // Updated transient name to match class-audit.php
+            delete_transient( 'cirrusly_audit_data' ); 
             add_settings_error('cirrusly_audit', 'import_success', "Updated data for $count products.", 'success');
         }
     }

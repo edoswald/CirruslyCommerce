@@ -12,7 +12,7 @@ class Cirrusly_Commerce_Settings_Pro {
      * @param array $file  The $_FILES['cirrusly_service_account'] array.
      * @return array Modified input array.
      */
-    public static function process_service_account_upload( $input, $file ) {
+    public static function cirrusly_process_service_account_upload( $input, $file ) {
         
         // 0. Basic Upload Check
         if ( empty( $file['name'] ) || ! empty( $file['error'] ) ) {
@@ -75,3 +75,4 @@ class Cirrusly_Commerce_Settings_Pro {
 
         return $input;
     }
+}
