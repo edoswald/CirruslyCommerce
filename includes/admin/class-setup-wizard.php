@@ -447,7 +447,7 @@ class Cirrusly_Commerce_Setup_Wizard {
         <?php
     }
 
-/**
+    /**
      * Save handler for all steps.
      */
     private function save_step( $step ) {
@@ -477,6 +477,55 @@ class Cirrusly_Commerce_Setup_Wizard {
                 }
             }
         }
+
+        // Step 3: Finance
+        if ( $step === 3 ) {
+            $conf = get_option( 'cirrusly_shipping_config', array() );
+            $conf['payment_pct']  = isset( $_POST['payment_pct'] ) ? sanitize_text_field( $_POST['payment_pct'] ) : 2.9;
+            $conf['payment_flat'] = isset( $_POST['payment_flat'] ) ? sanitize_text_field( $_POST['payment_flat'] ) : 0.30;
+            
+            // Pro: Profile Mode
+            if ( isset( $_POST['profile_mode'] ) ) {
+                $conf['profile_mode'] = sanitize_text_field( $_POST['profile_mode'] );
+            }
+
+            // Default Shipping (Stored in class costs JSON)
+            $costs = isset( $conf['class_costs_json'] ) ? json_decode( $conf['class_costs_json'], true ) : array();
+            if ( ! is_array( $costs ) ) {
+                $costs = array();
+            }
+            
+            if ( isset( $_POST['default_shipping'] ) ) {
+                $costs['default'] = sanitize_text_field( $_POST['default_shipping'] );
+            }
+            $conf['class_costs_json'] = json_encode( $costs );
+
+            update_option( 'cirrusly_shipping_config', $conf );
+        }
+
+        // Step 4: Visuals
+        if ( $step === 4 ) {
+            // MSRP
+            $msrp = get_option( 'cirrusly_msrp_config', array() );
+            $msrp['enable_display'] = isset( $_POST['enable_msrp'] ) ? 'yes' : 'no';
+            update_option( 'cirrusly_msrp_config', $msrp );
+
+            // Badges
+            $badges = get_option( 'cirrusly_badge_config', array() );
+            $badges['enable_badges']     = isset( $_POST['enable_badges'] ) ? 'yes' : 'no';
+            $badges['smart_inventory']   = isset( $_POST['smart_inventory'] ) ? 'yes' : 'no';
+            $badges['smart_performance'] = isset( $_POST['smart_performance'] ) ? 'yes' : 'no';
+            update_option( 'cirrusly_badge_config', $badges );
+        }
+
+        // Step 5: Finish
+        if ( $step === 5 ) {
+            // Mark wizard as complete with current version
+            update_option( 'cirrusly_wizard_completed_version', defined('CIRRUSLY_COMMERCE_VERSION') ? CIRRUSLY_COMMERCE_VERSION : '1.0.0' );
+        }
+
+    } // End save_step
+} // End Class
 
 // Initialize the Wizard
 $wizard = new Cirrusly_Commerce_Setup_Wizard();

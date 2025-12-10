@@ -432,17 +432,17 @@ class Cirrusly_Commerce_Analytics_Pro {
             if ( empty( $res['issues'] ) || ! is_array( $res['issues'] ) ) {
                 continue;
             }
-        foreach ( $res['issues'] as $issue ) {
-            $itype = isset( $issue['type'] ) ? $issue['type'] : '';
-            if ( $itype === 'critical' ) {
-                $critical++;
-            } else {
-                $warnings++;
+
+            foreach ( $res['issues'] as $issue ) {
+                $itype = isset( $issue['type'] ) ? $issue['type'] : '';
+                if ( $itype === 'critical' ) {
+                    $critical++;
+                } else {
+                    $warnings++;
+                }
             }
         }
-    }
-}
-        }
+
         $history = get_option( 'cirrusly_gmc_history', array() );
         $today   = wp_date( 'Y-m-d' ); // e.g. "2025-10-10"
 
