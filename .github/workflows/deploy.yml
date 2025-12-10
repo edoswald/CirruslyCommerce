@@ -5,4 +5,5 @@
   with:
     # How many days to keep the zip archive
     retention-days: # optional, default is 5
+    slug: cirrusly-commerce
           
