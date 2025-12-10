@@ -100,7 +100,7 @@ class Cirrusly_Commerce_Core {
 
         if ( $pid > 0 && in_array($field, array('_cogs_total_value', '_cw_est_shipping')) ) {
             update_post_meta( $pid, $field, $val );
-            delete_transient( 'cw_audit_data' );
+            delete_transient( 'cirrusly_audit_data' );
             wp_send_json_success();
         }
         wp_send_json_error( __( 'Invalid data', 'cirrusly-commerce' ) );

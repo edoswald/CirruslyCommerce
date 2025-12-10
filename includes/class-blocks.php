@@ -120,10 +120,11 @@ class Cirrusly_Commerce_Blocks {
     public function render_msrp_block( $attributes, $content ) {
         // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound
         global $product;
-        $product = $this->ensure_product_context( $attributes, $product );
+        // Use a plugin-specific variable to avoid overwriting global $product
+        $cirrusly_product = $this->ensure_product_context( $attributes, $product );
         
         // If still no product (empty store?), fail gracefully
-        if ( ! $product || ! is_object( $product ) ) {
+        if ( ! $cirrusly_product || ! is_object( $cirrusly_product ) ) {
             if ( defined( 'REST_REQUEST' ) && REST_REQUEST ) return '<div class="cw-placeholder">Add a product to preview MSRP.</div>';
             return '';
         }
@@ -131,7 +132,7 @@ class Cirrusly_Commerce_Blocks {
         $msrp_html = '';
         // FIXED: Check for and call the Frontend class directly, as that is where get_msrp_html resides.
         if ( class_exists( 'Cirrusly_Commerce_Pricing_Frontend' ) ) {
-            $msrp_html = Cirrusly_Commerce_Pricing_Frontend::get_msrp_html( $product );
+            $msrp_html = Cirrusly_Commerce_Pricing_Frontend::get_msrp_html( $cirrusly_product );
         }
         
         if ( empty( $msrp_html ) ) {
@@ -159,8 +160,10 @@ class Cirrusly_Commerce_Blocks {
     public function render_countdown_block( $attributes, $content ) {
         // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound
         global $product;
-        $product = $this->ensure_product_context( $attributes, $product );
-        if ( ! $product || ! is_object( $product ) ) {
+        // Use a plugin-specific variable to avoid overwriting global $product
+        $cirrusly_product = $this->ensure_product_context( $attributes, $product );
+
+        if ( ! $cirrusly_product || ! is_object( $cirrusly_product ) ) {
              if ( defined( 'REST_REQUEST' ) && REST_REQUEST ) return '<div class="cw-placeholder">Add a product to preview Timer.</div>';
              return '';
         }
@@ -170,7 +173,7 @@ class Cirrusly_Commerce_Blocks {
         // Priority 1: Smart / Meta (if enabled)
         if ( ! empty( $attributes['useMeta'] ) ) {
              if ( class_exists( 'Cirrusly_Commerce_Countdown' ) ) {
-                 $config = Cirrusly_Commerce_Countdown::get_smart_countdown_config( $product );
+                 $config = Cirrusly_Commerce_Countdown::get_smart_countdown_config( $cirrusly_product );
                  if ( $config && is_array( $config ) && ! empty( $config['end'] ) ) {
                      $end_date = $config['end'];
                  }
@@ -205,15 +208,17 @@ class Cirrusly_Commerce_Blocks {
     public function render_badges_block( $attributes, $content ) {
         // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound
         global $product;
-        $product = $this->ensure_product_context( $attributes, $product );
-        if ( ! $product || ! is_object( $product ) ) {
+        // Use a plugin-specific variable to avoid overwriting global $product
+        $cirrusly_product = $this->ensure_product_context( $attributes, $product );
+        
+        if ( ! $cirrusly_product || ! is_object( $cirrusly_product ) ) {
             if ( defined( 'REST_REQUEST' ) && REST_REQUEST ) return '<div class="cw-placeholder">Add a product to preview Badges.</div>';
             return '';
         }
 
         $html = '';
         if ( class_exists( 'Cirrusly_Commerce_Badges' ) ) {
-            $html = Cirrusly_Commerce_Badges::get_badge_html( $product );
+            $html = Cirrusly_Commerce_Badges::get_badge_html( $cirrusly_product );
         }
 
         if ( empty( $html ) ) {
@@ -234,11 +239,11 @@ class Cirrusly_Commerce_Blocks {
         // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound
         global $product;
         // Notice block might be global, but usually context-aware
-        $product = $this->ensure_product_context( $attributes, $product );
+        $cirrusly_product = $this->ensure_product_context( $attributes, $product );
         
         $has_discount = false;
-        if ( $product && is_object($product) && class_exists( 'Cirrusly_Commerce_Automated_Discounts' ) ) {
-            $discount = Cirrusly_Commerce_Automated_Discounts::get_active_discount( $product->get_id() );
+        if ( $cirrusly_product && is_object($cirrusly_product) && class_exists( 'Cirrusly_Commerce_Automated_Discounts' ) ) {
+            $discount = Cirrusly_Commerce_Automated_Discounts::get_active_discount( $cirrusly_product->get_id() );
             if ( $discount ) $has_discount = true;
         }
 

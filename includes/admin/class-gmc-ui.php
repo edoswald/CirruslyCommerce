@@ -177,10 +177,10 @@ class Cirrusly_Commerce_GMC_UI {
     /**
      * Render the Health Check UI for Google Merchant Center and present scan results and automation rules.
      *
-     * Renders a diagnostic scan form, displays saved scan results from the `woo_gmc_scan_data` option,
+     * Renders a diagnostic scan form, displays saved scan results from the `cirrusly_gmc_scan_data` option,
      * and shows the Automation & Workflow Rules panel which stores settings in the `cirrusly_scan_config`
      * option (via WordPress options API). When the scan form is submitted with a valid nonce, the method
-     * runs the scan logic, updates `woo_gmc_scan_data` with a timestamp and results, and outputs a success notice.
+     * runs the scan logic, updates `cirrusly_gmc_scan_data` with a timestamp and results, and outputs a success notice.
      */
     private function render_scan_view() {
         $is_pro = Cirrusly_Commerce_Core::cirrusly_is_pro();
@@ -206,11 +206,21 @@ class Cirrusly_Commerce_GMC_UI {
             $scan_result = Cirrusly_Commerce_GMC::run_gmc_scan_logic();
             $results     = isset( $scan_result['results'] ) ? $scan_result['results'] : array();
             
-            update_option( 'woo_gmc_scan_data', array( 'timestamp' => current_time( 'timestamp' ), 'results' => $results ), false );
+            update_option( 'cirrusly_gmc_scan_data', array( 'timestamp' => current_time( 'timestamp' ), 'results' => $results ), false );
             echo '<div class="notice notice-success inline"><p>Scan Completed.</p></div>';
         }
         
-        $scan_data = get_option( 'woo_gmc_scan_data' );
+        // MIGRATION: Check for old scan data and migrate
+        $scan_data = get_option( 'cirrusly_gmc_scan_data' );
+        if ( false === $scan_data ) {
+            $old_scan_data = get_option( 'woo_gmc_scan_data' );
+            if ( false !== $old_scan_data ) {
+                update_option( 'cirrusly_gmc_scan_data', $old_scan_data );
+                delete_option( 'woo_gmc_scan_data' );
+                $scan_data = $old_scan_data;
+            }
+        }
+
         if ( ! empty( $scan_data ) && !empty($scan_data['results']) ) {
             echo '<table class="wp-list-table widefat fixed striped"><thead><tr><th>Product</th><th>Issues</th><th>Action</th></tr></thead><tbody>';
             foreach($scan_data['results'] as $r) {
@@ -254,12 +264,8 @@ class Cirrusly_Commerce_GMC_UI {
         echo '</div>';
     }
 
-    // ... [Keep render_gmc_hub_page, render_scan_view, render_promotions_view (minus the script block), etc.] ...
-
     private function render_promotions_view() {
         // [Existing HTML generation code remains]
-        // ...
-        // [Remove the <script> block at the end of this method]
         $is_pro = Cirrusly_Commerce_Core::cirrusly_is_pro();
         $pro_class = $is_pro ? '' : 'cc-pro-feature';
         $disabled_attr = $is_pro ? '' : 'disabled';
@@ -332,9 +338,8 @@ class Cirrusly_Commerce_GMC_UI {
             </div>
         </div>
         <?php
-        // Bulk assignments table logic follows...
         global $wpdb;
-        // ... (Keep existing bulk logic) ...
+        
         if ( isset( $_POST['gmc_promo_bulk_action'] ) && ! empty( $_POST['gmc_promo_products'] ) && check_admin_referer( 'cirrusly_promo_bulk', 'cc_promo_nonce' ) ) {
             $new_promo_id = isset($_POST['gmc_new_promo_id']) ? sanitize_text_field( wp_unslash( $_POST['gmc_new_promo_id'] ) ) : '';
             $action = sanitize_text_field( wp_unslash( $_POST['gmc_promo_bulk_action'] ) );
@@ -421,7 +426,6 @@ class Cirrusly_Commerce_GMC_UI {
             if ( $total_pages > 1 ) {
                 echo '<div class="tablenav bottom"><div class="tablenav-pages" style="float:right; margin:5px 0;">' . wp_kses_post( $page_links ) . '</div><div class="clear"></div></div>';
             }
-            // Inline script was here; moved to enqueue_scripts
             echo '</form>';
             wp_reset_postdata();
         }
