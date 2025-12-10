@@ -135,15 +135,15 @@ class Cirrusly_Commerce_Setup_Wizard {
         }
 
         // Dynamic Message Logic
-        $title = __( 'Setup Required', 'cirrusly-commerce' );
-        $msg   = __( 'Please run the setup wizard.', 'cirrusly-commerce' );
+        $title = __( 'Setup Recommended', 'cirrusly-commerce' );
+        $msg   = __( 'The setup wizard helps you configure important settings for optimal performance.', 'cirrusly-commerce' );
 
         if ( $type === 'plan' ) {
-            $title = __( 'Thanks for upgrading!', 'cirrusly-commerce' );
-            $msg   = __( 'You have unlocked new Pro features. Run the wizard to configure them.', 'cirrusly-commerce' );
+            $title = __( 'Thanks for Your Support', 'cirrusly-commerce' );
+            $msg   = __( 'Additional features are available with your new plan. Run the wizard to configure them.', 'cirrusly-commerce' );
         } elseif ( $type === 'feature' ) {
-            $title = __( 'New Features Available!', 'cirrusly-commerce' );
-            $msg   = __( 'We have added major new features that require configuration. Please check your settings.', 'cirrusly-commerce' );
+            $title = __( 'New Features!', 'cirrusly-commerce' );
+            $msg   = __( 'This version includes major new features. We recommend running the wizard to configure them.', 'cirrusly-commerce' );
         }
 
         echo '<div class="notice notice-info is-dismissible" style="padding:15px; border-left-color:#2271b1;">
@@ -265,7 +265,7 @@ class Cirrusly_Commerce_Setup_Wizard {
         $upgrade_url = function_exists('cc_fs') ? cc_fs()->get_upgrade_url() : '#';
         ?>
         <h3><?php esc_html_e( 'Choose your Edition', 'cirrusly-commerce' ); ?></h3>
-        <p><?php esc_html_e( 'You are currently on the Free version. Continue for free or start a risk-free trial to unlock automation.', 'cirrusly-commerce' ); ?></p>
+        <p><?php esc_html_e( 'The free version offers essential features to get you started. However, upgrading unlocks automation and advanced tools. Take advantage of a risk-free trial to explore these benefits, or continue with your current plan.', 'cirrusly-commerce' ); ?></p>
         
         <div class="cc-pricing-grid">
             <div class="cc-pricing-col">
@@ -342,7 +342,7 @@ class Cirrusly_Commerce_Setup_Wizard {
                 <th><?php esc_html_e( 'Service Account JSON', 'cirrusly-commerce' ); ?> <span class="cc-tag">PRO</span></th>
                 <td>
                     <input type="file" name="cirrusly_service_account" accept=".json">
-                    <p class="description"><?php esc_html_e( 'Upload your Google Cloud Key for Real-Time API scanning.', 'cirrusly-commerce' ); ?></p>
+                    <p class="description"><?php esc_html_e( 'Upload your Google Cloud Key for Real-Time API scanning. This requires advanced setup. Refer to our documentation for guidance.', 'cirrusly-commerce' ); ?></p>
                 </td>
             </tr>
             <?php endif; ?>
@@ -371,7 +371,7 @@ class Cirrusly_Commerce_Setup_Wizard {
         $is_pro = Cirrusly_Commerce_Core::cirrusly_is_pro();
         ?>
         <h3><?php esc_html_e( 'Profit Engine Setup', 'cirrusly-commerce' ); ?></h3>
-        <p><?php esc_html_e( 'Configure your baseline costs to calculate accurate Net Profit margins.', 'cirrusly-commerce' ); ?></p>
+        <p><?php esc_html_e( 'The Cirrusly Commerce Profit Engine is what sets our plugin apart from others. We recommend spending extra time on this step to ensure your costs are accurately configured. The more accurate your inputs, the better your profit insights.', 'cirrusly-commerce' ); ?></p>
         
         <table class="form-table">
             <tr>

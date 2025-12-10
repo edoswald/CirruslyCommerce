@@ -110,7 +110,7 @@ class Cirrusly_Commerce_Settings_Manager {
                     $input = Cirrusly_Commerce_Settings_Pro::process_service_account_upload( $input, $_FILES['cirrusly_service_account'] );
                 }
             } else {
-                 add_settings_error( 'cirrusly_scan_config', 'pro_required', 'Pro version required for Service Account upload.' );
+                 add_settings_error( 'cirrusly_scan_config', 'pro_required', 'Using this feature requires Pro or higher. Upgrade today.' );
             }
         }
 
@@ -216,7 +216,7 @@ class Cirrusly_Commerce_Settings_Manager {
     // --- NEW: Rerun Wizard Button Here ---
             echo '<div style="float: right; margin-top: -40px;">
                     <a href="' . esc_url( admin_url( 'admin.php?page=cirrusly-setup' ) ) . '" class="button button-secondary">
-                    <span class="dashicons dashicons-admin-tools" style="vertical-align:text-top;"></span> Rerun Setup Wizard
+                    <span class="dashicons dashicons-admin-tools" style="vertical-align:text-top;"></span>Setup Wizard
                     </a>
                 </div>';
         

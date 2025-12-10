@@ -61,7 +61,7 @@ class Cirrusly_Commerce_Pricing_UI {
         
         woocommerce_wp_text_input( array( 
             'id' => '_auto_pricing_min_price', 
-            'label' => 'Google Min ($) <span class="dashicons dashicons-info" title="' . esc_attr__( 'Automated Discounts Floor.', 'cirrusly-commerce' ) . '"></span>',
+            'label' => 'Google Min Price ($) <span class="dashicons dashicons-info" title="' . esc_attr__( 'Lowest price for Automated Discounts', 'cirrusly-commerce' ) . '"></span>',
             'class' => 'wc_input_price short cw-min-input', 
             'value' => $min, 
             'data_type' => 'price', 
@@ -93,10 +93,10 @@ class Cirrusly_Commerce_Pricing_UI {
         $min  = get_post_meta( $variation->ID, '_auto_pricing_min_price', true );
 
         echo '<div class="cw-cogs-wrapper-var"><div class="cw-dual-row-variable four-cols">';
-        woocommerce_wp_text_input( array( 'id' => "_auto_pricing_min_price[$loop]", 'label' => 'Google Min ($)', 'class' => 'wc_input_price short cw-min-input', 'value' => $min, 'wrapper_class' => 'cw-flex-field' ));
-        woocommerce_wp_text_input( array( 'id' => "_cirrusly_map_price[$loop]", 'label' => 'MAP ($)', 'class' => 'wc_input_price short cw-map-input', 'value' => $map, 'wrapper_class' => 'cw-flex-field' ));
-        woocommerce_wp_text_input( array( 'id' => "_alg_msrp[$loop]", 'label' => 'MSRP ($)', 'class' => 'wc_input_price short cw-msrp-input', 'value' => $msrp, 'wrapper_class' => 'cw-flex-field' ));
-        woocommerce_wp_text_input( array( 'id' => "_cw_est_shipping[$loop]", 'label' => 'Base Ship ($)', 'class' => 'wc_input_price short cw-ship-input', 'value' => $ship, 'wrapper_class' => 'cw-flex-field' ));
+        woocommerce_wp_text_input( array( 'id' => "_auto_pricing_min_price[$loop]", 'label' => 'Google Min Price', 'class' => 'wc_input_price short cw-min-input', 'value' => $min, 'wrapper_class' => 'cw-flex-field' ));
+        woocommerce_wp_text_input( array( 'id' => "_cirrusly_map_price[$loop]", 'label' => 'MAP', 'class' => 'wc_input_price short cw-map-input', 'value' => $map, 'wrapper_class' => 'cw-flex-field' ));
+        woocommerce_wp_text_input( array( 'id' => "_alg_msrp[$loop]", 'label' => 'MSRP', 'class' => 'wc_input_price short cw-msrp-input', 'value' => $msrp, 'wrapper_class' => 'cw-flex-field' ));
+        woocommerce_wp_text_input( array( 'id' => "_cw_est_shipping[$loop]", 'label' => 'Shipping Cost', 'class' => 'wc_input_price short cw-ship-input', 'value' => $ship, 'wrapper_class' => 'cw-flex-field' ));
         echo '</div>';
         $this->pe_render_toolbar();
         echo '</div>';
@@ -108,7 +108,7 @@ class Cirrusly_Commerce_Pricing_UI {
             <label>Pricing Engine</label>
             <span style="display:inline-block;">
                 <select class="cw-tool-sale short" style="width:140px;margin:0;">
-                    <option value="">Sale Strategy...</option>
+                    <option value="">Sale Pricing Strategy</option>
                     <option value="msrp_05">5% Off MSRP</option>
                     <option value="msrp_10">10% Off MSRP</option>
                     <option value="msrp_15">15% Off MSRP</option>
@@ -128,7 +128,7 @@ class Cirrusly_Commerce_Pricing_UI {
                     <option value="exact">Exact</option>
                 </select>
                 <select class="cw-tool-reg short" style="width:180px;margin:0;">
-                    <option value="">Reg Strategy...</option>
+                    <option value="">Reg. Price Strategy</option>
                     <optgroup label="From MSRP">
                         <option value="msrp_exact">Match MSRP</option>
                         <option value="msrp_sub_05">5% &lt; MSRP</option>
