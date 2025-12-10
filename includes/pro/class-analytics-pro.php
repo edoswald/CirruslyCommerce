@@ -100,14 +100,6 @@ class Cirrusly_Commerce_Analytics_Pro {
     }
 
     /**
-     * Filter to add Integrity and Crossorigin attributes to Chart.js.
-     * Deprecated for local files, keeping method stub.
-     */
-    public function add_chartjs_sri_attributes( $tag, $handle, $src ) { 
-        return $tag;
-    }
-
-    /**
      * Render the Pro Plus Analytics admin dashboard and inject prepared analytics data for display.
      *
      * Enforces the `manage_woocommerce` capability and will terminate with an error if the current user
@@ -600,14 +592,22 @@ class Cirrusly_Commerce_Analytics_Pro {
         $sold_map = array();
         $date_from = strtotime( '-30 days' );
         
-        $orders = wc_get_orders( array(
-            'limit'        => -1,
-            'status'       => array( 'completed', 'processing' ), 
-            'date_created' => '>=' . $date_from,
-            'return'       => 'ids'
+        $page = 1;
+        $per_page = 500;
+        $all_order_ids = array();
+        
+        do {
+            $orders = wc_get_orders( array(
+                'limit'        => $per_page,
+                'page'         => $page,            'status'       => array( 'completed', 'processing' ), 
+                'date_created' => '>=' . $date_from,
+                'return'       => 'ids'
         ) );
+            $all_order_ids = array_merge( $all_order_ids, $orders );
+            $page++;
+        } while ( count( $orders ) === $per_page );
 
-        foreach ( $orders as $oid ) {
+        foreach ( $all_order_ids as $oid ) {
             $order = wc_get_order($oid);
             if (!$order) continue;
             foreach ( $order->get_items() as $item ) {
