@@ -15,7 +15,9 @@ class Cirrusly_Commerce_GMC_UI {
 
     public function enqueue_scripts() {
         $screen = get_current_screen();
-        if ( ! $screen || strpos( $screen->id, 'cirrusly-gmc' ) === false ) {
+        if ( ! $screen || false === strpos( $screen->id, '_page_cirrusly-gmc' ) ) {
+            return;
+        }
             return;
         }
 
