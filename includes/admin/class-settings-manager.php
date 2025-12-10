@@ -86,7 +86,14 @@ class Cirrusly_Commerce_Settings_Manager {
     }
 
     /**
-     * Handle scan schedule settings and delegate service account upload.
+     * Process scan scheduling settings and handle an uploaded service-account file when provided.
+     *
+     * Schedules or clears the 'cirrusly_gmc_daily_scan' cron based on the `enable_daily_scan` flag,
+     * delegates service-account file processing to the Pro handler when a file is uploaded and Pro is active,
+     * and records a settings error if upload is attempted without Pro. Returns the sanitized settings array.
+     *
+     * @param array $input Associative settings array (e.g., ['enable_daily_scan' => 'yes', ...]). May be modified if a Pro upload handler processes a service-account file.
+     * @return array The sanitized settings array suitable for storage.
      */
     public function handle_scan_schedule( $input ) {
         // 1. Schedule Logic (Core Feature)
@@ -199,7 +206,12 @@ class Cirrusly_Commerce_Settings_Manager {
     }
 
     /**
-     * Main Settings Page Renderer
+     * Render the plugin Settings admin page with tabbed sections and the setup wizard link.
+     *
+     * Determines the active tab from the sanitized `$_GET['tab']`, displays the global header
+     * (delegating to Cirrusly_Commerce_Core when available), shows a Setup Wizard button,
+     * renders navigation tabs, opens a multipart settings form, and outputs the appropriate
+     * settings fields and section UI for the selected tab (General, Profit Engine, or Badge Manager).
      */
     public function render_settings_page() {
         $tab = isset( $_GET['tab'] ) ? sanitize_text_field( wp_unslash( $_GET['tab'] ) ) : 'general';

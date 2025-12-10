@@ -6,11 +6,16 @@ if ( ! defined( 'ABSPATH' ) ) {
 class Cirrusly_Commerce_Settings_Pro {
 
     /**
-     * Handle the upload and encryption of the Service Account JSON.
+     * Process an uploaded Service Account JSON: validate, encrypt, and persist it, updating settings on success.
      *
-     * @param array $input The current settings input array.
-     * @param array $file  The $_FILES['cirrusly_service_account'] array.
-     * @return array Modified input array.
+     * Validations performed: sanitized filename, must be a JSON file (extension and MIME), file size must be <= 64KB,
+     * JSON must decode to an array and contain the required keys `type`, `project_id`, `private_key_id`, `private_key`, and `client_email`.
+     * On successful encryption the encrypted payload is stored in the options table and the input array is updated
+     * to indicate the upload and to record the sanitized filename.
+     *
+     * @param array $input Current settings input array; updated to reflect upload status and filename on success.
+     * @param array $file  The uploaded file array (expected from $_FILES['cirrusly_service_account']).
+     * @return array The modified settings input array.
      */
     public static function cirrusly_process_service_account_upload( $input, $file ) {
         

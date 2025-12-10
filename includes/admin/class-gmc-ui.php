@@ -3,6 +3,12 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 
 class Cirrusly_Commerce_GMC_UI {
 
+    /****
+     * Initialize the Cirrusly Google Merchant Center admin UI by registering WordPress hooks and filters.
+     *
+     * Registers handlers for product list columns and rendering, product edit meta box UI, quick-edit controls,
+     * admin notices related to blocked saves, and enqueues admin assets for the GMC admin screens.
+     */
     public function __construct() {
         add_filter( 'manage_edit-product_columns', array( $this, 'add_gmc_admin_columns' ) );
         add_action( 'manage_product_posts_custom_column', array( $this, 'render_gmc_admin_columns' ), 10, 2 );
@@ -13,7 +19,13 @@ class Cirrusly_Commerce_GMC_UI {
         add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_scripts' ) );
     }
 
-    public function enqueue_scripts() {
+    /**
+         * Restrict script enqueuing to the Cirrusly GMC admin page.
+         *
+         * Checks the current admin screen and exits immediately if the screen is not
+         * the Cirrusly Google Merchant Center (cirrusly-gmc) admin page.
+         */
+        public function enqueue_scripts() {
         $screen = get_current_screen();
         if ( ! $screen || false === strpos( $screen->id, '_page_cirrusly-gmc' ) ) {
             return;
@@ -184,7 +196,12 @@ class Cirrusly_Commerce_GMC_UI {
      * option (via WordPress options API). When the scan form is submitted with a valid nonce, the method
      * runs the scan logic, updates `cirrusly_gmc_scan_data` with a timestamp and results, and outputs a success notice.
      */
-    private function render_scan_view() {
+    private /**
+     * Renders the Health Check admin UI for scanning the product catalog and managing scan-related automation rules.
+     *
+     * Displays a manual scan control, runs and persists a scan when the scan form is submitted, migrates legacy scan data if present, and shows scan results with per-product actions. Also renders the Automation & Workflow Rules panel (PRO-gated) that exposes settings for blocking saves on critical issues and auto-stripping banned words.
+     */
+    function render_scan_view() {
         $is_pro = Cirrusly_Commerce_Core::cirrusly_is_pro();
         $pro_class = $is_pro ? '' : 'cc-pro-feature';
         $disabled_attr = $is_pro ? '' : 'disabled';
@@ -266,7 +283,24 @@ class Cirrusly_Commerce_GMC_UI {
         echo '</div>';
     }
 
-    private function render_promotions_view() {
+    private /**
+     * Render the promotions management UI and handle local promotion assignment actions.
+     *
+     * Outputs the Live Google Promotions admin interface (promotions table, promotion generator,
+     * and local product assignment list). When a POST with `gmc_promo_bulk_action` and a valid
+     * `cirrusly_promo_bulk` nonce is present, performs bulk updates or removals of the
+     * `_gmc_promotion_id` post meta for selected products and clears the promotions transient cache.
+     *
+     * Additional behaviors:
+     * - Loads cached promotion statistics from the `cirrusly_active_promos_stats` transient and
+     *   regenerates it from postmeta when absent.
+     * - Supports filtering by a single promotion ID via the `view_promo` query parameter and
+     *   displays a paginated product list when filtered.
+     * - Outputs markup that is PRO-gated for certain actions (UI elements may be disabled when not PRO).
+     *
+     * @return void
+     */
+    function render_promotions_view() {
         // [Existing HTML generation code remains]
         $is_pro = Cirrusly_Commerce_Core::cirrusly_is_pro();
         $pro_class = $is_pro ? '' : 'cc-pro-feature';
@@ -596,7 +630,14 @@ class Cirrusly_Commerce_GMC_UI {
      * entering a Promotion ID, and setting Custom Label 0. The "Custom Product" checkbox
      * reflects the product's `_gla_identifier_exists` post meta.
      */
-    public function render_gmc_product_settings() {
+    public /**
+     * Renders the Google Merchant Center attributes metabox fields on the product edit screen.
+     *
+     * Outputs a field group containing a "Custom Product?" checkbox (driven by post meta `_gla_identifier_exists`),
+     * a "Promotion ID" text input (meta `_gmc_promotion_id`), and a "Custom Label 0" text input (meta `_gmc_custom_label_0`).
+     * Uses WooCommerce helper functions to render the inputs.
+     */
+    function render_gmc_product_settings() {
         global $post;
         echo '<div class="options_group">';
         echo '<p class="form-field"><strong>' . esc_html__( 'Google Merchant Center Attributes', 'cirrusly-commerce' ) . '</strong></p>';
@@ -741,7 +782,15 @@ class Cirrusly_Commerce_GMC_UI {
      * Fetches account-level issues from Google Merchant Center via the Pro client.
      * * @return Google_Service_ShoppingContent_AccountStatus|WP_Error|null
      */
-    private function fetch_google_account_issues() {
+    private /**
+     * Fetches Google Merchant Center account-level issues when Pro features are available.
+     *
+     * If Pro functionality is enabled and the Pro GMC integration is present, returns the account issues
+     * retrieved from the Pro client; otherwise returns an error indicating Pro is required.
+     *
+     * @return array|WP_Error An array of account issues on success; a `WP_Error` with code `not_pro` if Pro features are not available.
+     */
+    function fetch_google_account_issues() {
         if ( Cirrusly_Commerce_Core::cirrusly_is_pro() && class_exists( 'Cirrusly_Commerce_GMC_Pro' ) ) {
             return Cirrusly_Commerce_GMC_Pro::fetch_google_account_issues();
         }

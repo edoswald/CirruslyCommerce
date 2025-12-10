@@ -88,6 +88,15 @@ class Cirrusly_Commerce_Core {
         }
     }
 
+    /**
+     * Handle an AJAX request to save inline audit fields for a product.
+     *
+     * Validates the current user's capability and the request nonce, and requires the plugin's Pro mode.
+     * Reads `pid`, `value`, and `field` from POST and, when `pid` is greater than zero and `field` is one of
+     * `_cogs_total_value` or `_cw_est_shipping`, updates the corresponding post meta and clears the
+     * `cirrusly_audit_data` transient before returning a JSON success response. On validation failure or
+     * invalid input, returns a JSON error with an explanatory message.
+     */
     public function handle_audit_inline_save() {
         if ( ! current_user_can( 'edit_products' ) || ! check_ajax_referer( 'cc_audit_save', '_nonce', false ) ) {
             wp_send_json_error( __( 'Permission denied', 'cirrusly-commerce' ) );
