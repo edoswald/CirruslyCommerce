@@ -1,0 +1,20 @@
+# Dev config & scripts
+.git
+.github
+.gitignore
+.distignore
+composer.json
+composer.lock
+package.json
+package-lock.json
+phpcs.xml
+phpunit.xml.dist
+webpack.config.js
+
+# Dependencies
+node_modules
+/tests
+/bin
+
+# Source files (if you compile assets)
+/src

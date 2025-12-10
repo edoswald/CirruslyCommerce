@@ -9,56 +9,60 @@ Requires PHP: 8.1
 License: GPLv2 or later 
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
-The Financial Operating System for WooCommerce. GMC Compliance, Profit Audits, and Dynamic Pricing in one suite.
+The Financial Operating System for WooCommerce. Google Merchant Center Compliance, Profit Audits, and Dynamic Pricing in one suite.
 
 **Stop guessing if your Google Ads are profitable. Stop worrying about Merchant Center suspensions.**
 
 Cirrusly Commerce is the "Financial Operating System" for WooCommerce stores. It is the only plugin that combines **Google Merchant Center compliance**, **Net Profit Auditing**, and **Dynamic Pricing** into a single, powerful suite.
 
-Designed for high-performance WooCommerce stores and agencies, Cirrusly Commerce works alongside your existing feed plugin to fix data errors, visualize true profit margins (after COGS and fees), and increase conversion rates with psychological pricing.
+Originally a set of code snippets used on our site Cirrusly Weather, Cirrusly Commerce expands  works alongside your existing feed plugin to fix data errors, visualize true profit margins (after COGS and fees), and increase conversion rates with psychological pricing.
 
 ### 🚀 1. Google Merchant Center Compliance & Feed Repair
 Your product feed is your business's lifeline. Don't let a suspension kill your revenue.
 
-* **Instant Diagnostics Scan (Free):** Automatically scan your entire catalog for critical policy violations like missing GTINs, prohibited words (e.g., "cure," "weight loss"), and title length issues.
-* **Suspension Prevention Firewall (Free):** actively blocks you from saving products with critical errors, preventing bad data from ever reaching your feed.
-* **Real-Time API Sync (Pro):** Bypass the 24-hour feed fetch delay. Updates to price, stock status, or titles are pushed to Google's Content API immediately.
-* **Intelligent Issue Deduplication (Pro Plus):** Uses Google NLP logic to group related errors, so you can fix bulk issues faster.
+* **Diagnostics Scan:** Scan your entire catalog for critical policy violations like missing GTINs, prohibited words (e.g., "cure," "weight loss"), and title length issues.
+* **Suspension Prevention:** actively blocks you from saving products with critical errors (such as banned words in titles), preventing bad data from ever reaching your feed.
 
 ### 📈 2. WooCommerce Profit Calculator & Margin Tracking
 Revenue is vanity; profit is sanity. Most stores don't know their true margin after ad spend and fees.
 
-* **Real-Time Net Profit (Free):** See your exact Net Profit ($) and Margin (%) directly on the product edit screen.
+* **Real-Time Net Profit:** See your exact Net Profit ($) and Margin (%) directly on the product edit screen.
 * **Automated Cost Calculations:** We automatically deduct:
     * **Cost of Goods Sold (COGS)**
     * **Shipping Estimates**
     * **Payment Gateway Fees** (Stripe, PayPal, Square)
-* **Multi-Profile Financials (Pro):** Calculate blended fee rates for stores using multiple payment processors (e.g., 60% Stripe + 40% PayPal) for 100% accuracy.
 
 ### 💰 3. Dynamic Pricing & Google Shopping Automation
 Maximize your ROAS (Return on Ad Spend) with advanced pricing strategies.
 
-* **Automated Discounts (Pro Plus):** Full integration with Google's "Automated Discounts" program. We validate Google's secure pricing tokens (JWT) to dynamically update the cart price to match the discounted ad price.
-* **Psychological Repricing (Pro Plus):** Automatically round calculated prices to .99, .50, or the nearest 5 to maximize click-through rate (CTR) and conversion.
-* **MSRP Display (Free):** Boost conversion by displaying "List Price" vs. "Our Price" comparisons on product pages.
+* **MSRP Display:** Boost conversion by displaying "List Price" vs. "Our Price" comparisons on product pages.
+* **Pricing Engine** Stop guessing how a sale affects your margins. See real-time margin data on the product edit screen as you enter prices.
 
 ### 📊 4. Financial Audit Dashboard
 * **Loss Maker Report:** Instantly identify products that are losing money or have dangerously low margins.
 * **Bulk COGS Management:** Quickly find and fix products missing cost data without opening every single product page.
-* **Inline Editing (Pro):** Update costs and prices directly from the audit table via AJAX.
-* **CSV Import/Export (Pro):** Bulk manage your financial data via CSV for external analysis.
 
 ### 🎨 5. Conversion Tools & Gutenberg Blocks
 * **Smart Badges:** Automatically display badges for "Low Stock," "New Arrival," or "Best Seller" based on real inventory and sales data.
 * **MSRP Block:** Customizable "Original Price" block for the Site Editor.
-* **Countdown Timer (Pro):** Add urgency to your product pages.
-* **Discount Notices (Pro):** Show dynamic "You saved $X!" messages in the cart.
 
 ### Compatibility
 Cirrusly Commerce is optimized to work with the best WooCommerce plugins:
 * **Feed Plugins:** Product Feed PRO (AdTribes), Google Product Feed (Ademti), CTX Feed.
 * **SEO Plugins:** Rank Math, Yoast SEO, All in One SEO (AIOSEO), SEOPress (Schema support included).
 * **COGS Plugins:** WooCommerce Cost of Goods (SkyVerge), WPFactory.
+
+### Like the Plugin?
+Upgrade to Pro or Pro Plus for added functionality.
+* **Real-Time API Sync (Pro):** Bypass the 24-hour feed fetch delay. Updates to price, stock status, or titles are pushed to Google's Content API immediately.
+* **Intelligent Issue Deduplication (Pro Plus):** Uses Google NLP logic to group related errors, so you can fix bulk issues faster.
+* **Multi-Profile Financials (Pro):** Calculate blended fee rates for stores using multiple payment processors (e.g., 60% Stripe + 40% PayPal) for 100% accuracy.
+* **Inline Editing (Pro):** Update costs and prices directly from the audit table via AJAX.
+* **CSV Import/Export (Pro):** Bulk manage your financial data via CSV for external analysis.
+* **Countdown Timer (Pro):** Add urgency to your product pages.
+* **Discount Notices (Pro):** Show dynamic "You saved $X!" messages in the cart.
+* **Automated Discounts (Pro Plus):** Full integration with Google's "Automated Discounts" program. We validate Google's secure pricing tokens (JWT) to dynamically update the cart price to match the discounted ad price.
+* **Psychological Repricing (Pro Plus):** Automatically round calculated prices to .99, .50, or the nearest 5 to maximize click-through rate (CTR) and conversion.
 
 == Installation ==
 
