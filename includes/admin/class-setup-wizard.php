@@ -552,6 +552,6 @@ class Cirrusly_Commerce_Setup_Wizard {
 
 // Initialize the Wizard on admin screens only
 if ( is_admin() ) {
-    $wizard = new Cirrusly_Commerce_Setup_Wizard();
-    $wizard->init();
+    $cirrusly_wizard = new Cirrusly_Commerce_Setup_Wizard();
+    $cirrusly_wizard->init();
 }

@@ -118,6 +118,7 @@ class Cirrusly_Commerce_Blocks {
      * Render the MSRP block.
      */
     public function render_msrp_block( $attributes, $content ) {
+        // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound
         global $product;
         $product = $this->ensure_product_context( $attributes, $product );
         
@@ -156,6 +157,7 @@ class Cirrusly_Commerce_Blocks {
      * Render the Countdown Block
      */
     public function render_countdown_block( $attributes, $content ) {
+        // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound
         global $product;
         $product = $this->ensure_product_context( $attributes, $product );
         if ( ! $product || ! is_object( $product ) ) {
@@ -201,6 +203,7 @@ class Cirrusly_Commerce_Blocks {
      * Render the Badges Block
      */
     public function render_badges_block( $attributes, $content ) {
+        // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound
         global $product;
         $product = $this->ensure_product_context( $attributes, $product );
         if ( ! $product || ! is_object( $product ) ) {
@@ -228,6 +231,7 @@ class Cirrusly_Commerce_Blocks {
      * Render the Discount Notice Block
      */
     public function render_discount_notice_block( $attributes, $content ) {
+        // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound
         global $product;
         // Notice block might be global, but usually context-aware
         $product = $this->ensure_product_context( $attributes, $product );

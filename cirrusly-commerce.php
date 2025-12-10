@@ -32,7 +32,9 @@ define( 'CIRRUSLY_COMMERCE_URL', plugin_dir_url( __FILE__ ) );
 // -------------------------------------------------------------------------
 if ( ! function_exists( 'cc_fs' ) ) {
     // Create a helper function for easy SDK access.
+    // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound
     function cc_fs() {
+        // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound
         global $cc_fs;
 
         if ( ! isset( $cc_fs ) ) {
@@ -64,7 +66,7 @@ if ( ! function_exists( 'cc_fs' ) ) {
                 ),
             ) );
         }
-
+    // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound
         return $cc_fs;
     }
 
