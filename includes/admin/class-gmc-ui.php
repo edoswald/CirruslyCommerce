@@ -740,13 +740,13 @@ class Cirrusly_Commerce_GMC_UI {
                     'title' => $prod->post_title,
                     'terms' => $found_in_prod
                 );
-            }
-            
+            }            
         }
 
             $has_more = ( count( $products ) === $batch_size );
             $paged++;
-
+        }
++
         return $issues;
     }
 
