@@ -72,8 +72,9 @@ class Cirrusly_Commerce_Analytics_Pro {
         $days = max( 7, min( $days, 365 ) ); 
         
         $selected_statuses = array();
-        if ( isset( $_GET['cc_statuses'] ) && is_array( $_GET['cc_statuses'] ) ) {
-            $selected_statuses = array_map( 'sanitize_text_field', $_GET['cc_statuses'] );
+        // FIXED: Renamed parameter and added wp_unslash
+        if ( isset( $_GET['cirrusly_statuses'] ) && is_array( $_GET['cirrusly_statuses'] ) ) {
+            $selected_statuses = array_map( 'sanitize_text_field', wp_unslash( $_GET['cirrusly_statuses'] ) );
         }
 
         $data = self::get_pnl_data( $days, $selected_statuses );
@@ -132,30 +133,26 @@ class Cirrusly_Commerce_Analytics_Pro {
         wp_add_inline_script( 'cc-chartjs', $script );
     }
 
-    // ... [Keep render_analytics_view (REMOVE THE SCRIPT BLOCK AT THE BOTTOM), get_pnl_data, get_inventory_velocity, capture_daily_gmc_snapshot, calculate_single_order_fee] ...
-    
     public function render_analytics_view() {
         if ( ! current_user_can( 'manage_woocommerce' ) ) {
             wp_die( esc_html__( 'You do not have sufficient permissions to access this page.', 'cirrusly-commerce' ) );
         }
 
-        // Logic to get $data, $velocity, $days, etc. must remain here for the HTML render
-        // But the JSON preparation for JS has been moved to enqueue_assets
         $default_days = 90;
         $days = isset($_GET['period']) ? intval($_GET['period']) : $default_days;
         $days = max( 7, min( $days, 365 ) ); 
 
         $all_statuses = wc_get_order_statuses();
         $selected_statuses = array();
-        if ( isset( $_GET['cc_statuses'] ) && is_array( $_GET['cc_statuses'] ) ) {
-            $selected_statuses = array_map( 'sanitize_text_field', $_GET['cc_statuses'] );
+        // FIXED: Renamed parameter and added wp_unslash
+        if ( isset( $_GET['cirrusly_statuses'] ) && is_array( $_GET['cirrusly_statuses'] ) ) {
+            $selected_statuses = array_map( 'sanitize_text_field', wp_unslash( $_GET['cirrusly_statuses'] ) );
         }
 
         if ( isset( $_GET['cc_refresh'] ) && check_admin_referer( 'cc_refresh_analytics' ) ) {
             global $wpdb;
-            // FIXED: Use {$wpdb->prefix}options instead of {$wpdb->options} (which doesn't exist)
             $wpdb->query( "DELETE FROM {$wpdb->prefix}options WHERE option_name LIKE '_transient_cc_analytics_pnl_v4_%' OR option_name LIKE '_transient_timeout_cc_analytics_pnl_v4_%'" );
-            wp_redirect( remove_query_arg( array( 'cc_refresh', '_wpnonce' ) ) );
+            wp_safe_redirect( remove_query_arg( array( 'cc_refresh', '_wpnonce' ) ) );
             exit;
         }
 
@@ -201,7 +198,7 @@ class Cirrusly_Commerce_Analytics_Pro {
                                 <div class="cc-status-list">
                                     <?php foreach ( $all_statuses as $slug => $label ) : ?>
                                         <label class="cc-status-item">
-                                            <input type="checkbox" name="cc_statuses[]" value="<?php echo esc_attr($slug); ?>" 
+                                            <input type="checkbox" name="cirrusly_statuses[]" value="<?php echo esc_attr($slug); ?>" 
                                                 <?php checked( in_array( $slug, $selected_statuses ) || in_array( str_replace('wc-','',$slug), $selected_statuses ) ); ?>>
                                             <?php echo esc_html( $label ); ?>
                                         </label>
@@ -312,7 +309,7 @@ class Cirrusly_Commerce_Analytics_Pro {
         <?php
     }
 
- /**
+    /**
      * Compute profit-and-loss metrics and per-day history for a given date range and status filter.
      *
      * Computes aggregated totals (revenue, COGS, shipping, fees, refunds), derived metrics (total_costs,
@@ -581,7 +578,6 @@ class Cirrusly_Commerce_Analytics_Pro {
      * Hooks into 'cirrusly_gmc_daily_scan' at priority 20.
      */
     public function capture_daily_gmc_snapshot() {
-        // FIXED: Updated option name to match migration
         $scan_data = get_option( 'cirrusly_gmc_scan_data', array() );
         
         if ( empty( $scan_data['results'] ) ) return;

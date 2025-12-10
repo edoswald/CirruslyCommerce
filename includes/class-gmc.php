@@ -119,7 +119,7 @@ class Cirrusly_Commerce_GMC {
         }
         check_admin_referer( 'cc_mark_custom_' . $pid );
         update_post_meta( $pid, '_gla_identifier_exists', 'no' );
-        wp_redirect( admin_url('admin.php?page=cirrusly-gmc&tab=scan&msg=custom_marked') );
+        wp_safe_redirect( admin_url('admin.php?page=cirrusly-gmc&tab=scan&msg=custom_marked') );
         exit;
     }
 
