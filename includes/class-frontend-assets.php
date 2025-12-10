@@ -20,8 +20,10 @@ class Cirrusly_Commerce_Frontend_Assets {
 	public function register_assets() {
 		// Base CSS Handle
 		wp_register_style( 'cirrusly-frontend-base', false );
+		wp_enqueue_style( 'cirrusly-frontend-base' );
 		
 		// Base JS Handle (Dependent on jquery)
 		wp_register_script( 'cirrusly-frontend-base', false, array( 'jquery' ), CIRRUSLY_COMMERCE_VERSION, true );
+		wp_enqueue_script( 'cirrusly-frontend-base' );
 	}
 }
