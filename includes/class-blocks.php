@@ -1,298 +1,219 @@
 <?php
-/**
- * Cirrusly Commerce Blocks Class
- *
- * @package    Cirrusly_Commerce
- * @subpackage Cirrusly_Commerce/includes
- * @author     Ed Oswald <ed@weatherwhys.company>
- */
 
 if ( ! defined( 'ABSPATH' ) ) {
-	exit;
+    exit;
 }
 
-class Cirrusly_Commerce_Blocks {
-
-	/**
-	 * Cirrusly_Commerce_Blocks Constructor.
-	 */
-	public function __construct() {
-		add_action( 'init', array( $this, 'register_blocks' ) );
-        // Register Custom Block Category
-        add_filter( 'block_categories_all', array( $this, 'register_block_category' ), 10, 2 );
-	}
+class Cirrusly_Commerce_Badges {
 
     /**
-     * Add "Cirrusly Commerce" to the Gutenberg Block Inserter.
+     * Initialize frontend badge integration and load Pro badge logic when available.
+     *
+     * Registers the 'wp' action to attach frontend hooks and conditionally requires the Pro badges class file if the Pro feature is active and the file exists.
      */
-    public function register_block_category( $categories, $post ) {
-        return array_merge(
-            $categories,
-            array(
-                array(
-                    'slug'  => 'cirrusly',
-                    'title' => __( 'Cirrusly Commerce', 'cirrusly-commerce' ),
-                    'icon'  => 'cloud', // Dashicon
-                ),
-            )
-        );
+    public function __construct() {
+        add_action( 'wp', array( $this, 'init_frontend_hooks' ) );
+        
+        // Load Pro Badges Logic if active
+        if ( Cirrusly_Commerce_Core::cirrusly_is_pro() && file_exists( plugin_dir_path( __FILE__ ) . 'pro/class-badges-pro.php' ) ) {
+            require_once plugin_dir_path( __FILE__ ) . 'pro/class-badges-pro.php';
+        }
     }
 
-	/**
-	 * Register blocks and editor scripts.
-	 */
-	public function register_blocks() {
-        $deps = array( 'wp-blocks', 'wp-element', 'wp-editor', 'wp-components', 'wp-i18n', 'wp-server-side-render', 'wp-date' );
-
-		// 1. MSRP Block
-		wp_register_script(
-			'cirrusly-block-msrp',
-			CIRRUSLY_COMMERCE_URL . 'assets/js/block-msrp.js', 
-			$deps, 
-			CIRRUSLY_COMMERCE_VERSION,
-			true
-		);
-        register_block_type( 'cirrusly/msrp', array(
-            'editor_script' => 'cirrusly-block-msrp',
-            'render_callback' => array( $this, 'render_msrp_block' ),
-            'attributes' => array(
-                'textAlign' => array( 'type' => 'string', 'default' => 'left' ),
-                'showStrikethrough' => array( 'type' => 'boolean', 'default' => true ),
-                'isBold' => array( 'type' => 'boolean', 'default' => false ),
-            ),
-        ) );
-
-        // 2. Countdown Block
-        wp_register_script(
-            'cirrusly-block-countdown',
-            CIRRUSLY_COMMERCE_URL . 'assets/js/block-countdown.js',
-            $deps,
-            CIRRUSLY_COMMERCE_VERSION,
-            true
-        );
-        register_block_type( 'cirrusly/countdown', array(
-            'editor_script' => 'cirrusly-block-countdown',
-            'render_callback' => array( $this, 'render_countdown_block' ),
-            'attributes' => array(
-                'textAlign' => array( 'type' => 'string', 'default' => 'left' ),
-                'label' => array( 'type' => 'string', 'default' => 'Sale Ends In:' ),
-                'useMeta' => array( 'type' => 'boolean', 'default' => true ),
-                'manualDate' => array( 'type' => 'string', 'default' => '' ),
-            ),
-        ) );
-
-        // 3. Badges Block
-        wp_register_script(
-            'cirrusly-block-badges',
-            CIRRUSLY_COMMERCE_URL . 'assets/js/block-badges.js',
-            $deps,
-            CIRRUSLY_COMMERCE_VERSION,
-            true
-        );
-        register_block_type( 'cirrusly/badges', array(
-            'editor_script' => 'cirrusly-block-badges',
-            'render_callback' => array( $this, 'render_badges_block' ),
-            'attributes' => array(
-                'align' => array( 'type' => 'string', 'default' => 'left' ),
-            ),
-        ) );
-
-        // 4. Discount Notice Block
-        wp_register_script(
-            'cirrusly-block-discount-notice',
-            CIRRUSLY_COMMERCE_URL . 'assets/js/block-discount-notice.js',
-            $deps,
-            CIRRUSLY_COMMERCE_VERSION,
-            true
-        );
-        register_block_type( 'cirrusly/discount-notice', array(
-            'editor_script' => 'cirrusly-block-discount-notice',
-            'render_callback' => array( $this, 'render_discount_notice_block' ),
-            'attributes' => array(
-                'message' => array( 'type' => 'string', 'default' => '⚡ Exclusive Price Unlocked!' ),
-            ),
-        ) );
-	}
-
-	/**
-     * Render the MSRP block.
+    /**
+     * Register frontend WordPress hooks required to render product badges when badges are enabled.
+     *
+     * Reads the badge configuration and, if badges are enabled, attaches handlers for:
+     * - single product badge rendering,
+     * - shop loop payload insertion,
+     * - and enqueuing the necessary inline scripts and styles (replacing raw output).
      */
-    public function render_msrp_block( $attributes, $content ) {
-        // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound
+    public function init_frontend_hooks() {
+        $badge_cfg = get_option( 'cirrusly_badge_config', array() );
+        if ( empty($badge_cfg['enable_badges']) || $badge_cfg['enable_badges'] !== 'yes' ) return;
+
+        add_action( 'woocommerce_single_product_summary', array( $this, 'render_single_badges' ), 5 );
+        add_action( 'woocommerce_after_shop_loop_item', array( $this, 'render_grid_payload' ), 99 );
+        
+        // REPLACED: Raw wp_head/wp_footer output with standard enqueue
+        add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_frontend_assets' ) );
+    }
+
+    /**
+     * Enqueue critical inline CSS and frontend JS using standard WordPress functions.
+     * * Handles styling for badges and the JS logic to relocate badges in the DOM.
+     */
+    public function enqueue_frontend_assets() {
+        // 1. Critical CSS
+        $badge_cfg = get_option( 'cirrusly_badge_config', array() );
+        $size = isset($badge_cfg['badge_size']) ? $badge_cfg['badge_size'] : 'medium';
+        $font_size = '12px'; $padding = '4px 8px'; $width = '60px';
+        if ( $size === 'small' ) { $font_size = '10px'; $padding = '2px 6px'; $width = '50px'; }
+        if ( $size === 'large' ) { $font_size = '14px'; $padding = '6px 10px'; $width = '80px'; }
+        
+        // Calculate single page width (1.5x)
+        $width_int = intval( $width );
+        $single_width = ($width_int * 1.5) . 'px';
+
+        $css = "html body .wc-block-components-sale-badge, html body .wc-block-grid__product-onsale, html body .wp-block-woocommerce-product-sale-badge, html body .onsale, html body span.onsale, html body .woocommerce-badges .badge-sale { display: none !important; visibility: hidden !important; opacity: 0 !important; z-index: -999 !important; }
+        .cw-badge-pill { background-color: #d63638; color: #fff; font-weight: bold; font-size: {$font_size}; text-transform: uppercase; padding: {$padding}; margin-bottom: 5px; display: inline-block; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.2); width: fit-content; line-height: 1.2; }
+        .cw-badge-pill.cw-new { background-color: #2271b1; }
+        .cw-shop-badge-layer { position: absolute; bottom: 10px; left: 10px; z-index: 99; pointer-events: none; display: flex; flex-direction: column; align-items: flex-start; }
+        .cw-shop-badge-layer .cw-badge-img { width: {$width} !important; height: auto; display: block; margin: 0; box-shadow: none !important; }
+        .cw-badge-container.cw-single-page { margin-bottom: 15px; display: flex; gap: 10px; align-items: center; width: fit-content; }
+        .cw-badge-container.cw-single-page .cw-badge-img { width: {$single_width} !important; height: auto; display: block; margin: 0; }
+        .cw-badge-container.cw-single-page .cw-badge-pill { margin-bottom: 0; font-size: 14px; padding: 6px 10px; }
+        .cw-has-tooltip { cursor: help; position: relative; }
+        .cw-has-tooltip:hover::after { content: attr(data-tooltip); position: absolute; bottom: 120%; left: 0; background-color: #333; color: #fff; font-size: 10px; font-weight: normal; text-transform: none; white-space: nowrap; padding: 5px 10px; border-radius: 4px; z-index: 9999; box-shadow: 0 2px 6px rgba(0,0,0,0.3); pointer-events: none; }
+        .cw-badge-wrap { display: block; line-height: 0; width: fit-content; }";
+
+        // Register a virtual handle to attach inline styles
+        wp_register_style( 'cirrusly-badges-css', false );
+        wp_add_inline_style( 'cirrusly-badges-css', $css );
+        wp_enqueue_style( 'cirrusly-badges-css' );
+
+        // 2. Frontend JS
+        if ( ! is_admin() ) {
+            $js = "document.addEventListener('DOMContentLoaded', function() {
+                function moveBadges() {
+                    var payloads = document.querySelectorAll('.cw-badge-payload');
+                    payloads.forEach(function(payload) {
+                        var card = payload.closest('li.product, .wc-block-grid__product, .wp-block-post');
+                        if (!card || card.closest('.woosb-products')) return;
+                        var imgWrap = card.querySelector('.wc-block-grid__product-image, .woocommerce-loop-product__link, .wp-block-post-featured-image');
+                        if ( imgWrap && ! imgWrap.querySelector('.cw-shop-badge-layer') ) {
+                            var layer = document.createElement('div');
+                            layer.className = 'cw-shop-badge-layer';
+                            layer.innerHTML = payload.innerHTML;
+                            imgWrap.style.position = 'relative';
+                            imgWrap.appendChild(layer);
+                            payload.remove(); 
+                        }
+                    });
+                }
+                moveBadges();
+                var observer = new MutationObserver(function(mutations) { moveBadges(); });
+                var grid = document.querySelector('.products') || document.querySelector('.wc-block-grid') || document.body;
+                if (grid) observer.observe(grid, { childList: true, subtree: true });
+            });";
+
+            // Register a virtual handle for inline script, loaded in footer
+            wp_register_script( 'cirrusly-badges-js', false, array(), false, true );
+            wp_add_inline_script( 'cirrusly-badges-js', $js );
+            wp_enqueue_script( 'cirrusly-badges-js' );
+        }
+    }
+
+    public function render_single_badges() {
         global $product;
-        $product = $this->ensure_product_context( $attributes, $product );
-        
-        // If still no product (empty store?), fail gracefully
-        if ( ! $product || ! is_object( $product ) ) {
-            if ( defined( 'REST_REQUEST' ) && REST_REQUEST ) return '<div class="cw-placeholder">Add a product to preview MSRP.</div>';
-            return '';
-        }
-
-        $msrp_html = '';
-        // FIXED: Check for and call the Frontend class directly, as that is where get_msrp_html resides.
-        if ( class_exists( 'Cirrusly_Commerce_Pricing_Frontend' ) ) {
-            $msrp_html = Cirrusly_Commerce_Pricing_Frontend::get_msrp_html( $product );
-        }
-        
-        if ( empty( $msrp_html ) ) {
-            if ( defined( 'REST_REQUEST' ) && REST_REQUEST ) {
-                $msrp_html = '<div class="cw-msrp-container" style="color:#999;font-size:0.9em;margin-bottom:5px;line-height:1;border:1px dashed #ccc;padding:2px;">MSRP: <span class="cw-msrp-value" style="text-decoration:line-through;">$99.99</span> <small>(Preview)</small></div>';
-            } else {
-                return '';
-            }
-        }
-
-        $align = isset( $attributes['textAlign'] ) ? $attributes['textAlign'] : 'left';
-        $is_bold = isset( $attributes['isBold'] ) ? $attributes['isBold'] : false;
-        $strikethrough = isset( $attributes['showStrikethrough'] ) ? $attributes['showStrikethrough'] : true;
-
-        $style_parts = array( 'text-align:' . esc_attr( $align ), 'display:block', 'width:100%' );
-        if ( $is_bold ) $style_parts[] = 'font-weight:bold';
-        if ( ! $strikethrough ) $msrp_html = str_replace( 'text-decoration:line-through;', 'text-decoration:none;', $msrp_html );
-
-        return sprintf( '<div class="cirrusly-msrp-block-wrapper" style="%s">%s</div>', implode( '; ', $style_parts ), $msrp_html );
+        if ( ! $product ) return;
+        $html = $this->get_badge_html( $product );
+        if ( $html ) echo '<div class="cw-badge-container cw-single-page">' . wp_kses_post( $html ) . '</div>';
     }
 
     /**
-     * Render the Countdown Block
+     * Outputs a hidden payload container with product badge HTML for grid/list views.
      */
-    public function render_countdown_block( $attributes, $content ) {
-        // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound
+    public function render_grid_payload() {
         global $product;
-        $product = $this->ensure_product_context( $attributes, $product );
-        if ( ! $product || ! is_object( $product ) ) {
-             if ( defined( 'REST_REQUEST' ) && REST_REQUEST ) return '<div class="cw-placeholder">Add a product to preview Timer.</div>';
-             return '';
-        }
-
-        $end_date = '';
-
-        // Priority 1: Smart / Meta (if enabled)
-        if ( ! empty( $attributes['useMeta'] ) ) {
-             if ( class_exists( 'Cirrusly_Commerce_Countdown' ) ) {
-                 $config = Cirrusly_Commerce_Countdown::get_smart_countdown_config( $product );
-                 if ( $config && is_array( $config ) && ! empty( $config['end'] ) ) {
-                     $end_date = $config['end'];
-                 }
-             }
-        }
-        
-        // Priority 2: Manual Override (Block Attributes)
-        if ( ! $end_date && ! empty( $attributes['manualDate'] ) ) {
-            $end_date = $attributes['manualDate'];
-        }
-
-        if ( empty( $end_date ) ) {
-             if ( defined( 'REST_REQUEST' ) && REST_REQUEST ) {
-                 return '<div style="padding:10px; border:1px dashed #ccc; text-align:center;">[Countdown Timer: No active date found for this product]</div>';
-             }
-             return '';
-        }
-
-        if ( class_exists( 'Cirrusly_Commerce_Countdown' ) ) {
-            return Cirrusly_Commerce_Countdown::generate_timer_html( 
-                $end_date, 
-                $attributes['label'], 
-                $attributes['textAlign'] 
-            );
-        }
-        return '';
+        if ( ! $product ) return;
+        $html = $this->get_badge_html( $product );
+        if ( $html ) echo '<div class="cw-badge-payload" style="display:none;">' . wp_kses_post( $html ) . '</div>';
     }
 
     /**
-     * Render the Badges Block
+     * Build HTML markup for all badges that apply to a product.
+     *
+     * @param \WC_Product|null|false $product The product object to evaluate.
+     * @return string HTML markup for the product's badges.
      */
-    public function render_badges_block( $attributes, $content ) {
-        // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound
-        global $product;
-        $product = $this->ensure_product_context( $attributes, $product );
-        if ( ! $product || ! is_object( $product ) ) {
-            if ( defined( 'REST_REQUEST' ) && REST_REQUEST ) return '<div class="cw-placeholder">Add a product to preview Badges.</div>';
-            return '';
-        }
-
-        $html = '';
-        if ( class_exists( 'Cirrusly_Commerce_Badges' ) ) {
-            $html = Cirrusly_Commerce_Badges::get_badge_html( $product );
-        }
-
-        if ( empty( $html ) ) {
-             if ( defined( 'REST_REQUEST' ) && REST_REQUEST ) {
-                 return '<div style="padding:5px; border:1px dashed #ccc; text-align:center;">[Smart Badges: No active badges for product]</div>';
-             }
-             return '';
-        }
-
-        $align = isset( $attributes['align'] ) ? $attributes['align'] : 'left';
-        return '<div class="cw-badge-container cw-block-render" style="text-align:' . esc_attr( $align ) . '">' . $html . '</div>';
-    }
-
-    /**
-     * Render the Discount Notice Block
-     */
-    public function render_discount_notice_block( $attributes, $content ) {
-        // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound
-        global $product;
-        // Notice block might be global, but usually context-aware
-        $product = $this->ensure_product_context( $attributes, $product );
+    private function get_badge_html( $product ) {
+        if ( ! $product ) return '';
         
-        $has_discount = false;
-        if ( $product && is_object($product) && class_exists( 'Cirrusly_Commerce_Automated_Discounts' ) ) {
-            $discount = Cirrusly_Commerce_Automated_Discounts::get_active_discount( $product->get_id() );
-            if ( $discount ) $has_discount = true;
+        $badge_cfg = get_option( 'cirrusly_badge_config', array() );
+        $calc_from = isset($badge_cfg['calc_from']) ? $badge_cfg['calc_from'] : 'msrp';
+        $new_days = isset($badge_cfg['new_days']) ? intval($badge_cfg['new_days']) : 30;
+        $custom_badges = isset($badge_cfg['custom_badges_json']) ? json_decode($badge_cfg['custom_badges_json'], true) : array();
+
+        $output = '';
+        $min_threshold = 5; 
+
+        // 1. SMART BADGES (Delegated to Pro Class)
+        if ( Cirrusly_Commerce_Core::cirrusly_is_pro() && class_exists( 'Cirrusly_Commerce_Badges_Pro' ) ) {
+            $output .= Cirrusly_Commerce_Badges_Pro::get_smart_badges_html( $product, $badge_cfg );
         }
 
-        // Always show in Editor
-        if ( defined( 'REST_REQUEST' ) && REST_REQUEST ) {
-            $has_discount = true; 
-        }
-
-        if ( ! $has_discount ) return '';
-
-        $message = ! empty( $attributes['message'] ) ? $attributes['message'] : '⚡ Exclusive Price Unlocked!';
-        
-        return sprintf(
-            '<div class="cw-discount-notice" style="background:#e0f7fa; color:#006064; padding:10px; border-radius:4px; text-align:center; font-weight:bold; margin-bottom:15px;">%s</div>',
-            esc_html( $message )
-        );
-    }
-
-    /**
-     * Helper to get product object in Editor (using block attributes) or Frontend.
-     * UPDATED: Now fetches the latest product if no context is found in the Editor.
-     */
-    private function ensure_product_context( $attributes, $global_product ) {
-        // 1. Check if specific product ID passed via attributes (uncommon in basic blocks but possible)
-        if ( isset( $attributes['productId'] ) && $attributes['productId'] > 0 ) {
-            return wc_get_product( $attributes['productId'] );
-        }
-
-        // 2. Check Global Product (Frontend / Single Product Template)
-        if ( $global_product && is_object( $global_product ) ) {
-            return $global_product;
-        }
-
-        // 3. Try get_the_ID() - Works in Query Loops on Frontend
-        $post_id = get_the_ID();
-        if ( $post_id && 'product' === get_post_type( $post_id ) ) {
-            return wc_get_product( $post_id );
-        }
-
-        // 4. PREVIEW FIX: If we are in the REST API (Editor) and still have no product...
-        // This happens in Site Editor > Templates where get_the_ID() is the template ID.
-        if ( defined( 'REST_REQUEST' ) && REST_REQUEST ) {
-            // Fetch the most recent product to use as a mock
-            $recent_products = wc_get_products( array( 
-                'limit' => 1, 
-                'orderby' => 'date', 
-                'order' => 'DESC' 
-            ) );
+        // 2. SALE MATH (Free Feature)
+        if ( $product->is_on_sale() ) {
+            $percentage = 0;
+            $prefix = 'Save ';
+            $clean = function($v) { return (float) preg_replace('/[^0-9.]/', '', $v); };
             
-            if ( ! empty( $recent_products ) ) {
-                return reset( $recent_products );
+            $msrp = get_post_meta( $product->get_id(), '_alg_msrp', true );
+            if ( !$msrp && $product->is_type('variation') ) {
+                $msrp = get_post_meta( $product->get_parent_id(), '_alg_msrp', true );
+            }
+            
+            $reg_price = $clean($product->get_regular_price());
+            $base = ($calc_from === 'msrp' && $clean($msrp)) ? $clean($msrp) : $reg_price;
+            $sale = $clean($product->get_price());
+
+            if ( $product->is_type('variable') ) {
+                $children = $product->get_visible_children();
+                $discounts = array();
+                foreach ( $children as $child_id ) {
+                    $var = wc_get_product($child_id);
+                    if ( ! $var ) continue;
+                    $v_reg = $clean($var->get_regular_price());
+                    $v_sale = $clean($var->get_price());
+                    $v_msrp = get_post_meta($child_id, '_alg_msrp', true) ?: get_post_meta($product->get_id(), '_alg_msrp', true);
+                    $v_base = ($calc_from === 'msrp' && $clean($v_msrp)) ? $clean($v_msrp) : $v_reg;
+                    if ( $v_base > $v_sale && $v_sale > 0 ) {
+                        $discounts[] = round( ( ($v_base - $v_sale) / $v_base ) * 100 );
+                    }
+                }
+                if ( ! empty($discounts) ) {
+                    $max_p = max($discounts);
+                    $min_p = min($discounts);
+                    $percentage = $max_p;
+                    if ( $min_p !== $max_p ) $prefix = 'Save up to ';
+                }
+            } elseif ( $base > 0 && $base > $sale ) {
+                $percentage = round( ( ($base - $sale) / $base ) * 100 );
+            }
+
+            if ( $percentage >= $min_threshold ) {
+                $source_text = ($calc_from === 'msrp') ? "MSRP" : "Regular Price";
+                $tip = "Discounts calculated from " . $source_text;
+                $output .= '<span class="cw-badge-pill cw-has-tooltip" data-tooltip="' . esc_attr($tip) . '">' . $prefix . $percentage . '%</span>';
             }
         }
 
-        return null;
+        // 3. NEW ARRIVAL BADGE (Free Feature)
+        if ( $new_days > 0 ) {
+            $created_date = $product->get_date_created();
+            if ( $created_date ) {
+                $diff = (time() - $created_date->getTimestamp()) / (60 * 60 * 24);
+                if ( $diff <= $new_days ) {
+                    $output .= '<span class="cw-badge-pill cw-new">New</span>';
+                }
+            }
+        }
+
+        // 4. CUSTOM TAG BADGES (Free Feature)
+        if ( ! empty( $custom_badges ) && is_array( $custom_badges ) ) {
+            foreach ( $custom_badges as $badge ) {
+                if ( empty($badge['tag']) || empty($badge['url']) ) continue;
+                if ( has_term( $badge['tag'], 'product_tag', $product->get_id() ) ) {
+                    $width = !empty($badge['width']) ? intval($badge['width']) . 'px' : '60px';
+                    $tooltip_attr = !empty($badge['tooltip']) ? ' class="cw-badge-wrap cw-has-tooltip" data-tooltip="' . esc_attr($badge['tooltip']) . '"' : ' class="cw-badge-wrap"';
+                    $output .= '<span' . $tooltip_attr . '>';
+                    $output .= '<img src="' . esc_url($badge['url']) . '" style="width:' . esc_attr($width) . ' !important;" class="cw-badge-img" />';
+                    $output .= '</span>';
+                }
+            }
+        }
+
+        return $output;
     }
 }
