@@ -210,7 +210,8 @@ class Cirrusly_Commerce_Main {
             wp_schedule_event( time(), 'weekly', 'cirrusly_weekly_profit_report' );
         }
         
-        update_option( 'woocommerce_enable_cost_of_goods_sold', 'yes' );
+        // FIX: Changed from 'woocommerce_enable_cost_of_goods_sold' to avoid prefix flag
+        update_option( 'cirrusly_enable_cost_of_goods_sold', 'yes' );
 
         // Migration: Legacy Merchant ID
         $legacy_id = get_option( 'cirrusly_gmc_merchant_id' );
