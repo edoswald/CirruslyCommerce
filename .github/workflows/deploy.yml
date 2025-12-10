@@ -1,9 +1,26 @@
-            - name: WordPress Plugin Build Zip
-  # You may pin to the exact commit or the version.
-  # uses: 10up/action-wordpress-plugin-build-zip@b9e621e1261ccf51592b6f3943e4dc4518fca0d1
-  uses: 10up/action-wordpress-plugin-build-zip@1.0.2
-  with:
-    # How many days to keep the zip archive
-    retention-days: # optional, default is 5
-    slug: cirrusly-commerce
-          
+name: Build WordPress Plugin Zip
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-zip:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Build WordPress Plugin Zip
+        uses: 10up/action-wordpress-plugin-build-zip@1.0.2
+        with:
+          slug: cirrusly-commerce
+          # retention-days: 7  # Uncomment if you want to customize how many days the artifact is retained
+
+      # Example: upload as artifact (optional since the build plugin step already does this)
+      # - name: Upload Zip Artifact
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: cirrusly-commerce
+      #     path: ./cirrusly-commerce.zip
