@@ -211,7 +211,13 @@ class Cirrusly_Commerce_Main {
         }
         
         // FIX: Changed from 'woocommerce_enable_cost_of_goods_sold' to avoid prefix flag
-        update_option( 'cirrusly_enable_cost_of_goods_sold', 'yes' );
+        $old_value = get_option( 'woocommerce_enable_cost_of_goods_sold' );
+        if ( $old_value && ! get_option( 'cirrusly_enable_cost_of_goods_sold' ) ) {
+            update_option( 'cirrusly_enable_cost_of_goods_sold', $old_value );
+            delete_option( 'woocommerce_enable_cost_of_goods_sold' );
+        } else {
+            update_option( 'cirrusly_enable_cost_of_goods_sold', 'yes' );
+        }
 
         // Migration: Legacy Merchant ID
         $legacy_id = get_option( 'cirrusly_gmc_merchant_id' );
