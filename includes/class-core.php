@@ -32,7 +32,17 @@ class Cirrusly_Commerce_Core {
         }
     }
 
-    private function define_hooks() {
+    /**
+         * Register core actions, filters, and initialize optional integration and admin components.
+         *
+         * Initializes optional integrations (Audit, Reports, GMC) when present, instantiates and
+         * registers admin-only managers and UI when in the admin context, and registers core
+         * actions and filters used by the plugin (AJAX audit save, scheduled GMC scan router,
+         * product save metrics cache clearing, and the pre-option filter that enables cost-of-goods).
+         *
+         * @return void
+         */
+        private function define_hooks() {
         if ( class_exists( 'Cirrusly_Commerce_Audit' ) ) {
             add_action('init', array('Cirrusly_Commerce_Audit', 'init'));
         }
@@ -67,6 +77,11 @@ class Cirrusly_Commerce_Core {
         // FIX: Renamed option filter to avoid using 'woocommerce' prefix
         add_filter( 'pre_option_cirrusly_enable_cost_of_goods_sold', function() { return 'yes'; } );    }
 
+    /**
+     * Triggers a scheduled Google Merchant Center scan when the Google API client is available.
+     *
+     * If the Cirrusly_Commerce_Google_API_Client class is not present, this method does nothing.
+     */
     public function execute_scheduled_scan_router() {
         if ( class_exists('Cirrusly_Commerce_Google_API_Client') ) {
             Cirrusly_Commerce_Google_API_Client::execute_scheduled_scan();
