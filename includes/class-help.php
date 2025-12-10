@@ -138,7 +138,7 @@ class Cirrusly_Commerce_Help {
     }
 
     public static function handle_bug_submission() {
-        if ( ! isset( $_POST['security'] ) || ! wp_verify_nonce( $_POST['security'], 'cc_bug_report_nonce' ) ) {
+        if ( ! isset( $_POST['security'] ) || ! wp_verify_nonce(sanitize_text_field( wp_unslash( $_POST['security'] ) ), 'cc_bug_report_nonce' ) ) {
             wp_send_json_error( 'Security check failed. Please refresh the page.' );
         }
         if ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'edit_products' ) ) {
@@ -181,8 +181,7 @@ class Cirrusly_Commerce_Help {
         $out .= "WooCommerce: " . (class_exists('WooCommerce') ? WC()->version : 'Not Installed') . "\n";
         $out .= "Cirrusly Commerce: " . ( defined('CIRRUSLY_COMMERCE_VERSION') ? CIRRUSLY_COMMERCE_VERSION : 'Unknown' ) . "\n";
         $out .= "PHP Version: " . phpversion() . "\n";
-        $out .= "Server Software: " . esc_html( $_SERVER['SERVER_SOFTWARE'] ) . "\n";
-        $out .= "Active Plugins:\n";
+        $out .= "Server Software: " . esc_html( sanitize_text_field( $_SERVER['SERVER_SOFTWARE'] ) ) . "\n";        $out .= "Active Plugins:\n";
         $plugins = get_option('active_plugins');
         if ( is_array( $plugins ) ) {
             foreach( $plugins as $p ) { $out .= "- " . esc_html( $p ) . "\n"; }

@@ -90,9 +90,8 @@ class Cirrusly_Commerce_GMC {
     public function save_quick_bulk_edit( $product ) {
         // [Security] Verify correct nonce for Quick vs Bulk Edit
         $nonce_verified = false;
-        if ( isset( $_POST['woocommerce_quick_edit_nonce'] ) && wp_verify_nonce( $_POST['woocommerce_quick_edit_nonce'], 'woocommerce_quick_edit' ) ) {
-            $nonce_verified = true;
-        } elseif ( isset( $_POST['_wpnonce'] ) && wp_verify_nonce( $_POST['_wpnonce'], 'bulk-posts' ) ) {
+        if ( isset( $_POST['woocommerce_quick_edit_nonce'] ) && wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['woocommerce_quick_edit_nonce'] ) ), 'woocommerce_quick_edit' ) ) {            $nonce_verified = true;
+        } elseif ( isset( $_POST['_wpnonce'] ) && wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['_wpnonce'] ) ), 'bulk-posts' ) ) {
             $nonce_verified = true;
         }
 
