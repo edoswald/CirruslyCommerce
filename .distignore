@@ -10,6 +10,8 @@ package-lock.json
 phpcs.xml
 phpunit.xml.dist
 webpack.config.js
+.DS_Store
+*.code-workspace
 
 # Dependencies
 node_modules

@@ -45,15 +45,28 @@ class Cirrusly_Commerce_Analytics_Pro {
         // Inline CSS for the analytics dashboard
         wp_enqueue_style( 'cc-analytics-styles', false );
         wp_add_inline_style( 'cc-analytics-styles', "
-            .cc-analytics-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 20px; }
+            .cc-dashboard-split { display: grid; grid-template-columns: 280px 1fr; gap: 20px; margin-bottom: 20px; }
+            .cc-metrics-col { display: flex; flex-direction: column; gap: 15px; }
+            .cc-chart-col { background: #fff; padding: 20px; border-radius: 4px; border: 1px solid #dcdcde; box-shadow: 0 1px 1px rgba(0,0,0,.04); position: relative; display: flex; flex-direction: column; }
+            
             .cc-metric-card { background: #fff; padding: 20px; border-radius: 4px; border: 1px solid #dcdcde; box-shadow: 0 1px 1px rgba(0,0,0,.04); }
             .cc-metric-card h3 { margin: 0 0 10px 0; font-size: 13px; color: #646970; text-transform: uppercase; }
             .cc-metric-val { font-size: 24px; font-weight: 600; color: #1d2327; }
             .cc-metric-sub { font-size: 12px; color: #646970; margin-top: 5px; }
+            
             .cc-trend-up { color: #008a20; }
             .cc-trend-down { color: #d63638; }
+            
             .cc-table-wrapper { background: #fff; border: 1px solid #c3c4c7; margin-bottom: 20px; }
-            .cc-section-title { font-size: 1.2em; padding: 15px; margin: 0; border-bottom: 1px solid #eaecf0; background: #fbfbfb; font-weight: 600; }
+            .cc-section-title { font-size: 1.2em; padding: 15px; margin: 0; border-bottom: 1px solid #eaecf0; background: #fbfbfb; font-weight: 600; display: flex; justify-content: space-between; align-items: center; }
+            
+            .cc-header-actions { float: right; margin-bottom: 10px; }
+
+            /* Responsive adjustments */
+            @media (max-width: 960px) {
+                .cc-dashboard-split { grid-template-columns: 1fr; }
+                .cc-metrics-col { display: grid; grid-template-columns: 1fr 1fr; }
+            }
         " );
     }
 
@@ -70,45 +83,80 @@ class Cirrusly_Commerce_Analytics_Pro {
      * Main Render Method.
      */
     public function render_analytics_view() {
-    if ( ! current_user_can( 'manage_woocommerce' ) ) {
-        wp_die( esc_html__( 'You do not have sufficient permissions to access this page.', 'cirrusly-commerce' ) );
-    }
-
-        if ( class_exists( 'Cirrusly_Commerce_Core' ) ) {
-            Cirrusly_Commerce_Core::render_page_header( 'Pro Plus Analytics' );
+        if ( ! current_user_can( 'manage_woocommerce' ) ) {
+            wp_die( esc_html__( 'You do not have sufficient permissions to access this page.', 'cirrusly-commerce' ) );
         }
 
         // Default to last 30 days if no date range picker logic is added yet
         $days = isset($_GET['period']) ? intval($_GET['period']) : 30;
         $days = max( 1, min( $days, 365 ) ); // Clamp between 1 and 365 days;
+
+        // Handle Refresh Action
+        if ( isset( $_GET['cc_refresh'] ) && check_admin_referer( 'cc_refresh_analytics' ) ) {
+            delete_transient( 'cc_analytics_pnl_' . $days );
+            // Redirect to remove the query arg so refresh doesn't stick
+            wp_redirect( remove_query_arg( array( 'cc_refresh', '_wpnonce' ) ) );
+            exit;
+        }
+
+        if ( class_exists( 'Cirrusly_Commerce_Core' ) ) {
+            Cirrusly_Commerce_Core::render_page_header( 'Pro Plus Analytics' );
+        }
+        
         $data = self::get_pnl_data( $days );
         $velocity = self::get_inventory_velocity();
         $gmc_history = get_option( 'cirrusly_gmc_history', array() );
 
+        // Prepare History Data for JS
+        $perf_history_json = wp_json_encode( $data['history'] );
+        $gmc_history_json  = wp_json_encode( $gmc_history, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT );
+        
+        $refresh_url = wp_nonce_url( add_query_arg( 'cc_refresh', '1' ), 'cc_refresh_analytics' );
         ?>
         <div class="wrap cc-analytics-wrapper">
             
-            <div class="cc-analytics-grid">
-                <div class="cc-metric-card" style="border-top: 3px solid #2271b1;">
-                    <h3>Net Sales</h3>
-                    <div class="cc-metric-val"><?php echo wp_kses_post( wc_price( $data['revenue'] ) ); ?></div>
-                    <div class="cc-metric-sub"><?php echo esc_html( $data['count'] ); ?> Orders</div>
+            <div class="cc-header-actions">
+                <span style="color:#646970; margin-right: 10px;">Data cached for performance.</span>
+                <a href="<?php echo esc_url( $refresh_url ); ?>" class="button button-secondary">
+                    <span class="dashicons dashicons-update" style="margin-top:3px;"></span> Refresh Stats
+                </a>
+            </div>
+            <div style="clear:both;"></div>
+
+            <div class="cc-dashboard-split">
+                
+                <div class="cc-metrics-col">
+                    <div class="cc-metric-card" style="border-top: 3px solid #2271b1;">
+                        <h3>Net Sales</h3>
+                        <div class="cc-metric-val"><?php echo wp_kses_post( wc_price( $data['revenue'] ) ); ?></div>
+                        <div class="cc-metric-sub"><?php echo esc_html( $data['count'] ); ?> Orders</div>
+                    </div>
+                    <div class="cc-metric-card" style="border-top: 3px solid #d63638;">
+                        <h3>Total Costs</h3>
+                        <div class="cc-metric-val"><?php echo wp_kses_post( wc_price( $data['total_costs'] ) ); ?></div>
+                        <div class="cc-metric-sub">COGS + Ship + Fees</div>
+                    </div>
+                    <div class="cc-metric-card" style="border-top: 3px solid #00a32a;">
+                        <h3>Net Profit</h3>
+                        <div class="cc-metric-val" style="color:#00a32a;"><?php echo wp_kses_post( wc_price( $data['net_profit'] ) ); ?></div>
+                        <div class="cc-metric-sub"><?php echo esc_html( number_format( $data['margin'], 1 ) ); ?>% Margin</div>
+                    </div>
+                    <div class="cc-metric-card" style="border-top: 3px solid #dba617;">
+                        <h3>Projected Stockouts</h3>
+                        <div class="cc-metric-val"><?php echo esc_html( count( $velocity ) ); ?></div>
+                        <div class="cc-metric-sub">Next 14 Days</div>
+                    </div>
                 </div>
-                <div class="cc-metric-card" style="border-top: 3px solid #d63638;">
-                    <h3>Total Costs</h3>
-                    <div class="cc-metric-val"><?php echo wp_kses_post( wc_price( $data['total_costs'] ) ); ?></div>
-                    <div class="cc-metric-sub">COGS + Ship + Fees</div>
+
+                <div class="cc-chart-col">
+                    <div class="cc-section-title" style="border:none; background:transparent; padding: 0 0 15px 0;">
+                        Performance Overview (<?php echo intval( $days ); ?> Days)
+                    </div>
+                    <div style="flex-grow: 1; min-height: 350px;">
+                        <canvas id="performanceChart"></canvas>
+                    </div>
                 </div>
-                <div class="cc-metric-card" style="border-top: 3px solid #00a32a;">
-                    <h3>Net Profit</h3>
-                    <div class="cc-metric-val" style="color:#00a32a;"><?php echo wp_kses_post( wc_price( $data['net_profit'] ) ); ?></div>
-                    <div class="cc-metric-sub"><?php echo esc_html( number_format( $data['margin'], 1 ) ); ?>% Margin</div>
-                </div>
-                <div class="cc-metric-card" style="border-top: 3px solid #dba617;">
-                    <h3>Projected Stockouts</h3>
-                    <div class="cc-metric-val"><?php echo esc_html( count( $velocity ) ); ?></div>
-                    <div class="cc-metric-sub">Next 14 Days</div>
-                </div>
+
             </div>
 
             <div style="display:grid; grid-template-columns: 2fr 1fr; gap: 20px;">
@@ -176,55 +224,126 @@ class Cirrusly_Commerce_Analytics_Pro {
 
         <script>
         document.addEventListener('DOMContentLoaded', function() {
-            const ctx = document.getElementById('gmcTrendChart');
-            if (!ctx) return;
-
-            // Prepare Data from PHP
-            const history = <?php echo wp_json_encode( $gmc_history, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT ); ?>;
-            const labels = [];
-            const criticalData = [];
-            const warningData = [];
             
-            // Limit to last 30 entries
-            const keys = Object.keys(history).slice(-30);
-            
-            keys.forEach(date => {
-                labels.push(date); // Date (m-d)
-                criticalData.push(history[date].critical || 0);
-                warningData.push(history[date].warnings || 0);
-            });
+            // --- 1. Performance Chart ---
+            const perfCtx = document.getElementById('performanceChart');
+            if (perfCtx) {
+                const perfData = <?php echo $perf_history_json; ?>;
+                const dates = Object.keys(perfData);
+                const sales = dates.map(d => perfData[d].revenue);
+                const costs = dates.map(d => perfData[d].costs);
+                const profit = dates.map(d => perfData[d].profit);
 
-            new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: 'Disapproved Items',
-                        data: criticalData,
-                        borderColor: '#d63638',
-                        backgroundColor: 'rgba(214, 54, 56, 0.1)',
-                        fill: true,
-                        tension: 0.3
-                    }, {
-                        label: 'Warnings',
-                        data: warningData,
-                        borderColor: '#dba617',
-                        borderDash: [5, 5],
-                        fill: false,
-                        tension: 0.3
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { position: 'bottom' }
+                new Chart(perfCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: dates,
+                        datasets: [
+                            {
+                                label: 'Net Profit',
+                                data: profit,
+                                type: 'line',
+                                borderColor: '#00a32a',
+                                borderWidth: 2,
+                                fill: false,
+                                tension: 0.3,
+                                order: 1
+                            },
+                            {
+                                label: 'Net Sales',
+                                data: sales,
+                                backgroundColor: '#2271b1',
+                                order: 2
+                            },
+                            {
+                                label: 'Total Costs',
+                                data: costs,
+                                backgroundColor: '#d63638',
+                                order: 3
+                            }
+                        ]
                     },
-                    scales: {
-                        y: { beginAtZero: true }
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: {
+                            mode: 'index',
+                            intersect: false,
+                        },
+                        plugins: {
+                            legend: { position: 'bottom' },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        let label = context.dataset.label || '';
+                                        if (label) {
+                                            label += ': ';
+                                        }
+                                        if (context.parsed.y !== null) {
+                                            label += new Intl.NumberFormat(undefined, { style: 'currency', currency: '<?php echo get_woocommerce_currency(); ?>' }).format(context.parsed.y);
+                                        }
+                                        return label;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            y: { beginAtZero: true, grid: { borderDash: [2, 2] } },
+                            x: { grid: { display: false } }
+                        }
                     }
-                }
-            });
+                });
+            }
+
+            // --- 2. GMC Trend Chart ---
+            const ctx = document.getElementById('gmcTrendChart');
+            if (ctx) {
+                const history = <?php echo $gmc_history_json; ?>;
+                const labels = [];
+                const criticalData = [];
+                const warningData = [];
+                
+                // Limit to last 30 entries
+                const keys = Object.keys(history).slice(-30);
+                
+                keys.forEach(date => {
+                    labels.push(date); // Date (m-d)
+                    criticalData.push(history[date].critical || 0);
+                    warningData.push(history[date].warnings || 0);
+                });
+
+                new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Disapproved Items',
+                            data: criticalData,
+                            borderColor: '#d63638',
+                            backgroundColor: 'rgba(214, 54, 56, 0.1)',
+                            fill: true,
+                            tension: 0.3
+                        }, {
+                            label: 'Warnings',
+                            data: warningData,
+                            borderColor: '#dba617',
+                            borderDash: [5, 5],
+                            fill: false,
+                            tension: 0.3
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { position: 'bottom' }
+                        },
+                        scales: {
+                            y: { beginAtZero: true }
+                        }
+                    }
+                });
+            }
         });
         </script>
         <?php
@@ -241,7 +360,7 @@ class Cirrusly_Commerce_Analytics_Pro {
         $cache_key = 'cc_analytics_pnl_' . $days;
         $cached = get_transient( $cache_key );
         if ( false !== $cached ) {
-            return $cached;
+           return $cached;
         }
 
         // Initialize Stats
@@ -252,8 +371,19 @@ class Cirrusly_Commerce_Analytics_Pro {
             'fees'    => 0,
             'refunds' => 0,
             'count'   => 0,
-            'products'=> array() // For leaderboard
+            'products'=> array(), // For leaderboard
+            'history' => array()  // Daily breakdown
         );
+
+        // Fill history dates with 0s to ensure continuous chart
+        $period_dates = new DatePeriod(
+            new DateTime( $after_date ),
+            new DateInterval( 'P1D' ),
+            ( new DateTime( $before_date ) )->modify( '+1 day' )
+        );
+        foreach ( $period_dates as $dt ) {
+            $stats['history'][ $dt->format( 'Y-m-d' ) ] = array( 'revenue' => 0, 'costs' => 0, 'profit' => 0 );
+        }
 
         // Fetch Fee Config
         $fee_config = get_option( 'cirrusly_shipping_config', array() );
@@ -267,7 +397,6 @@ class Cirrusly_Commerce_Analytics_Pro {
                 'limit'       => 250,
                 'page'        => $page,
                 'status'      => array( 'wc-completed', 'wc-processing' ),
-                // REPLACE 'date_created' => $date_query WITH:
                 'date_after'  => $after_date,
                 'date_before' => $before_date,
             ) );
@@ -277,11 +406,20 @@ class Cirrusly_Commerce_Analytics_Pro {
             $stats['count'] += count( $orders );
 
             foreach ( $orders as $order ) {
-                $stats['revenue'] += $order->get_total();
-                $stats['refunds'] += $order->get_total_refunded();
+                $order_date = wp_date( 'Y-m-d', $order->get_date_created()->getTimestamp() );
+
+                // Ensure key exists (in case order is outside initialized range for some reason)
+                if ( ! isset( $stats['history'][ $order_date ] ) ) {
+                    $stats['history'][ $order_date ] = array( 'revenue' => 0, 'costs' => 0, 'profit' => 0 );
+                }
+
+                $order_revenue = $order->get_total();
+                $order_refunds = $order->get_total_refunded();
                 
                 // Fee Logic (Simplified from Reports Pro)
-                $stats['fees'] += self::calculate_single_order_fee( $order->get_total(), $fee_config );
+                $order_fees = self::calculate_single_order_fee( $order_revenue, $fee_config );
+                $order_cogs = 0;
+                $order_ship = 0;
 
                 foreach ( $order->get_items() as $item ) {
                     $product = $item->get_product();
@@ -296,8 +434,8 @@ class Cirrusly_Commerce_Analytics_Pro {
                     
                     $cost_basis = ($cogs_val + $ship_val) * $qty;
                     
-                    $stats['cogs']     += ($cogs_val * $qty);
-                    $stats['shipping'] += ($ship_val * $qty);
+                    $order_cogs += ($cogs_val * $qty);
+                    $order_ship += ($ship_val * $qty);
 
                     // Leaderboard Logic
                     $pid = $item->get_product_id();
@@ -310,10 +448,25 @@ class Cirrusly_Commerce_Analytics_Pro {
                         );
                     }
                     
-                    // Net Profit per product (approximate, excluding global fees/refunds for simplicity in leaderboard)
+                    // Net Profit per product
                     $stats['products'][$pid]['qty'] += $qty;
                     $stats['products'][$pid]['net'] += ($line_total - $cost_basis);
                 }
+
+                // Global Stats
+                $stats['revenue']  += $order_revenue;
+                $stats['refunds']  += $order_refunds;
+                $stats['fees']     += $order_fees;
+                $stats['cogs']     += $order_cogs;
+                $stats['shipping'] += $order_ship;
+
+                // Daily History Stats
+                $order_total_costs = $order_cogs + $order_ship + $order_fees + $order_refunds;
+                $order_net_profit  = $order_revenue - $order_total_costs;
+
+                $stats['history'][ $order_date ]['revenue'] += $order_revenue;
+                $stats['history'][ $order_date ]['costs']   += $order_total_costs;
+                $stats['history'][ $order_date ]['profit']  += $order_net_profit;
             }
             $page++;
         }

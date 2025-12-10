@@ -91,8 +91,12 @@ class Cirrusly_Commerce_Badges {
                         }
                     });
                 }
+                var timeout;
                 moveBadges();
-                var observer = new MutationObserver(function(mutations) { moveBadges(); });
+                var observer = new MutationObserver(function(mutations) { 
+                    clearTimeout(timeout);
+                    timeout = setTimeout(moveBadges, 100);
+                });
                 var grid = document.querySelector('.products') || document.querySelector('.wc-block-grid') || document.body;
                 if (grid) observer.observe(grid, { childList: true, subtree: true });
             });";
