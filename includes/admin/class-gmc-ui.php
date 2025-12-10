@@ -657,7 +657,7 @@ class Cirrusly_Commerce_GMC_UI {
         }
     }
 
-    /**
+/**
      * Scans site content (pages and products) for restricted terms defined in Google Merchant Center core.
      * * @return array List of content pieces with found restricted terms.
      */
@@ -673,21 +673,34 @@ class Cirrusly_Commerce_GMC_UI {
             }
         }
 
-        // Scan Pages
-        $pages = get_pages();
-        foreach ( $pages as $page ) {
-            $found_in_page = array();
-            $content = $page->post_title . ' ' . $page->post_content;
-            
+        // Helper to scan text using Regex with Boundaries & Case Sensitivity
+        $scan_text = function( $content ) use ( $all_terms ) {
+            $found_items = array();
+            $clean_text  = wp_strip_all_tags( $content ); // Prevent matching HTML classes like "secure"
+
             foreach ( $all_terms as $word => $meta ) {
-                if ( stripos( $content, $word ) !== false ) {
-                    $found_in_page[] = array(
+                // FIX: Check for case_sensitive flag (Requires 'WHO' update in class-gmc.php)
+                $flags = ( isset( $meta['case_sensitive'] ) && $meta['case_sensitive'] ) ? 'u' : 'iu';
+                
+                // FIX: Use word boundaries (\b) to stop "cure" matching inside "secure"
+                $pattern = '/\b' . preg_quote( $word, '/' ) . '\b/' . $flags;
+
+                if ( preg_match( $pattern, $clean_text ) ) {
+                    $found_items[] = array(
                         'word'     => $word,
                         'severity' => $meta['severity'],
                         'reason'   => $meta['reason']
                     );
                 }
             }
+            return $found_items;
+        };
+
+        // Scan Pages
+        $pages = get_pages();
+        foreach ( $pages as $page ) {
+            $content = $page->post_title . ' ' . $page->post_content;
+            $found_in_page = $scan_text( $content );
 
             if ( ! empty( $found_in_page ) ) {
                 $issues[] = array(
@@ -702,18 +715,9 @@ class Cirrusly_Commerce_GMC_UI {
         // Scan Products
         $products = get_posts( array( 'post_type' => 'product', 'posts_per_page' => -1 ) );
         foreach ( $products as $prod ) {
-            $found_in_prod = array();
-            $content = $prod->post_title . ' ' . $prod->post_content;
-
-            foreach ( $all_terms as $word => $meta ) {
-                if ( stripos( $content, $word ) !== false ) {
-                    $found_in_prod[] = array(
-                        'word'     => $word,
-                        'severity' => $meta['severity'],
-                        'reason'   => $meta['reason']
-                    );
-                }
-            }
+            // Note: Added post_excerpt to ensure Short Description is also scanned
+            $content = $prod->post_title . ' ' . $prod->post_content . ' ' . $prod->post_excerpt;
+            $found_in_prod = $scan_text( $content );
 
             if ( ! empty( $found_in_prod ) ) {
                 $issues[] = array(
