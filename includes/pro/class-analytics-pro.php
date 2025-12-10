@@ -31,7 +31,12 @@ class Cirrusly_Commerce_Analytics_Pro {
     }
 
     /**
-     * Load Chart.js for visualization.
+     * Enqueue Chart.js and the analytics UI styles for the Cirrusly analytics admin page.
+     *
+     * Adds the Chart.js vendor script and an inline stylesheet used by the analytics dashboard
+     * when the current admin page hook targets the Cirrusly analytics screen.
+     *
+     * @param string $hook The current admin page hook name; assets are enqueued only when it contains 'cirrusly-analytics'.
      */
     public function enqueue_assets( $hook ) {
         if ( strpos( $hook, 'cirrusly-analytics' ) === false ) {
@@ -103,7 +108,14 @@ class Cirrusly_Commerce_Analytics_Pro {
     }
 
     /**
-     * Main Render Method.
+     * Render the Pro Plus Analytics admin dashboard and inject prepared analytics data for display.
+     *
+     * Enforces the `manage_woocommerce` capability and will terminate with an error if the current user
+     * lacks permission. Reads UI state (period and status filters), handles a nonce-protected refresh
+     * action (redirects to remove the refresh parameter), and prepares analytics payloads including
+     * P&L history, inventory velocity risk items, and GMC history. Outputs the admin HTML for KPI
+     * cards, tables, filter controls, and the Chart.js initialization script that consumes the JSON
+     * payloads.
      */
     public function render_analytics_view() {
         if ( ! current_user_can( 'manage_woocommerce' ) ) {
@@ -381,7 +393,28 @@ class Cirrusly_Commerce_Analytics_Pro {
     }
 
     /**
-     * Engine: Calculate P&L using a robust hybrid query strategy.
+     * Compute profit-and-loss metrics and per-day history for a given date range and status filter.
+     *
+     * Computes aggregated totals (revenue, COGS, shipping, fees, refunds), derived metrics (total_costs,
+     * net_profit, margin), a per-product leaderboard, and a daily history for the requested period.
+     * Results are cached for one hour using a key derived from the days and status fingerprint.
+     *
+     * @param int   $days            Number of days to include (ending today). Defaults to 90.
+     * @param array $custom_statuses Optional array of order status slugs (e.g., ['wc-completed']). If empty, a sensible default set is auto-discovered.
+     * @return array An associative array with keys:
+     *               - revenue (float): Total order revenue.
+     *               - cogs (float): Total cost of goods sold.
+     *               - shipping (float): Total estimated shipping costs.
+     *               - fees (float): Total calculated fees.
+     *               - refunds (float): Total refunded amounts.
+     *               - total_costs (float): Sum of cogs, shipping, fees, and refunds.
+     *               - net_profit (float): revenue minus total_costs.
+     *               - margin (float): Net profit expressed as percentage of revenue (0 if revenue is 0).
+     *               - count (int): Number of orders considered.
+     *               - products (array): List of products aggregated with entries like ['id'=>int, 'name'=>string, 'qty'=>int, 'net'=>float], sorted by net descending.
+     *               - history (array): Map of Y-m-d => ['revenue'=>float, 'costs'=>float, 'profit'=>float] for each day in the period.
+     *               - method (string): Query method used (e.g., 'HPOS API' or 'Direct SQL').
+     *               - statuses_used (array): The order statuses used to build the result.
      */
     private static function get_pnl_data( $days = 90, $custom_statuses = array() ) {
         // Initialize Dates
@@ -545,8 +578,18 @@ class Cirrusly_Commerce_Analytics_Pro {
         return $stats;
     }
 
-    /**
-     * Logic: Inventory Velocity.
+    /****
+     * Identify inventory items at risk of stockout based on 30-day sales velocity.
+     *
+     * Computes average daily sales for each product over the last 30 days and returns
+     * items whose estimated days remaining (stock / velocity) is less than 14.
+     *
+     * @return array[] An array of risky items sorted by ascending `days_left`. Each item is an associative array with keys:
+     *                 - 'id' (int): Product ID.
+     *                 - 'name' (string): Product name.
+     *                 - 'stock' (float|int): Current stock quantity.
+     *                 - 'velocity' (float): Average daily sales over the last 30 days.
+     *                 - 'days_left' (float): Estimated days remaining at the current velocity.
      */
     private static function get_inventory_velocity() {
         // Use simpler logic for velocity too

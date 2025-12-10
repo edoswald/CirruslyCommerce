@@ -196,11 +196,9 @@ class Cirrusly_Commerce_Main {
     }
 
     /**
-     * Perform plugin activation tasks.
+     * Run plugin activation tasks and migrate legacy settings.
      *
-     * Schedules a daily GMC scan and a weekly profit report (if not already scheduled),
-     * enables WooCommerce "Cost of Goods Sold", and migrates a legacy Cirrusly merchant
-     * ID into the scan configuration under `merchant_id_pro` when appropriate.
+     * Schedules a daily GMC scan and a weekly profit report if not already scheduled, ensures the Cirrusly cost-of-goods option is set (migrating the legacy WooCommerce option when present), copies a legacy Cirrusly merchant ID into the scan configuration under `merchant_id_pro` when appropriate, and sets a transient to trigger the setup wizard redirect.
      */
     public function activate() {
         if ( ! wp_next_scheduled( 'cirrusly_gmc_daily_scan' ) ) {
