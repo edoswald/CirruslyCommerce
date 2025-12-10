@@ -12,15 +12,20 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '7.4'
+
+      - name: Install Dependencies
+        run: |
+          # Remove any existing vendor folder to ensure a clean slate
+          rm -rf vendor
+          # Install only production dependencies and run the Google cleanup script
+          composer install --no-dev --optimize-autoloader --prefer-dist
+
       - name: Build WordPress Plugin Zip
         uses: 10up/action-wordpress-plugin-build-zip@1.0.2
         with:
           slug: cirrusly-commerce
-          # retention-days: 7  # Uncomment if you want to customize how many days the artifact is retained
-
-      # Example: upload as artifact (optional since the build plugin step already does this)
-      # - name: Upload Zip Artifact
-      #   uses: actions/upload-artifact@v4
-      #   with:
-      #     name: cirrusly-commerce
-      #     path: ./cirrusly-commerce.zip
+          # This action will now respect the .distignore file you created
