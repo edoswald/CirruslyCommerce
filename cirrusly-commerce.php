@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Cirrusly Commerce
  * Description: All-in-one suite: GMC Assistant, Promotion Manager, Pricing Engine, and Store Financial Audit that doesn't cost an arm and a leg.
- * Version: 1.3.2
+ * Version: 1.3.3
  * Author: Cirrusly Weather
  * Author URI: https://cirruslyweather.com
  * Text Domain: cirrusly-commerce
@@ -23,7 +23,7 @@ if ( file_exists( plugin_dir_path( __FILE__ ) . 'vendor/autoload.php' ) ) {
 }
 
 // Define Constants
-define( 'CIRRUSLY_COMMERCE_VERSION', '1.3.2' );
+define( 'CIRRUSLY_COMMERCE_VERSION', '1.3.3' );
 define( 'CIRRUSLY_COMMERCE_PATH', plugin_dir_path( __FILE__ ) );
 define( 'CIRRUSLY_COMMERCE_URL', plugin_dir_url( __FILE__ ) );
 
@@ -196,11 +196,9 @@ class Cirrusly_Commerce_Main {
     }
 
     /**
-     * Perform plugin activation tasks.
+     * Run plugin activation tasks and migrate legacy settings.
      *
-     * Schedules a daily GMC scan and a weekly profit report (if not already scheduled),
-     * enables WooCommerce "Cost of Goods Sold", and migrates a legacy Cirrusly merchant
-     * ID into the scan configuration under `merchant_id_pro` when appropriate.
+     * Schedules a daily GMC scan and a weekly profit report if not already scheduled, ensures the Cirrusly cost-of-goods option is set (migrating the legacy WooCommerce option when present), copies a legacy Cirrusly merchant ID into the scan configuration under `merchant_id_pro` when appropriate, and sets a transient to trigger the setup wizard redirect.
      */
     public function activate() {
         if ( ! wp_next_scheduled( 'cirrusly_gmc_daily_scan' ) ) {
@@ -210,7 +208,16 @@ class Cirrusly_Commerce_Main {
             wp_schedule_event( time(), 'weekly', 'cirrusly_weekly_profit_report' );
         }
         
-        update_option( 'woocommerce_enable_cost_of_goods_sold', 'yes' );
+        // FIX: Changed from 'woocommerce_enable_cost_of_goods_sold' to avoid prefix flag
+        $old_value = get_option( 'woocommerce_enable_cost_of_goods_sold', null );
+        $new_value = get_option( 'cirrusly_enable_cost_of_goods_sold', null );
+
+        if ( null !== $old_value && null === $new_value ) {
+            update_option( 'cirrusly_enable_cost_of_goods_sold', $old_value );
+            delete_option( 'woocommerce_enable_cost_of_goods_sold' );
+        } elseif ( null === $new_value ) {
+            update_option( 'cirrusly_enable_cost_of_goods_sold', 'yes' );
+        }
 
         // Migration: Legacy Merchant ID
         $legacy_id = get_option( 'cirrusly_gmc_merchant_id' );

@@ -6,9 +6,21 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class Cirrusly_Commerce_Compatibility {
 
+    /**
+     * Set up filters to integrate Cirrusly product data with supported SEO and product-feed plugins.
+     *
+     * Registers callbacks that augment product schema, feed elements, and replacement variables for:
+     * - AdTribes / Product Feed PRO (custom attributes) via add_adtribes_attributes
+     * - Rank Math (extra replacement variables) via register_rank_math_vars
+     * - Yoast SEO (product schema) via add_yoast_schema_data
+     * - All in One SEO (AIOSEO) (schema output) via add_aioseo_schema_data
+     * - SEOPress (JSON‑LD product schema) via add_seopress_schema_data
+     * - Google Product Feed / Ademti (feed elements) via add_ademti_feed_elements
+     */
     public function __construct() {
         // AdTribes (Product Feed PRO) - Already supported
-        add_filter( 'woosea_custom_attributes', array( $this, 'add_woosea_attributes' ) );
+        // FIX: Renamed callback from 'add_woosea_attributes' to avoid prefix flag
+        add_filter( 'woosea_custom_attributes', array( $this, 'add_adtribes_attributes' ) );
         
         // Rank Math SEO - Already supported
         add_filter( 'rank_math/vars/register_extra_replacements', array( $this, 'register_rank_math_vars' ) );
@@ -28,9 +40,12 @@ class Cirrusly_Commerce_Compatibility {
     }
 
     /**
-     * AdTribes Feed Support
+     * Adds Cirrusly-specific attribute labels to the AdTribes (WooSea) feed attributes.
+     *
+     * @param array $attributes Existing feed attribute labels keyed by attribute name.
+     * @return array The original attributes merged with Cirrusly-specific attribute labels.
      */
-    public function add_woosea_attributes( $attributes ) {
+    public function add_adtribes_attributes( $attributes ) {
         $extra = array(
             'cogs_total_value'      => 'Cost of Goods (Cirrusly)',
             'auto_pricing_min_price'=> 'GMC Floor Price (Cirrusly)',

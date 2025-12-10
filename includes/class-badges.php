@@ -26,8 +26,7 @@ class Cirrusly_Commerce_Badges {
      * Reads the badge configuration and, if badges are enabled, attaches handlers for:
      * - single product badge rendering,
      * - shop loop payload insertion,
-     * - frontend badge relocation script,
-     * - and printing critical badge CSS in the page head.
+     * - and enqueuing the necessary inline scripts and styles (replacing raw output).
      */
     public function init_frontend_hooks() {
         $badge_cfg = get_option( 'cirrusly_badge_config', array() );
@@ -35,40 +34,91 @@ class Cirrusly_Commerce_Badges {
 
         add_action( 'woocommerce_single_product_summary', array( $this, 'render_single_badges' ), 5 );
         add_action( 'woocommerce_after_shop_loop_item', array( $this, 'render_grid_payload' ), 99 );
-        add_action( 'wp_footer', array( $this, 'render_badge_script' ), 100 );
-        add_action( 'wp_head', array( $this, 'print_critical_css' ) );
+        
+        // REPLACED: Raw wp_head/wp_footer output with standard enqueue
+        add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_frontend_assets' ) );
     }
 
     /**
-     * Outputs critical inline CSS that styles Cirrusly Commerce product badges and hides default WooCommerce sale badges.
+     * Attach critical badge CSS and the frontend badge-relocation JavaScript to WordPress' enqueue system.
      *
-     * Reads the `cirrusly_badge_config` option to determine `badge_size` (small, medium, large) and adjusts badge font size,
-     * padding, and image width accordingly before printing the inline style block.
+     * Enqueues inline styles that style product badges (sizes, pill appearance, tooltips, and layout containers)
+     * and registers an inline script that moves hidden badge payloads into product image wrappers on the frontend.
+     * The relocation script is only enqueued on non-admin pages.
      */
-    public function print_critical_css() {
-        // ... (Keep existing CSS generation logic exactly as is) ...
+    public function enqueue_frontend_assets() {
+        // 1. Critical CSS
         $badge_cfg = get_option( 'cirrusly_badge_config', array() );
         $size = isset($badge_cfg['badge_size']) ? $badge_cfg['badge_size'] : 'medium';
         $font_size = '12px'; $padding = '4px 8px'; $width = '60px';
         if ( $size === 'small' ) { $font_size = '10px'; $padding = '2px 6px'; $width = '50px'; }
         if ( $size === 'large' ) { $font_size = '14px'; $padding = '6px 10px'; $width = '80px'; }
-        ?>
-        <style>
-        html body .wc-block-components-sale-badge, html body .wc-block-grid__product-onsale, html body .wp-block-woocommerce-product-sale-badge, html body .onsale, html body span.onsale, html body .woocommerce-badges .badge-sale { display: none !important; visibility: hidden !important; opacity: 0 !important; z-index: -999 !important; }
-        .cw-badge-pill { background-color: #d63638; color: #fff; font-weight: bold; font-size: <?php echo esc_attr($font_size); ?>; text-transform: uppercase; padding: <?php echo esc_attr($padding); ?>; margin-bottom: 5px; display: inline-block; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.2); width: fit-content; line-height: 1.2; }
+        
+        // Calculate single page width (1.5x)
+        $width_int = intval( $width );
+        $single_width = ($width_int * 1.5) . 'px';
+
+        $css = "html body .wc-block-components-sale-badge, html body .wc-block-grid__product-onsale, html body .wp-block-woocommerce-product-sale-badge, html body .onsale, html body span.onsale, html body .woocommerce-badges .badge-sale { display: none !important; visibility: hidden !important; opacity: 0 !important; z-index: -999 !important; }
+        .cw-badge-pill { background-color: #d63638; color: #fff; font-weight: bold; font-size: {$font_size}; text-transform: uppercase; padding: {$padding}; margin-bottom: 5px; display: inline-block; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.2); width: fit-content; line-height: 1.2; }
         .cw-badge-pill.cw-new { background-color: #2271b1; }
         .cw-shop-badge-layer { position: absolute; bottom: 10px; left: 10px; z-index: 99; pointer-events: none; display: flex; flex-direction: column; align-items: flex-start; }
-        .cw-shop-badge-layer .cw-badge-img { width: <?php echo esc_attr($width); ?> !important; height: auto; display: block; margin: 0; box-shadow: none !important; }
+        .cw-shop-badge-layer .cw-badge-img { width: {$width} !important; height: auto; display: block; margin: 0; box-shadow: none !important; }
         .cw-badge-container.cw-single-page { margin-bottom: 15px; display: flex; gap: 10px; align-items: center; width: fit-content; }
-        .cw-badge-container.cw-single-page .cw-badge-img { width: <?php echo esc_attr(intval($width) * 1.5) . 'px'; ?> !important; height: auto; display: block; margin: 0; }
+        .cw-badge-container.cw-single-page .cw-badge-img { width: {$single_width} !important; height: auto; display: block; margin: 0; }
         .cw-badge-container.cw-single-page .cw-badge-pill { margin-bottom: 0; font-size: 14px; padding: 6px 10px; }
         .cw-has-tooltip { cursor: help; position: relative; }
         .cw-has-tooltip:hover::after { content: attr(data-tooltip); position: absolute; bottom: 120%; left: 0; background-color: #333; color: #fff; font-size: 10px; font-weight: normal; text-transform: none; white-space: nowrap; padding: 5px 10px; border-radius: 4px; z-index: 9999; box-shadow: 0 2px 6px rgba(0,0,0,0.3); pointer-events: none; }
-        .cw-badge-wrap { display: block; line-height: 0; width: fit-content; }
-        </style>
-        <?php
+        .cw-badge-wrap { display: block; line-height: 0; width: fit-content; }";
+
+        // Register a virtual handle to attach inline styles
+        wp_register_style( 'cirrusly-badges-css', false );
+        wp_add_inline_style( 'cirrusly-badges-css', $css );
+        wp_enqueue_style( 'cirrusly-badges-css' );
+
+        // 2. Frontend JS
+        if ( ! is_admin() ) {
+            $js = "document.addEventListener('DOMContentLoaded', function() {
+                function moveBadges() {
+                    var payloads = document.querySelectorAll('.cw-badge-payload');
+                    payloads.forEach(function(payload) {
+                        var card = payload.closest('li.product, .wc-block-grid__product, .wp-block-post');
+                        if (!card || card.closest('.woosb-products')) return;
+                        var imgWrap = card.querySelector('.wc-block-grid__product-image, .woocommerce-loop-product__link, .wp-block-post-featured-image');
+                        if ( imgWrap && ! imgWrap.querySelector('.cw-shop-badge-layer') ) {
+                            var layer = document.createElement('div');
+                            layer.className = 'cw-shop-badge-layer';
+                            layer.innerHTML = payload.innerHTML;
+                            imgWrap.style.position = 'relative';
+                            imgWrap.appendChild(layer);
+                            payload.remove(); 
+                        }
+                    });
+                }
+                var timeout;
+                moveBadges();
+                var observer = new MutationObserver(function(mutations) { 
+                    clearTimeout(timeout);
+                    timeout = setTimeout(moveBadges, 100);
+                });
+                var grid = document.querySelector('.products') || document.querySelector('.wc-block-grid') || document.body;
+                if (grid) observer.observe(grid, { childList: true, subtree: true });
+            });";
+
+            // Register a virtual handle for inline script, loaded in footer
+            wp_register_script( 'cirrusly-badges-js', false, array(), false, true );
+            wp_add_inline_script( 'cirrusly-badges-js', $js );
+            wp_enqueue_script( 'cirrusly-badges-js' );
+        }
     }
 
+    /**
+     * Outputs badge markup for the current product on single product pages.
+     *
+     * If a global product is available and badge content is generated, echoes a
+     * wrapper div with the badge markup. The badge HTML is sanitized before output.
+     *
+     * @return void
+     */
     public function render_single_badges() {
         global $product;
         if ( ! $product ) return;
@@ -77,11 +127,10 @@ class Cirrusly_Commerce_Badges {
     }
 
     /**
-     * Outputs a hidden payload container with product badge HTML for grid/list views.
+     * Echoes a hidden container containing badge HTML for the current product used in grid and list views.
      *
-     * If a global product is available and badge HTML exists for it, echoes a
-     * visually hidden <div class="cw-badge-payload"> containing the sanitized badge
-     * markup so frontend scripts can relocate badges into product image areas.
+     * Uses the global $product; does nothing if no product is available. The badge HTML is sanitized
+     * with wp_kses_post before being echoed inside a div.cw-badge-payload with inline display:none.
      */
     public function render_grid_payload() {
         global $product;
@@ -91,53 +140,13 @@ class Cirrusly_Commerce_Badges {
     }
 
     /**
-     * Injects frontend JavaScript that relocates badge payloads into product image containers
-     * and re-applies the placement when product grid content changes.
+     * Generate the HTML markup for badges applicable to the given product.
      *
-     * The script runs on DOMContentLoaded and uses a MutationObserver to handle dynamic
-     * updates (e.g., AJAX-loaded or re-rendered product lists). This method does nothing
-     * in admin contexts.
-     */
-    public function render_badge_script() {
-        // ... (Keep existing JS logic) ...
-        if ( is_admin() ) return;
-        ?>
-        <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            function moveBadges() {
-                var payloads = document.querySelectorAll('.cw-badge-payload');
-                payloads.forEach(function(payload) {
-                    var card = payload.closest('li.product, .wc-block-grid__product, .wp-block-post');
-                    if (!card || card.closest('.woosb-products')) return;
-                    var imgWrap = card.querySelector('.wc-block-grid__product-image, .woocommerce-loop-product__link, .wp-block-post-featured-image');
-                    if ( imgWrap && ! imgWrap.querySelector('.cw-shop-badge-layer') ) {
-                        var layer = document.createElement('div');
-                        layer.className = 'cw-shop-badge-layer';
-                        layer.innerHTML = payload.innerHTML;
-                        imgWrap.style.position = 'relative';
-                        imgWrap.appendChild(layer);
-                        payload.remove(); 
-                    }
-                });
-            }
-            moveBadges();
-            var observer = new MutationObserver(function(mutations) { moveBadges(); });
-            var grid = document.querySelector('.products') || document.querySelector('.wc-block-grid') || document.body;
-            if (grid) observer.observe(grid, { childList: true, subtree: true });
-        });
-        </script>
-        <?php
-    }
-
-    /**
-     * Build HTML markup for all badges that apply to a product.
+     * Produces concatenated badge elements for smart badges (Pro), sale-based discounts,
+     * new-arrival, and custom tag badges when those conditions apply.
      *
-     * Produces a concatenated HTML string containing sale badges (percentage or "Save up to" for variable products),
-     * a "New" badge when the product was created within the configured number of days, and image badges for matching
-     * product_tag-based custom badges. If a Pro extension is active, additional Pro-only smart badges may be included.
-     *
-     * @param \WC_Product|null|false $product The product object to evaluate. If falsy, an empty string is returned.
-     * @return string HTML markup for the product's badges (empty string when no badges apply).
+     * @param \WC_Product|null|false $product The product to evaluate. If falsy, the method returns an empty string.
+     * @return string HTML string containing zero or more badge elements; empty string if no badges apply or the product is invalid.
      */
     private function get_badge_html( $product ) {
         if ( ! $product ) return '';
