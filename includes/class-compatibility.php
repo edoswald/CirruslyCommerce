@@ -6,7 +6,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class Cirrusly_Commerce_Compatibility {
 
-    / **
+    /**
      * Set up filters to integrate Cirrusly product data with supported SEO and product-feed plugins.
      *
      * Registers callbacks that augment product schema, feed elements, and replacement variables for:
@@ -16,7 +16,7 @@ class Cirrusly_Commerce_Compatibility {
      * - All in One SEO (AIOSEO) (schema output) via add_aioseo_schema_data
      * - SEOPress (JSON‑LD product schema) via add_seopress_schema_data
      * - Google Product Feed / Ademti (feed elements) via add_ademti_feed_elements
-     * /
+     */
     public function __construct() {
         // AdTribes (Product Feed PRO) - Already supported
         // FIX: Renamed callback from 'add_woosea_attributes' to avoid prefix flag

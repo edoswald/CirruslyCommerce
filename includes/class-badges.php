@@ -147,7 +147,7 @@ class Cirrusly_Commerce_Badges {
      *
      * @param \WC_Product|null|false $product The product to evaluate. If falsy, the method returns an empty string.
      * @return string HTML string containing zero or more badge elements; empty string if no badges apply or the product is invalid.
-     * /
+     */
     private function get_badge_html( $product ) {
         if ( ! $product ) return '';
         
