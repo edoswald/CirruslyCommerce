@@ -103,7 +103,7 @@ class Cirrusly_Commerce_GMC_UI {
                     $actions .= '<a href="'.esc_url($url).'" class="button button-small">Mark Custom</a>';
                 }
 
-                echo '<tr><td><a href="'.esc_url(get_edit_post_link($p->get_id())).'">'.esc_html($p->get_name()).'</a></td><td>'.$issues.'</td><td>'.$actions.'</td></tr>';
+                echo '<tr><td><a href="'.esc_url(get_edit_post_link($p->get_id())).'">'.esc_html($p->get_name()).'</a></td><td>'.wp_kses_post($issues).'</td><td>'.$actions.'</td></tr>';
             }
             echo '</tbody></table>';
         }

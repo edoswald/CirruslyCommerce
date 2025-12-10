@@ -38,11 +38,9 @@ class Cirrusly_Commerce_Analytics_Pro {
             return;
         }
 
-        // Add filter to inject SRI attributes for Chart.js
-        add_filter( 'script_loader_tag', array( $this, 'add_chartjs_sri_attributes' ), 10, 3 );
-
-        // Load Chart.js from CDN (Specific UMD version for SRI)
-        wp_enqueue_script( 'cc-chartjs', 'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js', array(), '4.4.0', true );
+        // Removed CDN to comply with Plugin Directory guidelines.
+        // Ensure chart.umd.min.js is present in assets/js/vendor/
+        wp_enqueue_script( 'cc-chartjs', CIRRUSLY_COMMERCE_URL . 'assets/js/vendor/chart.umd.min.js', array(), '4.4.0', true );
         
         // Inline CSS for the analytics dashboard
         wp_enqueue_style( 'cc-analytics-styles', false );
@@ -61,23 +59,10 @@ class Cirrusly_Commerce_Analytics_Pro {
 
     /**
      * Filter to add Integrity and Crossorigin attributes to Chart.js.
-     * * @param string $tag    The script tag.
-     * @param string $handle The script handle.
-     * @param string $src    The script source.
-     * @return string Modified script tag.
+     * Deprecated for local files, keeping method stub to prevent fatal errors if hooked elsewhere, 
+     * but returning tag unmodified.
      */
-    public function add_chartjs_sri_attributes( $tag, $handle, $src ) { // phpcs:ignore VariableAnalysis.CodeAnalysis.VariableAnalysis.UnusedVariable
-        if ( 'cc-chartjs' === $handle ) {
-            // SRI Hash for Chart.js v4.4.0 (UMD Minified)
-            // Note: Verify this hash corresponds to the exact file version on jsDelivr.
-            $sri_hash = 'sha384-e6nUZLBkQ86NJ6TVVKAeSaK8jWa3NhkYWZFomE39AvDbQWeie9PlQqM3pmYW5d1g'; 
-            
-            $tag = str_replace( 
-                '<script ', 
-                '<script integrity="' . esc_attr( $sri_hash ) . '" crossorigin="anonymous" ', 
-                $tag 
-            );
-        }
+    public function add_chartjs_sri_attributes( $tag, $handle, $src ) { 
         return $tag;
     }
 
@@ -86,7 +71,7 @@ class Cirrusly_Commerce_Analytics_Pro {
      */
     public function render_analytics_view() {
     if ( ! current_user_can( 'manage_woocommerce' ) ) {
-        wp_die( __( 'You do not have sufficient permissions to access this page.', 'cirrusly-commerce' ) );
+        wp_die( esc_html__( 'You do not have sufficient permissions to access this page.', 'cirrusly-commerce' ) );
     }
 
         if ( class_exists( 'Cirrusly_Commerce_Core' ) ) {
