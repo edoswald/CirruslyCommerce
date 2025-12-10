@@ -126,16 +126,10 @@ class Cirrusly_Commerce_Analytics_Pro {
 
         // 3. Handle Refresh Action
         if ( isset( $_GET['cc_refresh'] ) && check_admin_referer( 'cc_refresh_analytics' ) ) {
-            // We need to bust cache for THIS specific combo of days + statuses
-            // But since get_pnl_data handles key generation, we can just let it run or force delete common ones
-            // Actually, best to just reload page without 'cc_refresh' param, data will re-fetch if cache key changed/expired
-            // Or explicitly delete a wildcard if possible. For now, simple redirect works as cache key includes params.
-            // To be safe, we delete the specific transient if we can reconstruction the key, 
-            // but since we are inside render, we will just rely on standard expiry or a hard key clear if implemented.
-            // Simpler: Just rely on short TTL or unique keys. 
-            // Actually, let's just clear the main one if statuses are default. 
-            // If custom statuses, we might need to rely on the user just waiting or add a clear-all logic.
-            // For now, simple redirect.
+            // Clear analytics transients for common period values
+            global $wpdb;
+            $wpdb->query( "DELETE FROM {$wpdb->options} WHERE option_name LIKE '_transient_cc_analytics_pnl_v4_%' OR option_name LIKE '_transient_timeout_cc_analytics_pnl_v4_%'" );
+            
             wp_redirect( remove_query_arg( array( 'cc_refresh', '_wpnonce' ) ) );
             exit;
         }
@@ -432,14 +426,22 @@ class Cirrusly_Commerce_Analytics_Pro {
         if ( $hpos_enabled ) {
             // HPOS PATH
             $stats['method'] = 'HPOS API';
-            $query_args = array(
-                'limit'        => -1,
+            $page = 1;
+            $per_page = 500;
+            $order_ids = array();
+            do {
+                $query_args = array(
+                'limit'        => $per_page,
+                'page'         => $page,
                 'status'       => $target_statuses,
                 'date_created' => strtotime($start_date_ymd) . '...' . time(), 
                 'type'         => 'shop_order',
                 'return'       => 'ids',
-            );
-            $order_ids = wc_get_orders( $query_args );
+                );
+                $batch = wc_get_orders( $query_args );
+                $order_ids = array_merge( $order_ids, $batch );
+                $page++;
+            } while ( count( $batch ) === $per_page );
 
         } else {
             // LEGACY PATH: Direct SQL
@@ -480,7 +482,9 @@ class Cirrusly_Commerce_Analytics_Pro {
                 $order = wc_get_order( $order_id );
                 if ( ! $order ) continue;
 
-                $order_date = wp_date( 'Y-m-d', $order->get_date_created()->getTimestamp() );
+                $date_created = $order->get_date_created();
+                if ( ! $date_created ) continue;
+                $order_date = wp_date( 'Y-m-d', $date_created->getTimestamp() );
                 
                 // Safety check
                 if ( ! isset( $stats['history'][ $order_date ] ) ) continue;

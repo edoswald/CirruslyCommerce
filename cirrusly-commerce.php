@@ -217,7 +217,7 @@ class Cirrusly_Commerce_Main {
         if ( null !== $old_value && null === $new_value ) {
             update_option( 'cirrusly_enable_cost_of_goods_sold', $old_value );
             delete_option( 'woocommerce_enable_cost_of_goods_sold' );
-        +} elseif ( null === $new_value ) {
+        } elseif ( null === $new_value ) {
             update_option( 'cirrusly_enable_cost_of_goods_sold', 'yes' );
         }
 
