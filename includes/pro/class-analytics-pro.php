@@ -150,7 +150,7 @@ class Cirrusly_Commerce_Analytics_Pro {
         $gmc_history = get_option( 'cirrusly_gmc_history', array() );
 
         // Prepare JSON for JS
-        $perf_history_json = wp_json_encode( $data['history'] );
+        $perf_history_json = wp_json_encode( $data['history'], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT );
         $gmc_history_json  = wp_json_encode( $gmc_history, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT );
         
         $refresh_url = wp_nonce_url( add_query_arg( array( 'cc_refresh' => '1' ) ), 'cc_refresh_analytics' );
