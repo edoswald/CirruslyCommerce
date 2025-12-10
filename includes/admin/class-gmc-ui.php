@@ -742,9 +742,10 @@ class Cirrusly_Commerce_GMC_UI {
                 );
             }
             
+        }
+
             $has_more = ( count( $products ) === $batch_size );
             $paged++;
-        }
 
         return $issues;
     }
