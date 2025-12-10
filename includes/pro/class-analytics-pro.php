@@ -249,11 +249,8 @@ class Cirrusly_Commerce_Analytics_Pro {
      * Engine: Calculate P&L for a period.
      */
     private static function get_pnl_data( $days = 30 ) {
-        $date_query = array(
-            'after'     => wp_date( 'Y-m-d', strtotime( '-' . $days . ' days' ) ),
-            'before'    => wp_date( 'Y-m-d', time() ),
-            'inclusive' => true,
-        );
+        $after_date  = wp_date( 'Y-m-d', strtotime( '-' . $days . ' days' ) );
+        $before_date = wp_date( 'Y-m-d', time() );
 
         // Check cache first
         $cache_key = 'cc_analytics_pnl_' . $days;
@@ -282,10 +279,12 @@ class Cirrusly_Commerce_Analytics_Pro {
 
         while( $page <= $max_pages ) {
             $orders = wc_get_orders( array(
-                'limit'        => 250,
-                'page'         => $page,
-                'status'       => array( 'wc-completed', 'wc-processing' ),
-                'date_created' => $date_query,
+                'limit'       => 250,
+                'page'        => $page,
+                'status'      => array( 'wc-completed', 'wc-processing' ),
+                // REPLACE 'date_created' => $date_query WITH:
+                'date_after'  => $after_date,
+                'date_before' => $before_date,
             ) );
 
             if ( empty( $orders ) ) break;
@@ -360,15 +359,12 @@ class Cirrusly_Commerce_Analytics_Pro {
     if ( class_exists( 'Automattic\WooCommerce\Utilities\OrderUtil' ) 
          && \Automattic\WooCommerce\Utilities\OrderUtil::custom_orders_table_usage_is_enabled() ) {
         // HPOS-compatible approach: use wc_get_orders() and aggregate in PHP
-        $date_query = array(
-            'after'     => wp_date( 'Y-m-d', strtotime( '-30 days' ) ),
-            'inclusive' => true,
-        );
-        
+
         $orders = wc_get_orders( array(
-            'limit'        => -1, // Or paginate if needed
-            'status'       => array( 'wc-completed', 'wc-processing' ),
-            'date_created' => $date_query,
+            'limit'       => -1, 
+            'status'      => array( 'wc-completed', 'wc-processing' ),
+            // REPLACE 'date_created' => $date_query WITH:
+            'date_after'  => wp_date( 'Y-m-d', strtotime( '-30 days' ) ),
         ) );
         
         foreach ( $orders as $order ) {
@@ -431,7 +427,6 @@ class Cirrusly_Commerce_Analytics_Pro {
                 );
             }
         }
-    }
         
     // Sort by urgency
     usort( $risky_items, function($a, $b) {

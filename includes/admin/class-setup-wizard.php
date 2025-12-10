@@ -114,7 +114,7 @@ class Cirrusly_Commerce_Setup_Wizard {
             return;
         }
 
-// Suppress notice if already on the wizard page
+        // Suppress notice if already on the wizard page
         if ( isset( $_GET['page'] ) && 'cirrusly-setup' === $_GET['page'] ) {
             delete_transient( 'cirrusly_upgrade_prompt' );
             return;

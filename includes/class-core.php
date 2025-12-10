@@ -187,12 +187,20 @@ class Cirrusly_Commerce_Core {
         
         $current_page = isset( $_GET['page'] ) ? sanitize_text_field( wp_unslash( $_GET['page'] ) ) : '';
         
+        // Define Base Nav Items
         $nav_items = array(
             'cirrusly-commerce' => 'Dashboard',
-            'cirrusly-gmc'      => 'Compliance Hub',
-            'cirrusly-audit'    => 'Financial Audit',
-            'cirrusly-settings' => 'Settings',
         );
+
+        // Add Analytics for Pro Plus users (inserted second)
+        if ( self::cirrusly_is_pro_plus() ) {
+            $nav_items['cirrusly-analytics'] = 'Analytics';
+        }
+
+        // Add remaining items
+        $nav_items['cirrusly-gmc']   = 'Compliance Hub';
+        $nav_items['cirrusly-audit'] = 'Financial Audit';
+        $nav_items['cirrusly-settings'] = 'Settings';
 
         echo '<div class="cc-global-nav">';
         foreach ( $nav_items as $slug => $label ) {
