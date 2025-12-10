@@ -24,39 +24,49 @@ define( 'CIRRUSLY_COMMERCE_VERSION', '1.4' );
 define( 'CIRRUSLY_COMMERCE_PATH', plugin_dir_path( __FILE__ ) );
 define( 'CIRRUSLY_COMMERCE_URL', plugin_dir_url( __FILE__ ) );
 
-// ... [Keep existing Freemius Integration] ...
-if ( ! function_exists( 'cc_fs' ) ) {
-    // ... [Keep existing cc_fs function code] ...
-    function cc_fs() {
-        global $cc_fs;
-        if ( ! isset( $cc_fs ) ) {
+
+if ( ! function_exists( 'cirrusly_fs' ) ) {
+    // Create a helper function for easy SDK access.
+    function cirrusly_fs() {
+        global $cirrusly_fs;
+
+        if ( ! isset( $cirrusly_fs ) ) {
+            // Include Freemius SDK.
             require_once dirname( __FILE__ ) . '/vendor/freemius/start.php';
-            $cc_fs = fs_dynamic_init( array(
+
+            $cirrusly_fs = fs_dynamic_init( array(
                 'id'                  => '22048',
                 'slug'                => 'cirrusly-commerce',
                 'type'                => 'plugin',
                 'public_key'          => 'pk_34dc77b4bc7764037f0e348daac4a',
                 'is_premium'          => true,
                 'premium_suffix'      => 'Pro',
+                // If your plugin is a serviceware, set this option to false.
                 'has_premium_version' => true,
                 'has_addons'          => false,
                 'has_paid_plans'      => true,
                 'is_org_compliant'    => true,
+                // Automatically removed in the free version. If you're not using the
+                // auto-generated free version, delete this line before uploading to wp.org.
                 'wp_org_gatekeeper'   => 'OA7#BoRiBNqdf52FvzEf!!074aRLPs8fspif$7K1#4u4Csys1fQlCecVcUTOs2mcpeVHi#C2j9d09fOTvbC0HloPT7fFee5WdS3G',
                 'trial'               => array(
                     'days'               => 3,
                     'is_require_payment' => false,
                 ),
                 'menu'                => array(
-                    'slug'           => 'cirrusly-commerce',
+                    'slug'           => 'cirrusly-settings',
                     'contact'        => false,
                     'support'        => false,
                 ),
             ) );
         }
-        return $cc_fs;
+
+        return $cirrusly_fs;
     }
-    cc_fs();
+
+    // Init Freemius.
+    cirrusly_fs();
+    // Signal that SDK was initiated.
     do_action( 'cirrusly_fs_loaded' );
 }
 
