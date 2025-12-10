@@ -1,32 +1,19 @@
 <?php
-
 if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
 class Cirrusly_Commerce_Badges {
 
-    /**
-     * Initialize frontend badge integration and load Pro badge logic when available.
-     *
-     * Registers the 'wp' action to attach frontend hooks and conditionally requires the Pro badges class file if the Pro feature is active and the file exists.
-     */
     public function __construct() {
         add_action( 'wp', array( $this, 'init_frontend_hooks' ) );
         
-        // Load Pro Badges Logic if active
         if ( Cirrusly_Commerce_Core::cirrusly_is_pro() && file_exists( plugin_dir_path( __FILE__ ) . 'pro/class-badges-pro.php' ) ) {
             require_once plugin_dir_path( __FILE__ ) . 'pro/class-badges-pro.php';
         }
     }
-
     /**
      * Register frontend WordPress hooks required to render product badges when badges are enabled.
-     *
-     * Reads the badge configuration and, if badges are enabled, attaches handlers for:
-     * - single product badge rendering,
-     * - shop loop payload insertion,
-     * - and enqueuing the necessary inline scripts and styles (replacing raw output).
      */
     public function init_frontend_hooks() {
         $badge_cfg = get_option( 'cirrusly_badge_config', array() );
@@ -35,26 +22,19 @@ class Cirrusly_Commerce_Badges {
         add_action( 'woocommerce_single_product_summary', array( $this, 'render_single_badges' ), 5 );
         add_action( 'woocommerce_after_shop_loop_item', array( $this, 'render_grid_payload' ), 99 );
         
-        // REPLACED: Raw wp_head/wp_footer output with standard enqueue
+        // Hook to standard enqueue script (not direct head printing)
         add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_frontend_assets' ) );
     }
 
-    /**
-     * Attach critical badge CSS and the frontend badge-relocation JavaScript to WordPress' enqueue system.
-     *
-     * Enqueues inline styles that style product badges (sizes, pill appearance, tooltips, and layout containers)
-     * and registers an inline script that moves hidden badge payloads into product image wrappers on the frontend.
-     * The relocation script is only enqueued on non-admin pages.
+     /* Attach critical badge CSS and the frontend badge-relocation JavaScript to WordPress' enqueue system.
      */
     public function enqueue_frontend_assets() {
-        // 1. Critical CSS
         $badge_cfg = get_option( 'cirrusly_badge_config', array() );
         $size = isset($badge_cfg['badge_size']) ? $badge_cfg['badge_size'] : 'medium';
         $font_size = '12px'; $padding = '4px 8px'; $width = '60px';
         if ( $size === 'small' ) { $font_size = '10px'; $padding = '2px 6px'; $width = '50px'; }
         if ( $size === 'large' ) { $font_size = '14px'; $padding = '6px 10px'; $width = '80px'; }
         
-        // Calculate single page width (1.5x)
         $width_int = intval( $width );
         $single_width = ($width_int * 1.5) . 'px';
 
@@ -70,10 +50,8 @@ class Cirrusly_Commerce_Badges {
         .cw-has-tooltip:hover::after { content: attr(data-tooltip); position: absolute; bottom: 120%; left: 0; background-color: #333; color: #fff; font-size: 10px; font-weight: normal; text-transform: none; white-space: nowrap; padding: 5px 10px; border-radius: 4px; z-index: 9999; box-shadow: 0 2px 6px rgba(0,0,0,0.3); pointer-events: none; }
         .cw-badge-wrap { display: block; line-height: 0; width: fit-content; }";
 
-        // Register a virtual handle to attach inline styles
-        wp_register_style( 'cirrusly-badges-css', false );
-        wp_add_inline_style( 'cirrusly-badges-css', $css );
-        wp_enqueue_style( 'cirrusly-badges-css' );
+        // Attach to the base frontend style handle
+        wp_add_inline_style( 'cirrusly-frontend-base', $css );
 
         // 2. Frontend JS
         if ( ! is_admin() ) {
@@ -104,18 +82,13 @@ class Cirrusly_Commerce_Badges {
                 if (grid) observer.observe(grid, { childList: true, subtree: true });
             });";
 
-            // Register a virtual handle for inline script, loaded in footer
-            wp_register_script( 'cirrusly-badges-js', false, array(), false, true );
-            wp_add_inline_script( 'cirrusly-badges-js', $js );
-            wp_enqueue_script( 'cirrusly-badges-js' );
+            // Attach to the base frontend script handle
+            wp_add_inline_script( 'cirrusly-frontend-base', $js );
         }
     }
 
     /**
      * Outputs badge markup for the current product on single product pages.
-     *
-     * If a global product is available and badge content is generated, echoes a
-     * wrapper div with the badge markup. The badge HTML is sanitized before output.
      *
      * @return void
      */
@@ -128,9 +101,6 @@ class Cirrusly_Commerce_Badges {
 
     /**
      * Echoes a hidden container containing badge HTML for the current product used in grid and list views.
-     *
-     * Uses the global $product; does nothing if no product is available. The badge HTML is sanitized
-     * with wp_kses_post before being echoed inside a div.cw-badge-payload with inline display:none.
      */
     public function render_grid_payload() {
         global $product;
@@ -141,14 +111,9 @@ class Cirrusly_Commerce_Badges {
 
     /**
      * Generate the HTML markup for badges applicable to the given product.
-     *
-     * Produces concatenated badge elements for smart badges (Pro), sale-based discounts,
-     * new-arrival, and custom tag badges when those conditions apply.
-     *
-     * @param \WC_Product|null|false $product The product to evaluate. If falsy, the method returns an empty string.
-     * @return string HTML string containing zero or more badge elements; empty string if no badges apply or the product is invalid.
-     */
+     */    
     private function get_badge_html( $product ) {
+        // [Existing logic unchanged]
         if ( ! $product ) return '';
         
         $badge_cfg = get_option( 'cirrusly_badge_config', array() );
@@ -210,7 +175,7 @@ class Cirrusly_Commerce_Badges {
             }
         }
 
-        // 3. NEW ARRIVAL BADGE (Free Feature)
+        // 3. NEW BADGE (Free Feature)
         if ( $new_days > 0 ) {
             $created_date = $product->get_date_created();
             if ( $created_date ) {
@@ -221,7 +186,7 @@ class Cirrusly_Commerce_Badges {
             }
         }
 
-        // 4. CUSTOM TAG BADGES (Free Feature)
+        // 4. CUSTOM BADGES (Free Feature)   
         if ( ! empty( $custom_badges ) && is_array( $custom_badges ) ) {
             foreach ( $custom_badges as $badge ) {
                 if ( empty($badge['tag']) || empty($badge['url']) ) continue;

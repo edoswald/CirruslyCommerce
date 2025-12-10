@@ -4,7 +4,7 @@ Contributors: edoswald
 Tags: Google Merchant Center, WooCommerce, pricing, MSRP, profit margin
 Requires at least: 5.8 
 Tested up to: 6.9 
-Stable tag: 1.3.3 
+Stable tag: 1.4 
 Requires PHP: 8.1 
 License: GPLv2 or later 
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
@@ -64,6 +64,16 @@ Upgrade to Pro or Pro Plus for added functionality.
 * **Automated Discounts (Pro Plus):** Full integration with Google's "Automated Discounts" program. We validate Google's secure pricing tokens (JWT) to dynamically update the cart price to match the discounted ad price.
 * **Psychological Repricing (Pro Plus):** Automatically round calculated prices to .99, .50, or the nearest 5 to maximize click-through rate (CTR) and conversion.
 
+== External Services ==
+
+This plugin sends data to the Google Platform API to enable Google Customer Reviews surveys for your customers.
+
+* **Service:** Google Platform API (Google Customer Reviews)
+* **Data Transmitted:** Google Merchant Center ID (Merchant ID) and the customer's Order ID.
+* **Trigger Point:** Data is transmitted on the WooCommerce "Order Received" (Thank You) page via the `woocommerce_thankyou` hook.
+* **Privacy Policy:** [Google Privacy Policy](https://policies.google.com/privacy)
+* **Terms of Service:** [Google Terms of Service](https://policies.google.com/terms)
+
 == Installation ==
 
 1.  Upload the plugin files to the `/wp-content/plugins/cirrusly-commerce` directory, or install directly from the WordPress plugins screen.
@@ -98,6 +108,9 @@ Yes. The Pro version allows you to set a "Split Profile" (e.g., 70% Stripe / 30%
 5. **Setup Wizard:** Easy 5-step onboarding to configure fees and API connections.
 
 == Changelog ==
+
+= 1.4 =
+* Extensive refactoring 
 
 = 1.3.3 =
 * **New Feature:** Admin Setup Wizard - Automated onboarding runs on activation with milestone-based prompts.

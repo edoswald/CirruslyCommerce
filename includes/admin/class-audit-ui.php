@@ -247,35 +247,35 @@ class Cirrusly_Commerce_Audit_UI {
         }
 
         if($is_pro) {
-            ?>
-            <script>
+            $nonce = wp_create_nonce("cc_audit_save");
+            $script = "
             jQuery(document).ready(function($){
                 $('.cc-inline-edit').on('blur', function(){
-                    var $el = $(this);
-                    var $row = $el.closest('tr');
-                    var pid = $el.data('pid');
-                    var field = $el.data('field');
-                    var val = $el.text();
-                    $el.css('opacity', '0.5');
+                    var \$el = $(this);
+                    var \$row = \$el.closest('tr');
+                    var pid = \$el.data('pid');
+                    var field = \$el.data('field');
+                    var val = \$el.text();
+                    \$el.css('opacity', '0.5');
 
                     $.post(ajaxurl, {
                         action: 'cc_audit_save',
                         pid: pid,
                         field: field,
                         value: val,
-                        _nonce: '<?php echo esc_js( wp_create_nonce("cc_audit_save") ); ?>'
+                        _nonce: '" . esc_js( $nonce ) . "'
                     }, function(res){
-                        $el.css('opacity', '1');
+                        \$el.css('opacity', '1');
                         if(res.success) {
-                            $el.css('background-color', '#e7f6e7');
-                            setTimeout(function(){ $el.css('background-color', 'transparent'); }, 1500);
+                            \$el.css('background-color', '#e7f6e7');
+                            setTimeout(function(){ \$el.css('background-color', 'transparent'); }, 1500);
                             if(res.data) {
-                                if(res.data.net_html) $row.find('.col-net').html(res.data.net_html);
-                                if(res.data.net_style) $row.find('.col-net').attr('style', res.data.net_style);
-                                if(res.data.margin) $row.find('.col-margin').text(res.data.margin + '%');
+                                if(res.data.net_html) \$row.find('.col-net').html(res.data.net_html);
+                                if(res.data.net_style) \$row.find('.col-net').attr('style', res.data.net_style);
+                                if(res.data.margin) \$row.find('.col-margin').text(res.data.margin + '%');
                             }
                         } else {
-                            $el.css('background-color', '#f8d7da');
+                            \$el.css('background-color', '#f8d7da');
                             alert('Save Failed: ' + (res.data || 'Unknown error'));
                         }
                     });
@@ -287,9 +287,9 @@ class Cirrusly_Commerce_Audit_UI {
                     sel.removeAllRanges();
                     sel.addRange(range);
                 });
-            });
-            </script>
-            <?php
+            });";
+            
+            wp_add_inline_script( 'cirrusly-audit-js', $script );
         }
         echo '</div>'; 
     }
