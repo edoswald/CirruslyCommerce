@@ -67,13 +67,13 @@ class Cirrusly_Commerce_GMC_UI {
         $auto_strip = isset($scan_cfg['auto_strip_banned']) ? 'checked' : '';
 
         // CORE 1: Manual Helper
-        echo '<div class="cc-manual-helper"><h4>Health Check</h4><p>Scans product data for critical Google Merchant Center issues.</p></div>';
+        echo '<div class="cc-manual-helper"><h4>Health Check</h4><p>This audit tool scans your WooCommerce product catalog for common issues that may lead to Google Merchant Center disapprovals or account suspensions. Use this tool to identify and fix potential problems before submitting your product feed to Google.</p></div>';
         
         // CORE 2: Scan Button
         echo '<div style="background:#fff; padding:20px; border-bottom:1px solid #ccc;"><form method="post">';
         wp_nonce_field( 'cirrusly_gmc_scan', 'cc_gmc_scan_nonce' );
         echo '<input type="hidden" name="run_gmc_scan" value="1">';
-        submit_button('Run Diagnostics Scan', 'primary', 'run_scan', false);
+        submit_button('Scan for Issues', 'primary', 'run_scan', false);
         echo '</form></div>';
 
         if ( isset( $_POST['run_gmc_scan'] ) && check_admin_referer( 'cirrusly_gmc_scan', 'cc_gmc_scan_nonce' ) ) {
@@ -82,7 +82,7 @@ class Cirrusly_Commerce_GMC_UI {
             $results     = isset( $scan_result['results'] ) ? $scan_result['results'] : array();
             
             update_option( 'woo_gmc_scan_data', array( 'timestamp' => current_time( 'timestamp' ), 'results' => $results ), false );
-            echo '<div class="notice notice-success inline"><p>Scan Complete.</p></div>';
+            echo '<div class="notice notice-success inline"><p>Scan Completed.</p></div>';
         }
         
         $scan_data = get_option( 'woo_gmc_scan_data' );
@@ -100,7 +100,7 @@ class Cirrusly_Commerce_GMC_UI {
                 $actions = '<a href="'.esc_url(get_edit_post_link($p->get_id())).'" class="button button-small">Edit</a> ';
                 if ( strpos( $issues, 'Missing GTIN' ) !== false ) {
                     $url = wp_nonce_url( admin_url( 'admin-post.php?action=cc_mark_custom&pid=' . $p->get_id() ), 'cc_mark_custom_' . $p->get_id() );
-                    $actions .= '<a href="'.esc_url($url).'" class="button button-small">Mark Custom</a>';
+                    $actions .= '<a href="'.esc_url($url).'" class="button button-small">Mark as Custom</a>';
                 }
 
                 echo '<tr><td><a href="'.esc_url(get_edit_post_link($p->get_id())).'">'.esc_html($p->get_name()).'</a></td><td>'.wp_kses_post($issues).'</td><td>'.$actions.'</td></tr>';
@@ -655,9 +655,9 @@ class Cirrusly_Commerce_GMC_UI {
             echo '<div class="notice notice-error is-dismissible"><p><strong>Cirrusly Commerce Alert:</strong> ' . esc_html( $msg ) . '</p></div>';
             delete_transient( 'cc_gmc_blocked_save_' . get_current_user_id() );
         }
-    }
+    }   
 
-/**
+    /**
      * Scans site content (pages and products) for restricted terms defined in Google Merchant Center core.
      * * @return array List of content pieces with found restricted terms.
      */
