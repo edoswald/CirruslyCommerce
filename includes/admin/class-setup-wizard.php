@@ -239,7 +239,11 @@ class Cirrusly_Commerce_Setup_Wizard {
     }
 
     /**
-     * STEP 1: License & Edition Selection
+     * Render the first setup wizard step that presents license/edition choices and upgrade actions.
+     *
+     * Displays the current license state when a premium license is active and provides navigation
+     * to continue configuration. For users on the free plan, presents Free, Pro, and Pro Plus
+     * edition options with feature summaries and actions to start trials or continue with the free plan.
      */
     private function render_step_license() {
         $is_pro = function_exists('cc_fs') && cc_fs()->can_use_premium_code();
@@ -311,9 +315,17 @@ class Cirrusly_Commerce_Setup_Wizard {
         <?php
     }
 
-    /**
-     * STEP 2: Connect (GMC)
-     */
+    / **
+         * Render the "Connect Google Merchant Center" wizard step HTML.
+         *
+         * Outputs the step 2 form for entering a Merchant ID, shows a success notice if a
+         * service-account upload was completed, and — for Pro users — renders a file input
+         * for uploading a Service Account JSON. If an upload-success transient is present
+         * it will be cleared.
+         *
+         * The method reads and echoes stored option values and transient state; it does not
+         * return a value.
+         */
     private function render_step_connect() {
         $gcr = get_option( 'cirrusly_google_reviews_config', array() );
         $val = isset( $gcr['merchant_id'] ) ? $gcr['merchant_id'] : '';
@@ -354,7 +366,15 @@ class Cirrusly_Commerce_Setup_Wizard {
     }
 
     /**
-     * STEP 3: Finance
+     * Renders the "Finance" step of the setup wizard, outputting the form fields for payment fees,
+     * shipping defaults, and (for Pro users) multi-profile payment mode.
+     *
+     * Reads the `cirrusly_shipping_config` option to pre-fill:
+     * - `payment_pct` (defaults to 2.9)
+     * - `payment_flat` (defaults to 0.30)
+     * - `class_costs_json` → `default` shipping cost (defaults to 10.00)
+     *
+     * The function emits HTML form controls and does not return a value.
      */
     private function render_step_finance() {
         $conf = get_option( 'cirrusly_shipping_config', array() );

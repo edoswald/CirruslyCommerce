@@ -50,6 +50,11 @@ class Cirrusly_Commerce_Pricing_UI {
         }
     }
 
+    /**
+     * Render pricing-related admin fields for a simple product.
+     *
+     * Outputs inputs for Google Min Price, MAP, MSRP, Shipping Cost, and Sale Timer End, then renders the pricing toolbar.
+     */
     public function pe_render_simple_fields() {
         global $product_object;
         $ship = $product_object->get_meta( '_cw_est_shipping' );
@@ -80,12 +85,15 @@ class Cirrusly_Commerce_Pricing_UI {
     }
 
     /**
-     * Render pricing fields for variable products.
+     * Render pricing-related input fields for a single product variation in the admin UI.
      *
-     * @param int    $loop           Loop index.
-     * @param array  $variation_data Variation data (unused, required by hook).
-     * @param object $variation      Variation post object.
-    */
+     * Outputs inputs for Google Min Price, MAP, MSRP, and Shipping Cost for the specified variation
+     * and renders the pricing toolbar.
+     *
+     * @param int   $loop           Variation index used to name input fields.
+     * @param array $variation_data Variation data (unused; required by the WooCommerce hook).
+     * @param object $variation     Variation post object (WP_Post) for which fields are rendered.
+     */
     public function pe_render_variable_fields( $loop, $variation_data, $variation ) {
         $ship = get_post_meta( $variation->ID, '_cw_est_shipping', true );
         $map  = get_post_meta( $variation->ID, '_cirrusly_map_price', true ); 
@@ -102,6 +110,13 @@ class Cirrusly_Commerce_Pricing_UI {
         echo '</div>';
     }
 
+    /**
+     * Render the pricing engine toolbar in the product admin UI.
+     *
+     * Outputs HTML controls for selecting sale pricing strategy, sale rounding,
+     * and regular price strategy, plus a profit and margin display area and a
+     * shipping matrix placeholder.
+     */
     private function pe_render_toolbar() {
         ?>
         <div class="cw-tools-row" style="margin-top:10px;">

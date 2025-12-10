@@ -5,12 +5,29 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class Cirrusly_Commerce_Help {
 
+    /**
+     * Register the admin-side hooks required for the help center UI and bug report handling.
+     *
+     * Attaches:
+     * - 'admin_enqueue_scripts' → enqueue_script to inject the help center scripts.
+     * - 'admin_footer' → render_modal to render the help center modal markup.
+     * - 'wp_ajax_cc_submit_bug_report' → handle_bug_submission to process AJAX bug reports.
+     */
     public static function init() {
         add_action( 'admin_enqueue_scripts', array( __CLASS__, 'enqueue_script' ) );
         add_action( 'admin_footer', array( __CLASS__, 'render_modal' ) );
         add_action( 'wp_ajax_cc_submit_bug_report', array( __CLASS__, 'handle_bug_submission' ) );
     }
 
+    /**
+     * Enqueues inline admin JavaScript that initializes the Cirrusly Help Center UI on Cirrusly admin pages.
+     *
+     * The script is attached to the 'cirrusly-admin-base-js' handle and provides modal open/close behavior,
+     * view switching between main and bug-report form, system-info copying, and AJAX submission for the bug report form.
+     *
+     * @param string $hook The current admin page hook suffix; the inline script is added only when the `page` query
+     *                     parameter contains the substring 'cirrusly-'.
+     */
     public static function enqueue_script( $hook ) {
         if ( ! isset( $_GET['page'] ) || strpos( $_GET['page'], 'cirrusly-' ) === false ) {
             return;
@@ -65,11 +82,24 @@ class Cirrusly_Commerce_Help {
         });' );
     }
 
-    // ... [Keep render_button, render_modal, handle_bug_submission, get_system_info, render_system_info] ...
+    / **
+     * Outputs the Help Center button into the admin interface.
+     *
+     * The button is rendered as an anchor element with id "cc-open-help-center",
+     * classes "button button-secondary", and includes the help dashicon. It is
+     * intended to act as the trigger for opening the Help Center modal.
+     */
     public static function render_button() {
         echo '<a href="#" id="cc-open-help-center" class="button button-secondary"><span class="dashicons dashicons-editor-help" style="vertical-align:middle;margin-top:2px;"></span> Help Center</a>';
     }
 
+    /**
+     * Outputs the Help Center modal and backdrop HTML for Cirrusly admin pages.
+     *
+     * Renders a modal with a documentation link, support mailto, system health log (populated from get_system_info()),
+     * and a bug report form (prefilled with the current user's email). The modal is only printed when the current
+     * admin page query parameter `page` contains `cirrusly-`.
+     */
     public static function render_modal() {
         if ( ! isset( $_GET['page'] ) || strpos( $_GET['page'], 'cirrusly-' ) === false ) {
             return;
@@ -137,6 +167,13 @@ class Cirrusly_Commerce_Help {
         <?php
     }
 
+    /**
+     * Process an AJAX bug report submission, validate and sanitize input, and send a formatted email to support.
+     *
+     * Verifies the request nonce and current user's capabilities, validates the reporter's email, ensures the mailer
+     * dependency is available, and sends an HTML email to help@cirruslyweather.com containing the user-provided
+     * subject, message, and system information. Responses are returned to the AJAX caller as JSON success or error messages.
+     */
     public static function handle_bug_submission() {
         if ( ! isset( $_POST['security'] ) || ! wp_verify_nonce(sanitize_text_field( wp_unslash( $_POST['security'] ) ), 'cc_bug_report_nonce' ) ) {
             wp_send_json_error( 'Security check failed. Please refresh the page.' );
@@ -173,6 +210,15 @@ class Cirrusly_Commerce_Help {
         }
     }
 
+    /**
+     * Build a plain-text summary of the current site and environment.
+     *
+     * The returned text includes site URL, WordPress version, WooCommerce version (or "Not Installed"),
+     * Cirrusly Commerce version (or "Unknown"), PHP version, server software, and a newline-separated list
+     * of active plugin file paths.
+     *
+     * @return string A multiline plain-text system information block suitable for inclusion in bug reports.
+     */
     public static function get_system_info() {
         global $wp_version;
         $out  = "### System Info ###\n";
@@ -189,6 +235,11 @@ class Cirrusly_Commerce_Help {
         return $out;
     }
 
+    /**
+     * Outputs the site's system information as escaped plain text for display in the admin UI.
+     *
+     * The output is escaped for safe HTML rendering.
+     */
     public static function render_system_info() {
         echo esc_html( self::get_system_info() );
     }

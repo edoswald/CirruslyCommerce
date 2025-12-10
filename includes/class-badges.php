@@ -5,6 +5,12 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class Cirrusly_Commerce_Badges {
 
+    /**
+     * Initialize the badges subsystem: register frontend initialization hooks and load the Pro extension when available.
+     *
+     * Registers an action on the 'wp' hook to set up frontend badge hooks, and conditionally requires the Pro badges class file
+     * if the Pro feature is active and the pro class file exists.
+     */
     public function __construct() {
         add_action( 'wp', array( $this, 'init_frontend_hooks' ) );
         
@@ -13,7 +19,9 @@ class Cirrusly_Commerce_Badges {
         }
     }
     /**
-     * Register frontend WordPress hooks required to render product badges when badges are enabled.
+     * Register frontend WordPress hooks to render product badges and enqueue their assets when badges are enabled.
+     *
+     * Does nothing if badges are not enabled in the 'cirrusly_badge_config' option.
      */
     public function init_frontend_hooks() {
         $badge_cfg = get_option( 'cirrusly_badge_config', array() );
@@ -26,7 +34,12 @@ class Cirrusly_Commerce_Badges {
         add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_frontend_assets' ) );
     }
 
-     /* Attach critical badge CSS and the frontend badge-relocation JavaScript to WordPress' enqueue system.
+     /**
+     * Attach badge styling and frontend badge-relocation script to the theme's base assets.
+     *
+     * Reads badge configuration to determine sizing, injects critical CSS to style custom badges
+     * and hide default sale badges, and (on non-admin pages) injects a small script that moves
+     * hidden badge payloads into product image wrappers and keeps them positioned when the grid changes.
      */
     public function enqueue_frontend_assets() {
         $badge_cfg = get_option( 'cirrusly_badge_config', array() );
@@ -88,9 +101,10 @@ class Cirrusly_Commerce_Badges {
     }
 
     /**
-     * Outputs badge markup for the current product on single product pages.
+     * Render badge markup for the current product on single product pages.
      *
-     * @return void
+     * Echoes sanitized badge HTML wrapped in a `.cw-badge-container.cw-single-page`
+     * element when a global `$product` is available and badges are present.
      */
     public function render_single_badges() {
         global $product;
@@ -100,7 +114,10 @@ class Cirrusly_Commerce_Badges {
     }
 
     /**
-     * Echoes a hidden container containing badge HTML for the current product used in grid and list views.
+     * Output a hidden container with badge HTML for the current product used in grid and list views.
+     *
+     * Uses the global $product; if no product or no badge HTML is available nothing is output.
+     * When present, echoes a hidden <div class="cw-badge-payload"> containing the badge HTML (sanitized for safe output).
      */
     public function render_grid_payload() {
         global $product;
@@ -110,7 +127,15 @@ class Cirrusly_Commerce_Badges {
     }
 
     /**
-     * Generate the HTML markup for badges applicable to the given product.
+     * Builds HTML markup for all badges applicable to a given WooCommerce product.
+     *
+     * This includes sale percentage badges (calculated from MSRP or regular price),
+     * a "New" badge for recently created products, custom image badges tied to
+     * product tags, and additional "smart" badges provided by the Pro extension
+     * when available.
+     *
+     * @param WC_Product|null $product The product to evaluate. If null or invalid, an empty string is returned.
+     * @return string The concatenated HTML markup for all badges applicable to the product, or an empty string if none. 
      */    
     private function get_badge_html( $product ) {
         // [Existing logic unchanged]
