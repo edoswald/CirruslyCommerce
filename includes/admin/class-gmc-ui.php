@@ -22,8 +22,8 @@ class Cirrusly_Commerce_GMC_UI {
         // Only enqueue promotions JS if on the promotions tab
         $tab = isset( $_GET['tab'] ) ? sanitize_text_field( wp_unslash( $_GET['tab'] ) ) : 'scan';
         if ( 'promotions' === $tab ) {
-            $nonce_list = wp_create_nonce("cc_promo_api_list");
-            $nonce_submit = wp_create_nonce("cc_promo_api_submit");
+            $nonce_list = esc_js( wp_create_nonce("cc_promo_api_list") );
+            $nonce_submit = esc_js( wp_create_nonce("cc_promo_api_submit") );
 
             // We attach this to the base admin JS handle created in class-admin-assets.php
             $script = "
