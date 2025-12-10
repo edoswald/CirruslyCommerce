@@ -38,16 +38,16 @@ class Cirrusly_Commerce_Automated_Discounts {
     public function render_settings_field() {
         $scan_cfg = get_option('cirrusly_scan_config', array());
         $checked = isset( $scan_cfg['enable_automated_discounts'] ) && $scan_cfg['enable_automated_discounts'] === 'yes';
-        $merchant_id = isset($scan_cfg['merchant_id']) ? esc_attr($scan_cfg['merchant_id']) : '';
-        $public_key = isset($scan_cfg['google_public_key']) ? esc_textarea($scan_cfg['google_public_key']) : '';
+        $merchant_id = isset($scan_cfg['merchant_id']) ? $scan_cfg['merchant_id'] : '';
+        $public_key = isset($scan_cfg['google_public_key']) ? $scan_cfg['google_public_key'] : '';
         ?>
         <div class="cirrusly-ad-settings" style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #c3c4c7;">
             <h4 style="margin: 0 0 10px 0;">Google Automated Discounts</h4>
             <label><input type="checkbox" name="cirrusly_scan_config[enable_automated_discounts]" value="yes" <?php checked( $checked ); ?>> <strong>Enable Dynamic Pricing</strong></label>
             <p class="description">Allows Google to dynamically lower prices via Shopping Ads. Requires Cost of Goods and Google Min Price.</p>
             <div class="cirrusly-ad-fields" style="margin-left: 25px; background: #fff; padding: 15px; border: 1px solid #c3c4c7; border-radius:4px;">
-                <p><label><strong>Merchant ID</strong></label><br><input type="text" name="cirrusly_scan_config[merchant_id]" value="<?php echo $merchant_id; ?>" class="regular-text"></p>
-                <p><label><strong>Google Public Key (PEM)</strong></label><br><textarea name="cirrusly_scan_config[google_public_key]" rows="5" class="large-text code"><?php echo $public_key; ?></textarea></p>
+                <p><label><strong>Merchant ID</strong></label><br><input type="text" name="cirrusly_scan_config[merchant_id]" value="<?php echo esc_attr( $merchant_id ); ?>" class="regular-text"></p>
+                <p><label><strong>Google Public Key (PEM)</strong></label><br><textarea name="cirrusly_scan_config[google_public_key]" rows="5" class="large-text code"><?php echo esc_textarea( $public_key ); ?></textarea></p>
             </div>
         </div>
         <?php
@@ -232,7 +232,7 @@ class Cirrusly_Commerce_Automated_Discounts {
             $session_data = (array) WC()->session->get_session_data();
             foreach ( $session_data as $key => $data ) {
                 if ( strpos( $key, self::SESSION_KEY_PREFIX ) === 0 ) {
-+                    $data = maybe_unserialize( $data );
+                    $data = maybe_unserialize( $data );
 
                     if ( isset( $data['exp'] ) && $data['exp'] > time() ) {
                         nocache_headers();

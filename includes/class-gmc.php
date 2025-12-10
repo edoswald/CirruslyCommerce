@@ -101,10 +101,9 @@ class Cirrusly_Commerce_GMC {
         } 
         
         $post_id = $product->get_id();
-        // FIX: Replaced insecure $_REQUEST usage with $_POST
-        if ( isset( $_POST['gmc_is_custom_product'] ) ) {
+        if ( isset( $_REQUEST['gmc_is_custom_product'] ) ) {
             update_post_meta( $post_id, '_gla_identifier_exists', 'no' );
-        } elseif ( isset( $_POST['woocommerce_quick_edit'] ) && ! isset( $_POST['bulk_edit'] ) ) {
+        } elseif ( isset( $_REQUEST['woocommerce_quick_edit'] ) && ! isset( $_REQUEST['bulk_edit'] ) ) {
             update_post_meta( $post_id, '_gla_identifier_exists', 'yes' );
         }
         delete_transient( 'cirrusly_active_promos_stats' );
@@ -131,26 +130,26 @@ class Cirrusly_Commerce_GMC {
     public static function get_monitored_terms() {
         return array(
             'promotional' => array(
-                'free shipping' => array('severity' => 'Medium', 'scope' => 'title', 'reason' => __( 'Allowed in descriptions, but prohibited in titles.', 'cirrusly-commerce' )),
-                'sale'          => array('severity' => 'Medium', 'scope' => 'title', 'reason' => __( 'Prohibited in titles. Use "Sale Price".', 'cirrusly-commerce' )),
-                'buy one'       => array('severity' => 'Medium', 'scope' => 'title', 'reason' => __( 'Promotional text.', 'cirrusly-commerce' )),
-                'best price'    => array('severity' => 'High',   'scope' => 'title', 'reason' => __( 'Subjective claim (Misrepresentation).', 'cirrusly-commerce' )),
-                'cheapest'      => array('severity' => 'High',   'scope' => 'title', 'reason' => __( 'Subjective claim.', 'cirrusly-commerce' )),
+                'free shipping' => array('severity' => 'Medium', 'scope' => 'title', 'reason' => 'Allowed in descriptions, but prohibited in titles.'),
+                'sale'          => array('severity' => 'Medium', 'scope' => 'title', 'reason' => 'Prohibited in titles. Use "Sale Price".'),
+                'buy one'       => array('severity' => 'Medium', 'scope' => 'title', 'reason' => 'Promotional text.'),
+                'best price'    => array('severity' => 'High',   'scope' => 'title', 'reason' => 'Subjective claim (Misrepresentation).'),
+                'cheapest'      => array('severity' => 'High',   'scope' => 'title', 'reason' => 'Subjective claim.'),
             ),
             'medical' => array( 
-                'cure'        => array('severity' => 'Critical', 'scope' => 'all', 'reason' => __( 'Medical claim (Prohibited).', 'cirrusly-commerce' )),
-                'heal'        => array('severity' => 'Critical', 'scope' => 'all', 'reason' => __( 'Medical claim implying permanent fix.', 'cirrusly-commerce' )),
-                'virus'       => array('severity' => 'Critical', 'scope' => 'all', 'reason' => __( 'Prohibited sensitive event claim.', 'cirrusly-commerce' )),
-                'covid'       => array('severity' => 'Critical', 'scope' => 'all', 'reason' => __( 'Sensitive event.', 'cirrusly-commerce' )),
-                'guaranteed'  => array('severity' => 'Medium',   'scope' => 'all', 'reason' => __( 'Must have linked policy.', 'cirrusly-commerce' ))
+                'cure'        => array('severity' => 'Critical', 'scope' => 'all', 'reason' => 'Medical claim (Prohibited).'),
+                'heal'        => array('severity' => 'Critical', 'scope' => 'all', 'reason' => 'Medical claim implying permanent fix.'),
+                'virus'       => array('severity' => 'Critical', 'scope' => 'all', 'reason' => 'Prohibited sensitive event claim.'),
+                'covid'       => array('severity' => 'Critical', 'scope' => 'all', 'reason' => 'Sensitive event.'),
+                'guaranteed'  => array('severity' => 'Medium',   'scope' => 'all', 'reason' => 'Must have linked policy.')
             ),
             'misrepresentation' => array(
-                'miracle'       => array('severity' => 'Critical', 'scope' => 'all', 'reason' => __( 'Unrealistic claim (Misrepresentation).', 'cirrusly-commerce' )),
-                'magic'         => array('severity' => 'High',     'scope' => 'all', 'reason' => __( 'Unrealistic claim unless referring to a game/trick.', 'cirrusly-commerce' )),
-                'fda approved'  => array('severity' => 'Critical', 'scope' => 'all', 'reason' => __( 'False affiliation. Verification required.', 'cirrusly-commerce' )),
-                'cdc'           => array('severity' => 'Critical', 'scope' => 'all', 'reason' => __( 'Government affiliation implied.', 'cirrusly-commerce' )),
-                'who'           => array('severity' => 'Critical', 'scope' => 'all', 'reason' => __( 'International body affiliation implied.', 'cirrusly-commerce' )),
-                'instant weight loss' => array('severity' => 'Critical', 'scope' => 'all', 'reason' => __( 'Prohibited weight loss claim.', 'cirrusly-commerce' ))
+                'miracle'       => array('severity' => 'Critical', 'scope' => 'all', 'reason' => 'Unrealistic claim (Misrepresentation).'),
+                'magic'         => array('severity' => 'High',     'scope' => 'all', 'reason' => 'Unrealistic claim unless referring to a game/trick.'),
+                'fda approved'  => array('severity' => 'Critical', 'scope' => 'all', 'reason' => 'False affiliation. Verification required.'),
+                'cdc'           => array('severity' => 'Critical', 'scope' => 'all', 'reason' => 'Government affiliation implied.'),
+                'who'           => array('severity' => 'Critical', 'scope' => 'all', 'reason' => 'International body affiliation implied.'),
+                'instant weight loss' => array('severity' => 'Critical', 'scope' => 'all', 'reason' => 'Prohibited weight loss claim.')
             )
         );
     }
@@ -165,36 +164,24 @@ class Cirrusly_Commerce_GMC {
     private static function get_issue_signature( $issue ) {
         $msg = isset( $issue['msg'] ) ? $issue['msg'] : '';
         
-        // Documentation: Strip "[Google API]" prefix to ensure apples-to-apples comparison of the core message.
-        //  Normalize text first, then strip prefix for case-insensitive matching
         $norm = strtolower( trim( $msg ) );
         $norm = str_replace( '[google api]', '', $norm );
         
-        // Additional normalization: collapse multiple spaces, remove common punctuation
         $norm = preg_replace( '/\s+/', ' ', $norm );
         $norm = trim( preg_replace( '/[.!?,;:]+/', '', $norm ) );     
        
-        // Documentation: Normalize specific "Missing Identifier" errors.
-        // Google often says "Limited performance due to missing value [gtin]" or "Identifier exists".
-        // Local validation says "Missing SKU (Identifier)".
-        // These are semantically identical for the user's purpose.
         if ( strpos( $norm, 'missing sku' ) !== false || strpos( $norm, 'missing identifier' ) !== false || strpos( $norm, 'identifier exists' ) !== false ) {
             return 'missing_identifier';
         }
         
-        // Equivalence: "Missing Image" (Local) vs "Missing value [image link]" (Google)
         if ( strpos( $norm, 'missing image' ) !== false ) {
             return 'missing_image';
         }
         
-        // Equivalence: "Missing Price" (Local) vs "Missing value [price]" (Google)
         if ( strpos( $norm, 'missing price' ) !== false ) {
             return 'missing_price';
         }
         
-        // Edge Case: Restricted Terms
-        // We cannot just return 'restricted_term' because a product might have two DIFFERENT violations (e.g., "Covid" and "Magic").
-        // We attempt to extract the specific term in quotes to create a specific signature.
         if ( strpos( $norm, 'restricted term' ) !== false ) {
             if ( preg_match( '/"([^"]+)"/', $norm, $m ) ) {
                 return 'restricted_term_' . $m[1];
@@ -202,7 +189,6 @@ class Cirrusly_Commerce_GMC {
             return 'restricted_term_general';
         }
 
-        // Fallback: Hash the normalized string for exact matches on unmapped issues.
         return md5( $norm );
     }
 
@@ -211,18 +197,15 @@ class Cirrusly_Commerce_GMC {
      * Uses strict regex boundaries and optionally calls Pro NLP analysis.
      */
     public static function run_gmc_scan_logic( $batch_size = 100, $paged = 1 ) {
-        // Allow cron/CLI contexts, but require capability for interactive requests.
         if ( ! wp_doing_cron() && ! ( defined( 'WP_CLI' ) && WP_CLI ) && ! current_user_can( 'edit_products' ) ) {
             return array();
         }
 
-        // Normalize paging parameters to safe integers.
         $batch_size = max( 1, (int) $batch_size );
         $paged      = max( 1, (int) $paged );
 
         $results = array();
         
-        // 1. Fetch Pro Statuses (Real data from Google)
         $google_issues = array();
         if ( class_exists( 'Cirrusly_Commerce_Core' ) && 
              Cirrusly_Commerce_Core::cirrusly_is_pro() && 
@@ -230,7 +213,6 @@ class Cirrusly_Commerce_GMC {
             $google_issues = Cirrusly_Commerce_GMC_Pro::fetch_google_real_statuses();
         }
 
-        // 2. Scan Local Products
         $args = array(
             'post_type'      => 'product',
             'posts_per_page' => $batch_size,
@@ -240,7 +222,6 @@ class Cirrusly_Commerce_GMC {
         );
         $products = get_posts( $args );
 
-        // Load rules once
         $monitored_terms = self::get_monitored_terms();
 
         foreach ( $products as $pid ) {
@@ -248,38 +229,32 @@ class Cirrusly_Commerce_GMC {
             $p = wc_get_product( $pid );
             if ( ! $p ) continue;
 
-            // --- METADATA CHECKS ---
             $is_custom = get_post_meta( $pid, '_gla_identifier_exists', true );
             
-            // CHECK: GTIN / MPN Existence
             if ( 'no' !== $is_custom && ! $p->get_sku() ) {
                 $product_issues[] = array(
                     'type' => 'warning',
-                    'msg'  => __( 'Missing SKU (Identifier)', 'cirrusly-commerce' ),
-                    'reason' => __( 'Products generally require unique identifiers.', 'cirrusly-commerce' )
+                    'msg'  => 'Missing SKU (Identifier)',
+                    'reason' => 'Products generally require unique identifiers.'
                 );
             }
             
-            // CHECK: Missing Image
             if ( ! $p->get_image_id() ) {
                 $product_issues[] = array(
                     'type' => 'critical',
-                    'msg'  => __( 'Missing Image', 'cirrusly-commerce' ),
-                    'reason' => __( 'Google requires an image URL.', 'cirrusly-commerce' )
+                    'msg'  => 'Missing Image',
+                    'reason' => 'Google requires an image URL.'
                 );
             }
 
-            // CHECK: Price
             if ( '' === $p->get_price() ) {
                 $product_issues[] = array(
                     'type' => 'critical',
-                    'msg'  => __( 'Missing Price', 'cirrusly-commerce' ),
-                    'reason' => __( 'Price is mandatory.', 'cirrusly-commerce' )
+                    'msg'  => 'Missing Price',
+                    'reason' => 'Price is mandatory.'
                 );
             }
 
-            // --- CONTENT POLICY CHECKS (Local) ---
-            // Prepare text content: Clean, lowercase, and tag-stripped
             $title_raw   = $p->get_name();
             $desc_raw    = $p->get_description() . ' ' . $p->get_short_description();
             $title_clean = strtolower( wp_strip_all_tags( $title_raw ) );
@@ -287,17 +262,13 @@ class Cirrusly_Commerce_GMC {
 
             foreach ( $monitored_terms as $category => $terms ) {
                 foreach ( $terms as $word => $rule ) {
-                    // Use \b and 'u' modifier for robust word boundary detection
-                    // preg_quote ensures special chars in terms don't break regex
                     $pattern = '/\b' . preg_quote( $word, '/' ) . '\b/iu';
                     $found   = false;
 
-                    // Check Title
                     if ( preg_match( $pattern, $title_clean ) ) {
                         $found = true;
                     }
 
-                    // Check Description (if scope is 'all')
                     if ( ! $found && isset( $rule['scope'] ) && 'all' === $rule['scope'] ) {
                         if ( preg_match( $pattern, $desc_clean ) ) {
                             $found = true;
@@ -307,51 +278,40 @@ class Cirrusly_Commerce_GMC {
                     if ( $found ) {
                         $product_issues[] = array(
                             'type'   => ( isset($rule['severity']) && 'Critical' === $rule['severity'] ) ? 'critical' : 'warning',
-                            'msg'    => sprintf( __( 'Restricted Term (%s): "%s"', 'cirrusly-commerce' ), ucfirst($category), ucfirst($word) ),
-                            'reason' => isset($rule['reason']) ? $rule['reason'] : __( 'Potential policy violation.', 'cirrusly-commerce' )
+                            'msg'    => sprintf( 
+                                /* translators: 1: The violation category (e.g. Medical), 2: The restricted word found */
+                                __( 'Restricted Term (%1$s): "%2$s"', 'cirrusly-commerce' ), 
+                                ucfirst($category), 
+                                ucfirst($word) 
+                            ),
+                            'reason' => isset($rule['reason']) ? $rule['reason'] : 'Potential policy violation.'
                         );
                     }
                 }
             }
             
-            // --- ADVANCED NLP & EDITORIAL CHECK (Pro Plus Only) ---
-            // Checks for Editorial Standards (Caps, Punctuation) and NLP Misrepresentation
             if ( Cirrusly_Commerce_Core::cirrusly_is_pro_plus() && 
                  class_exists( 'Cirrusly_Commerce_GMC_Pro' ) && 
                  method_exists( 'Cirrusly_Commerce_GMC_Pro', 'scan_product_with_nlp' ) ) {
                  
                 $nlp_issues = Cirrusly_Commerce_GMC_Pro::scan_product_with_nlp( $p, $product_issues );
                 if ( ! empty( $nlp_issues ) ) {
-                    // Verification: NLP issues are merged BEFORE deduplication. 
-                    // They will be treated as "Local" issues and will trump any generic API error if a collision occurs.
                     $product_issues = array_merge( $product_issues, $nlp_issues );
                 }
             }
 
-            // --- DEDUPLICATION PREP (Local Signatures) ---
-            // Documentation: 
-            // 1. Gathers signatures for Basic Local Checks AND Pro NLP Checks.
-            // 2. Used to filter incoming Google API issues.
             $local_signatures = array();
             foreach ( $product_issues as $local_issue ) {
                 $local_signatures[] = self::get_issue_signature( $local_issue );
             }
 
-            // --- MERGE GOOGLE API ISSUES ---
-            // Verification Cross-Compatibility:
-            // - Pro Inactive: $google_issues is empty. Loop skipped. No impact on Free/Local scan.
-            // - Pro Active: Duplicates are identified via signature and skipped.
-            // - NLP: NLP issues are already in $local_signatures, so they are protected from being overwritten.
             if ( isset( $google_issues[ $pid ] ) ) {
                 foreach ( $google_issues[ $pid ] as $g_issue ) {
                     $g_sig = self::get_issue_signature( $g_issue );
                     
-                    // Logic: Only add if not found in local signatures.
-                    // This prioritizes local advice (which is often more specific/actionable) over generic API errors.
                     if ( ! in_array( $g_sig, $local_signatures, true ) ) {
                         $product_issues[] = $g_issue;
                     } else {
-                        // Debug Logging for duplicates
                         if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
                             error_log( sprintf( 'Cirrusly GMC: Duplicate issue skipped. PID: %d, Sig: %s, Source: Google API', $pid, $g_sig ) );
                         }

@@ -250,8 +250,11 @@ class Cirrusly_Commerce_Setup_Wizard {
             echo '<div style="text-align:center; padding: 40px;">
                 <span class="dashicons dashicons-yes-alt" style="font-size:60px; height:60px; width:60px; color:#008a20;"></span>
                 <h3>' . esc_html__( 'Premium License Active!', 'cirrusly-commerce' ) . '</h3>
-                <p>' . sprintf( esc_html__( 'You have unlocked %s features.', 'cirrusly-commerce' ), ($is_plus ? '<strong>' . esc_html__('Pro Plus', 'cirrusly-commerce') . '</strong>' : '<strong>' . esc_html__('Pro', 'cirrusly-commerce') . '</strong>') ) . '</p>
-                <div class="cc-wizard-footer">
+                <p>' . sprintf( 
+                    /* translators: %s: plan name (Pro or Pro Plus) */
+                    esc_html__( 'You have unlocked %s features.', 'cirrusly-commerce' ), 
+                    '<strong>' . ($is_plus ? esc_html__('Pro Plus', 'cirrusly-commerce') : esc_html__('Pro', 'cirrusly-commerce')) . '</strong>'
+                ) . '</p>                <div class="cc-wizard-footer">
                     <button type="submit" name="save_step" class="button button-primary button-hero">' . esc_html__( 'Let\'s Configure &rarr;', 'cirrusly-commerce' ) . '</button>
                 </div>
             </div>';

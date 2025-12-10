@@ -142,7 +142,7 @@ class Cirrusly_Commerce_Help {
                         <button type="button" class="button button-small" onclick="var copyText = document.getElementById('cc-sys-info-text');navigator.clipboard.writeText(copyText.value).then(function(){alert('Copied to clipboard!');}).catch(function(){copyText.select();document.execCommand('copy');alert('Copied to clipboard!');});">Copy Log</button>
                     </h4>
                     <p style="color:#666; font-size:12px; margin-bottom:10px;">This info will be automatically attached to your bug report.</p>
-                    <textarea id="cc-sys-info-text" style="width:100%; height:320px; font-family:monospace; font-size:11px; background:#fff; border:1px solid #ccc; white-space:pre;" readonly><?php echo self::get_system_info(); ?></textarea>
+                    <textarea id="cc-sys-info-text" style="width:100%; height:320px; font-family:monospace; font-size:11px; background:#fff; border:1px solid #ccc; white-space:pre;" readonly><?php echo esc_textarea( self::get_system_info() ); ?></textarea>
                 </div>
             </div>
 
@@ -263,6 +263,6 @@ class Cirrusly_Commerce_Help {
      * Backwards compatibility wrapper if this method is called elsewhere
      */
     public static function render_system_info() {
-        echo self::get_system_info();
+        echo esc_html( self::get_system_info() );
     }
 }

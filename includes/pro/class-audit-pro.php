@@ -35,7 +35,7 @@ class Cirrusly_Commerce_Audit_Pro {
             $data = Cirrusly_Commerce_Audit::get_compiled_data();
 
             header('Content-Type: text/csv');
-            header('Content-Disposition: attachment; filename="store-audit-' . date('Y-m-d') . '.csv"');
+            header('Content-Disposition: attachment; filename="store-audit-' . gmdate('Y-m-d') . '.csv"');
             
             $fp = fopen('php://output', 'w');
             fputcsv($fp, array('ID', 'Product Name', 'Type', 'Cost (COGS)', 'Shipping Cost', 'Price', 'Net Profit', 'Margin %', 'MAP', 'Google Min', 'MSRP'));

@@ -31,9 +31,9 @@ class Cirrusly_Commerce_GMC_UI {
             <?php Cirrusly_Commerce_Core::render_global_header( 'Compliance Hub' ); ?>
             
             <nav class="nav-tab-wrapper">
-                <a href="?page=cirrusly-gmc&tab=scan" class="nav-tab <?php echo 'scan'===$tab?'nav-tab-active':''; ?>">Health Check</a>
-                <a href="?page=cirrusly-gmc&tab=promotions" class="nav-tab <?php echo 'promotions'===$tab?'nav-tab-active':''; ?>">Promotion Manager</a>
-                <a href="?page=cirrusly-gmc&tab=content" class="nav-tab <?php echo 'content'===$tab?'nav-tab-active':''; ?>">Site Content</a>
+                <a href="?page=cirrusly-gmc&tab=scan" class="nav-tab <?php echo 'scan'===$tab? 'nav-tab-active' : ''; ?>">Health Check</a>
+                <a href="?page=cirrusly-gmc&tab=promotions" class="nav-tab <?php echo 'promotions'===$tab? 'nav-tab-active' : ''; ?>">Promotion Manager</a>
+                <a href="?page=cirrusly-gmc&tab=content" class="nav-tab <?php echo 'content'===$tab? 'nav-tab-active' : ''; ?>">Site Content</a>
             </nav>
             <br>
             <?php 
@@ -117,8 +117,8 @@ class Cirrusly_Commerce_GMC_UI {
             
             // UPDATED HEADER
             echo '<strong>Automation & Workflow Rules <span class="cc-pro-badge">PRO</span></strong><br>
-            <label><input type="checkbox" name="cirrusly_scan_config[block_on_critical]" value="yes" '.$block_save.' '.esc_attr($disabled_attr).'> Block Save on Critical Error</label>
-            <label style="margin-left:10px;"><input type="checkbox" name="cirrusly_scan_config[auto_strip_banned]" value="yes" '.$auto_strip.' '.esc_attr($disabled_attr).'> Auto-strip Banned Words</label>';
+            <label><input type="checkbox" name="cirrusly_scan_config[block_on_critical]" value="yes" '.esc_attr($block_save).' '.esc_attr($disabled_attr).'> Block Save on Critical Error</label>
+            <label style="margin-left:10px;"><input type="checkbox" name="cirrusly_scan_config[auto_strip_banned]" value="yes" '.esc_attr($auto_strip).' '.esc_attr($disabled_attr).'> Auto-strip Banned Words</label>';
             
             // This hook injects the Automated Discounts UI
             do_action( 'cirrusly_commerce_scan_settings_ui' );
@@ -228,7 +228,7 @@ class Cirrusly_Commerce_GMC_UI {
                 
                 $.post(ajaxurl, {
                     action: 'cc_list_promos_gmc',
-                    security: '<?php echo wp_create_nonce("cc_promo_api_list"); ?>',
+                    security: '<?php echo esc_js( wp_create_nonce("cc_promo_api_list") ); ?>',
                     force_refresh: forceRefresh ? 1 : 0
                 }, function(res) {
                     $btn.prop('disabled', false).html('<span class="dashicons dashicons-update"></span> Sync from Google');
@@ -326,7 +326,7 @@ class Cirrusly_Commerce_GMC_UI {
 
                 $.post(ajaxurl, {
                     action: 'cc_submit_promo_to_gmc',
-                    security: '<?php echo wp_create_nonce("cc_promo_api_submit"); ?>',
+                    security: '<?php echo esc_js( wp_create_nonce("cc_promo_api_submit") ); ?>',
                     data: {
                         id: $('#pg_id').val(),
                         title: $('#pg_title').val(),
@@ -418,7 +418,7 @@ class Cirrusly_Commerce_GMC_UI {
                     'prev_text' => '&laquo;',
                     'next_text' => '&raquo;'
                 ) );
-                echo '<div class="tablenav top"><div class="tablenav-pages" style="float:right; margin:5px 0;">' . $page_links . '</div><div class="clear"></div></div>';
+                echo '<div class="tablenav top"><div class="tablenav-pages" style="float:right; margin:5px 0;">' . wp_kses_post( $page_links ) . '</div><div class="clear"></div></div>';
             }
 
             echo '<table class="wp-list-table widefat fixed striped"><thead><tr><th class="check-column"><input type="checkbox" id="cb-all-promo"></th><th>Name</th><th>Action</th></tr></thead><tbody>';
@@ -437,7 +437,7 @@ class Cirrusly_Commerce_GMC_UI {
             
             // Pagination Bottom
             if ( $total_pages > 1 ) {
-                echo '<div class="tablenav bottom"><div class="tablenav-pages" style="float:right; margin:5px 0;">' . $page_links . '</div><div class="clear"></div></div>';
+                echo '<div class="tablenav bottom"><div class="tablenav-pages" style="float:right; margin:5px 0;">' . wp_kses_post( $page_links ) . '</div><div class="clear"></div></div>';
             }
 
             echo '</form><script>jQuery("#cb-all-promo").change(function(){jQuery("input[name=\'gmc_promo_products[]\']").prop("checked",this.checked);});</script>';
