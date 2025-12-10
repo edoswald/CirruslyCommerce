@@ -148,7 +148,7 @@ class Cirrusly_Commerce_GMC {
                 'magic'         => array('severity' => 'High',     'scope' => 'all', 'reason' => 'Unrealistic claim unless referring to a game/trick.'),
                 'fda approved'  => array('severity' => 'Critical', 'scope' => 'all', 'reason' => 'False affiliation. Verification required.'),
                 'cdc'           => array('severity' => 'Critical', 'scope' => 'all', 'reason' => 'Government affiliation implied.'),
-                'who'           => array('severity' => 'Critical', 'scope' => 'all', 'reason' => 'International body affiliation implied.'),
+                'WHO'           => array('severity' => 'Critical', 'scope' => 'all', 'reason' => 'International body affiliation implied.', 'case_sensitive' => true),
                 'instant weight loss' => array('severity' => 'Critical', 'scope' => 'all', 'reason' => 'Prohibited weight loss claim.')
             )
         );
