@@ -103,6 +103,8 @@ Yes. The Pro version allows you to set a "Split Profile" (e.g., 70% Stripe / 30%
 * **New Feature:** Admin Setup Wizard - Automated onboarding runs on activation with milestone-based prompts.
 * **New Feature:** Analytics Dashboard (Pro Plus) - Real-time P&L summaries, inventory velocity tracking, and daily GMC performance snapshots.
 * **Enhancement:** Intelligent Issue Deduplication (Pro Plus) - Signature-based deduplication with Google NLP integration merges related audit issues.
+* **Fix:** Corrected audit regex that was mistakenly flagging acceptable terms (who vs WHO, cure being found in secure, etc.)
+* **Fix:** Small security and best practices improvements to align with WP Plugin Directory guidelines.
 
 = 1.3 =
 * **Refactor:** Split plugin into three tiers: Free, Pro, and Pro Plus.
