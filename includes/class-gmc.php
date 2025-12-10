@@ -101,9 +101,10 @@ class Cirrusly_Commerce_GMC {
         } 
         
         $post_id = $product->get_id();
-        if ( isset( $_REQUEST['gmc_is_custom_product'] ) ) {
+        // FIX: Replaced insecure $_REQUEST usage with $_POST
+        if ( isset( $_POST['gmc_is_custom_product'] ) ) {
             update_post_meta( $post_id, '_gla_identifier_exists', 'no' );
-        } elseif ( isset( $_REQUEST['woocommerce_quick_edit'] ) && ! isset( $_REQUEST['bulk_edit'] ) ) {
+        } elseif ( isset( $_POST['woocommerce_quick_edit'] ) && ! isset( $_POST['bulk_edit'] ) ) {
             update_post_meta( $post_id, '_gla_identifier_exists', 'yes' );
         }
         delete_transient( 'cirrusly_active_promos_stats' );
@@ -130,26 +131,26 @@ class Cirrusly_Commerce_GMC {
     public static function get_monitored_terms() {
         return array(
             'promotional' => array(
-                'free shipping' => array('severity' => 'Medium', 'scope' => 'title', 'reason' => 'Allowed in descriptions, but prohibited in titles.'),
-                'sale'          => array('severity' => 'Medium', 'scope' => 'title', 'reason' => 'Prohibited in titles. Use "Sale Price".'),
-                'buy one'       => array('severity' => 'Medium', 'scope' => 'title', 'reason' => 'Promotional text.'),
-                'best price'    => array('severity' => 'High',   'scope' => 'title', 'reason' => 'Subjective claim (Misrepresentation).'),
-                'cheapest'      => array('severity' => 'High',   'scope' => 'title', 'reason' => 'Subjective claim.'),
+                'free shipping' => array('severity' => 'Medium', 'scope' => 'title', 'reason' => __( 'Allowed in descriptions, but prohibited in titles.', 'cirrusly-commerce' )),
+                'sale'          => array('severity' => 'Medium', 'scope' => 'title', 'reason' => __( 'Prohibited in titles. Use "Sale Price".', 'cirrusly-commerce' )),
+                'buy one'       => array('severity' => 'Medium', 'scope' => 'title', 'reason' => __( 'Promotional text.', 'cirrusly-commerce' )),
+                'best price'    => array('severity' => 'High',   'scope' => 'title', 'reason' => __( 'Subjective claim (Misrepresentation).', 'cirrusly-commerce' )),
+                'cheapest'      => array('severity' => 'High',   'scope' => 'title', 'reason' => __( 'Subjective claim.', 'cirrusly-commerce' )),
             ),
             'medical' => array( 
-                'cure'        => array('severity' => 'Critical', 'scope' => 'all', 'reason' => 'Medical claim (Prohibited).'),
-                'heal'        => array('severity' => 'Critical', 'scope' => 'all', 'reason' => 'Medical claim implying permanent fix.'),
-                'virus'       => array('severity' => 'Critical', 'scope' => 'all', 'reason' => 'Prohibited sensitive event claim.'),
-                'covid'       => array('severity' => 'Critical', 'scope' => 'all', 'reason' => 'Sensitive event.'),
-                'guaranteed'  => array('severity' => 'Medium',   'scope' => 'all', 'reason' => 'Must have linked policy.')
+                'cure'        => array('severity' => 'Critical', 'scope' => 'all', 'reason' => __( 'Medical claim (Prohibited).', 'cirrusly-commerce' )),
+                'heal'        => array('severity' => 'Critical', 'scope' => 'all', 'reason' => __( 'Medical claim implying permanent fix.', 'cirrusly-commerce' )),
+                'virus'       => array('severity' => 'Critical', 'scope' => 'all', 'reason' => __( 'Prohibited sensitive event claim.', 'cirrusly-commerce' )),
+                'covid'       => array('severity' => 'Critical', 'scope' => 'all', 'reason' => __( 'Sensitive event.', 'cirrusly-commerce' )),
+                'guaranteed'  => array('severity' => 'Medium',   'scope' => 'all', 'reason' => __( 'Must have linked policy.', 'cirrusly-commerce' ))
             ),
             'misrepresentation' => array(
-                'miracle'       => array('severity' => 'Critical', 'scope' => 'all', 'reason' => 'Unrealistic claim (Misrepresentation).'),
-                'magic'         => array('severity' => 'High',     'scope' => 'all', 'reason' => 'Unrealistic claim unless referring to a game/trick.'),
-                'fda approved'  => array('severity' => 'Critical', 'scope' => 'all', 'reason' => 'False affiliation. Verification required.'),
-                'cdc'           => array('severity' => 'Critical', 'scope' => 'all', 'reason' => 'Government affiliation implied.'),
-                'who'           => array('severity' => 'Critical', 'scope' => 'all', 'reason' => 'International body affiliation implied.'),
-                'instant weight loss' => array('severity' => 'Critical', 'scope' => 'all', 'reason' => 'Prohibited weight loss claim.')
+                'miracle'       => array('severity' => 'Critical', 'scope' => 'all', 'reason' => __( 'Unrealistic claim (Misrepresentation).', 'cirrusly-commerce' )),
+                'magic'         => array('severity' => 'High',     'scope' => 'all', 'reason' => __( 'Unrealistic claim unless referring to a game/trick.', 'cirrusly-commerce' )),
+                'fda approved'  => array('severity' => 'Critical', 'scope' => 'all', 'reason' => __( 'False affiliation. Verification required.', 'cirrusly-commerce' )),
+                'cdc'           => array('severity' => 'Critical', 'scope' => 'all', 'reason' => __( 'Government affiliation implied.', 'cirrusly-commerce' )),
+                'who'           => array('severity' => 'Critical', 'scope' => 'all', 'reason' => __( 'International body affiliation implied.', 'cirrusly-commerce' )),
+                'instant weight loss' => array('severity' => 'Critical', 'scope' => 'all', 'reason' => __( 'Prohibited weight loss claim.', 'cirrusly-commerce' ))
             )
         );
     }
@@ -157,11 +158,6 @@ class Cirrusly_Commerce_GMC {
     /**
      * Generates a unique identifier from issue type and problem description.
      * Used for deduplication between local and API results.
-     *
-     * Documentation & Verification:
-     * - Approach: Normalizes error strings to find semantic equivalence.
-     * - Equivalence: Maps "missing value [gtin]" (Google) to "Missing SKU" (Local).
-     * - Edge Cases: Restricted terms must match on the specific word (captured via regex) to avoid over-deduplication.
      *
      * @param array $issue Issue array with 'msg', 'type', 'reason'.
      * @return string Unique signature.
@@ -259,8 +255,8 @@ class Cirrusly_Commerce_GMC {
             if ( 'no' !== $is_custom && ! $p->get_sku() ) {
                 $product_issues[] = array(
                     'type' => 'warning',
-                    'msg'  => 'Missing SKU (Identifier)',
-                    'reason' => 'Products generally require unique identifiers.'
+                    'msg'  => __( 'Missing SKU (Identifier)', 'cirrusly-commerce' ),
+                    'reason' => __( 'Products generally require unique identifiers.', 'cirrusly-commerce' )
                 );
             }
             
@@ -268,8 +264,8 @@ class Cirrusly_Commerce_GMC {
             if ( ! $p->get_image_id() ) {
                 $product_issues[] = array(
                     'type' => 'critical',
-                    'msg'  => 'Missing Image',
-                    'reason' => 'Google requires an image URL.'
+                    'msg'  => __( 'Missing Image', 'cirrusly-commerce' ),
+                    'reason' => __( 'Google requires an image URL.', 'cirrusly-commerce' )
                 );
             }
 
@@ -277,8 +273,8 @@ class Cirrusly_Commerce_GMC {
             if ( '' === $p->get_price() ) {
                 $product_issues[] = array(
                     'type' => 'critical',
-                    'msg'  => 'Missing Price',
-                    'reason' => 'Price is mandatory.'
+                    'msg'  => __( 'Missing Price', 'cirrusly-commerce' ),
+                    'reason' => __( 'Price is mandatory.', 'cirrusly-commerce' )
                 );
             }
 
@@ -311,8 +307,8 @@ class Cirrusly_Commerce_GMC {
                     if ( $found ) {
                         $product_issues[] = array(
                             'type'   => ( isset($rule['severity']) && 'Critical' === $rule['severity'] ) ? 'critical' : 'warning',
-                            'msg'    => 'Restricted Term (' . ucfirst($category) . '): "' . ucfirst($word) . '"',
-                            'reason' => isset($rule['reason']) ? $rule['reason'] : 'Potential policy violation.'
+                            'msg'    => sprintf( __( 'Restricted Term (%s): "%s"', 'cirrusly-commerce' ), ucfirst($category), ucfirst($word) ),
+                            'reason' => isset($rule['reason']) ? $rule['reason'] : __( 'Potential policy violation.', 'cirrusly-commerce' )
                         );
                     }
                 }
