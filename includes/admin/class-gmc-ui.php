@@ -3,18 +3,143 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 
 class Cirrusly_Commerce_GMC_UI {
 
-    /**
-     * Initialize the Google Merchant Center admin UI by registering WordPress and WooCommerce admin hooks and filters.
-     *
-     * Registers column, column-rendering, product-settings, quick-edit, and admin-notice hooks used by the
-     * Google Merchant Center integration UI.
-     */
     public function __construct() {
         add_filter( 'manage_edit-product_columns', array( $this, 'add_gmc_admin_columns' ) );
         add_action( 'manage_product_posts_custom_column', array( $this, 'render_gmc_admin_columns' ), 10, 2 );
         add_action( 'woocommerce_product_options_inventory_product_data', array( $this, 'render_gmc_product_settings' ) );
         add_action( 'quick_edit_custom_box', array( $this, 'render_quick_edit_box' ), 10, 2 );
         add_action( 'admin_notices', array( $this, 'render_blocked_save_notice' ) );
+        // New hook for enqueuing assets
+        add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_scripts' ) );
+    }
+
+    public function enqueue_scripts() {
+        $screen = get_current_screen();
+        if ( ! $screen || strpos( $screen->id, 'cirrusly-gmc' ) === false ) {
+            return;
+        }
+
+        // Only enqueue promotions JS if on the promotions tab
+        $tab = isset( $_GET['tab'] ) ? sanitize_text_field( wp_unslash( $_GET['tab'] ) ) : 'scan';
+        if ( 'promotions' === $tab ) {
+            $nonce_list = wp_create_nonce("cc_promo_api_list");
+            $nonce_submit = wp_create_nonce("cc_promo_api_submit");
+
+            // We attach this to the base admin JS handle created in class-admin-assets.php
+            $script = "
+            jQuery(document).ready(function($){
+                $('#pg_generate').click(function(){
+                    var id = $('#pg_id').val(), app = $('#pg_app').val(), type = $('#pg_type').val();
+                    var title = $('#pg_title').val(), dates = $('#pg_dates').val(), code = $('#pg_code').val();
+                    var str = id + ',' + app + ',' + type + ',' + title + ',' + dates + ',ONLINE,' + dates + ',' + (type==='GENERIC_CODE' ? code : '');
+                    $('#pg_output').text(str);
+                    $('#pg_result_area').fadeIn();
+                });
+
+                var loadPromotions = function( forceRefresh ) {
+                    var \$btn = $('#cc_load_promos');
+                    var \$table = $('#cc-gmc-promos-table tbody');
+                    
+                    \$btn.prop('disabled', true).html('<span class=\"dashicons dashicons-update\" style=\"animation:spin 2s linear infinite;\"></span> Syncing...');
+                    if( forceRefresh ) \$table.html('<tr class=\"cc-empty-row\"><td colspan=\"6\" style=\"padding:20px; text-align:center;\">Refreshing data...</td></tr>');
+                    
+                    $.post(ajaxurl, {
+                        action: 'cc_list_promos_gmc',
+                        security: '{$nonce_list}',
+                        force_refresh: forceRefresh ? 1 : 0
+                    }, function(res) {
+                        \$btn.prop('disabled', false).html('<span class=\"dashicons dashicons-update\"></span> Sync from Google');
+                        if(res.success) {
+                            \$table.empty();
+                            if(res.data.length === 0) {
+                                \$table.html('<tr class=\"cc-empty-row\"><td colspan=\"6\" style=\"padding:20px; text-align:center;\">No promotions found in Merchant Center.</td></tr>');
+                                return;
+                            }
+                            function ccEscapeHtml(str) {
+                                return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;').replace(/'/g, '&#039;');
+                            }
+                            $.each(res.data, function(i, p){
+                                var statusColor = '#777';
+                                if(p.status === 'active') statusColor = '#008a20';
+                                if(p.status === 'rejected') statusColor = '#d63638';
+                                if(p.status === 'expired') statusColor = '#999';
+                                var displayStatus = p.status.toUpperCase();
+                                if(p.status.indexOf('(') > 0) statusColor = '#dba617';
+                                var row = '<tr>' +
+                                    '<td><strong>' + ccEscapeHtml(p.id) + '</strong></td>' +
+                                    '<td>' + ccEscapeHtml(p.title) + '</td>' +
+                                    '<td>' + ccEscapeHtml(p.dates) + '</td>' +
+                                    '<td><span class=\"gmc-badge\" style=\"background:'+statusColor+';color:#fff;\">'+ccEscapeHtml(displayStatus)+'</span></td>' +
+                                    '<td>' + ccEscapeHtml(p.type) + (p.code ? ': <code>'+ccEscapeHtml(p.code)+'</code>' : '') + '</td>' +
+                                    '<td><button type=\"button\" class=\"button button-small cc-edit-promo\" ' +
+                                    'data-id=\"'+ccEscapeHtml(p.id)+'\" data-title=\"'+ccEscapeHtml(p.title)+'\" data-dates=\"'+ccEscapeHtml(p.dates)+'\" data-app=\"'+ccEscapeHtml(p.app)+'\" data-type=\"'+ccEscapeHtml(p.type)+'\" data-code=\"'+ccEscapeHtml(p.code || '')+'\">Edit</button></td>' +
+                                    '</tr>';
+                                \$table.append(row);
+                            });
+                        } else {
+                            if(forceRefresh) alert('Error: ' + (res.data || 'Failed to fetch data.'));
+                            \$table.html('<tr class=\"cc-empty-row\"><td colspan=\"6\" style=\"padding:20px; text-align:center; color:#d63638;\">Error loading data.</td></tr>');
+                        }
+                    });
+                };
+
+                if( $('#cc-gmc-promos-table').length > 0 ) {
+                    loadPromotions(false);
+                }
+                $('#cc_load_promos').click(function(){ loadPromotions(true); });
+
+                $(document).on('click', '.cc-edit-promo', function(e){
+                    e.preventDefault();
+                    var d = $(this).data();
+                    $('#pg_id').val(d.id); 
+                    $('#pg_title').val(d.title);
+                    $('#pg_dates').val(d.dates);
+                    $('#pg_app').val(d.app).trigger('change');
+                    $('#pg_type').val(d.type).trigger('change');
+                    $('#pg_code').val(d.code);
+                    $('html, body').animate({ scrollTop: $(\"#cc_promo_form_container\").offset().top - 50 }, 500);
+                    $('#cc_promo_form_container').css('border', '2px solid #2271b1').animate({borderWidth: 0}, 1500, function(){ $(this).css('border',''); });
+                    $('#cc_form_title').text('Edit Promotion: ' + d.id);
+                });
+
+                $('#pg_api_submit').click(function(){
+                    var \$btn = $(this);
+                    var originalText = \$btn.html();
+                    if( !$('#pg_id').val() || !$('#pg_title').val() ) {
+                        alert('Please fill in Promotion ID and Title first.');
+                        return;
+                    }
+                    \$btn.prop('disabled', true).text('Sending...');
+                    $.post(ajaxurl, {
+                        action: 'cc_submit_promo_to_gmc',
+                        security: '{$nonce_submit}',
+                        data: {
+                            id: $('#pg_id').val(),
+                            title: $('#pg_title').val(),
+                            dates: $('#pg_dates').val(),
+                            app: $('#pg_app').val(),
+                            type: $('#pg_type').val(),
+                            code: $('#pg_code').val()
+                        }
+                    }, function(response) {
+                        if(response.success) {
+                            alert('Success! Promotion pushed to Google Merchant Center.');
+                            loadPromotions(true);
+                        } else {
+                            alert('Error: ' + (response.data || 'Could not connect to API.'));
+                        }
+                        \$btn.prop('disabled', false).html(originalText);
+                    });
+                });
+                
+                // Bulk action checkbox logic
+                $('#cb-all-promo').change(function(){
+                    $('input[name=\'gmc_promo_products[]\']').prop('checked',this.checked);
+                });
+            });";
+            
+            wp_add_inline_script( 'cirrusly-admin-base-js', $script );
+        }
     }
 
     /**
@@ -128,16 +253,17 @@ class Cirrusly_Commerce_GMC_UI {
             </form>';
         echo '</div>';
     }
-    
-    /**
-     * Render the Promotions tab UI for managing and submitting Google Merchant Center promotions.
-     */
+
+    // ... [Keep render_gmc_hub_page, render_scan_view, render_promotions_view (minus the script block), etc.] ...
+
     private function render_promotions_view() {
+        // [Existing HTML generation code remains]
+        // ...
+        // [Remove the <script> block at the end of this method]
         $is_pro = Cirrusly_Commerce_Core::cirrusly_is_pro();
         $pro_class = $is_pro ? '' : 'cc-pro-feature';
         $disabled_attr = $is_pro ? '' : 'disabled';
         
-        // --- 1. PRO: REMOTE PROMOTIONS DASHBOARD (Restored to Top) ---
         echo '<div class="cc-settings-card '.esc_attr($pro_class).'" style="margin-bottom:20px;">';
         if(!$is_pro) echo '<div class="cc-pro-overlay"><a href="'.esc_url( function_exists('cc_fs') ? cc_fs()->get_upgrade_url() : '#' ).'" class="cc-upgrade-btn"><span class="dashicons dashicons-lock cc-lock-icon"></span> Unlock Live Feed</a></div>';
         
@@ -153,8 +279,7 @@ class Cirrusly_Commerce_GMC_UI {
                 </table>
               </div>';
         echo '</div>';
-
-        // --- 2. CORE: GENERATOR / EDITOR ---
+        
         echo '<div class="cc-manual-helper"><h4>Promotion Feed Generator</h4><p>Create or update a promotion entry for Google Merchant Center. Fill in the details, generate the code, and paste it into your Google Sheet feed.</p></div>';
         ?>
         <div class="cc-promo-generator" id="cc_promo_form_container">
@@ -206,153 +331,10 @@ class Cirrusly_Commerce_GMC_UI {
                 <div id="pg_output" class="cc-generated-code"></div>
             </div>
         </div>
-
-        <script>
-        jQuery(document).ready(function($){
-            // --- GENERATE CODE (Manual) ---
-            $('#pg_generate').click(function(){
-                var id = $('#pg_id').val(), app = $('#pg_app').val(), type = $('#pg_type').val();
-                var title = $('#pg_title').val(), dates = $('#pg_dates').val(), code = $('#pg_code').val();
-                var str = id + ',' + app + ',' + type + ',' + title + ',' + dates + ',ONLINE,' + dates + ',' + (type==='GENERIC_CODE' ? code : '');
-                $('#pg_output').text(str);
-                $('#pg_result_area').fadeIn();
-            });
-
-            // --- API: LIST PROMOTIONS (PRO) - Auto & Cached ---
-            var loadPromotions = function( forceRefresh ) {
-                var $btn = $('#cc_load_promos');
-                var $table = $('#cc-gmc-promos-table tbody');
-                
-                $btn.prop('disabled', true).html('<span class="dashicons dashicons-update" style="animation:spin 2s linear infinite;"></span> Syncing...');
-                if( forceRefresh ) $table.html('<tr class="cc-empty-row"><td colspan="6" style="padding:20px; text-align:center;">Refreshing data...</td></tr>');
-                
-                $.post(ajaxurl, {
-                    action: 'cc_list_promos_gmc',
-                    security: '<?php echo esc_js( wp_create_nonce("cc_promo_api_list") ); ?>',
-                    force_refresh: forceRefresh ? 1 : 0
-                }, function(res) {
-                    $btn.prop('disabled', false).html('<span class="dashicons dashicons-update"></span> Sync from Google');
-                    if(res.success) {
-                        $table.empty();
-                        if(res.data.length === 0) {
-                            $table.html('<tr class="cc-empty-row"><td colspan="6" style="padding:20px; text-align:center;">No promotions found in Merchant Center.</td></tr>');
-                            return;
-                        }
-                        // Render Rows
-            function ccEscapeHtml(str) {
-
-                return String(str)
-                    .replace(/&/g, '&amp;')
-                    .replace(/</g, '&lt;')
-                    .replace(/>/g, '&gt;')
-                    .replace(/"/g, '&quot;')
-                    .replace(/'/g, '&#039;');
-            }
-
-            $.each(res.data, function(i, p){
-                var statusColor = '#777';
-                            if(p.status === 'active') statusColor = '#008a20';
-                            if(p.status === 'rejected') statusColor = '#d63638';
-                            if(p.status === 'expired') statusColor = '#999';
-                            
-                            // Handle unknown statuses gracefully in UI
-                           var displayStatus = p.status.toUpperCase();
-                           if(p.status.indexOf('(') > 0) statusColor = '#dba617';
-
-                var row = '<tr>' +
-                    '<td><strong>' + ccEscapeHtml(p.id) + '</strong></td>' +
-                    '<td>' + ccEscapeHtml(p.title) + '</td>' +
-                    '<td>' + ccEscapeHtml(p.dates) + '</td>' +
-                    '<td><span class="gmc-badge" style="background:'+statusColor+';color:#fff;">'+ccEscapeHtml(displayStatus)+'</span></td>' +
-                    '<td>' + ccEscapeHtml(p.type) + (p.code ? ': <code>'+ccEscapeHtml(p.code)+'</code>' : '') + '</td>' +
-                                '<td><button type="button" class="button button-small cc-edit-promo" ' +
-                        'data-id="'+ccEscapeHtml(p.id)+'" data-title="'+ccEscapeHtml(p.title)+'" data-dates="'+ccEscapeHtml(p.dates)+'" data-app="'+ccEscapeHtml(p.app)+'" data-type="'+ccEscapeHtml(p.type)+'" data-code="'+ccEscapeHtml(p.code || '')+'">Edit</button></td>' +
-                                '</tr>';
-                            $table.append(row);
-                        });
-                    } else {
-                        // Only alert if manual click, otherwise just show empty or error in row
-                        if(forceRefresh) alert('Error: ' + (res.data || 'Failed to fetch data.'));
-                        $table.html('<tr class="cc-empty-row"><td colspan="6" style="padding:20px; text-align:center; color:#d63638;">Error loading data.</td></tr>');
-                    }
-                });
-            };
-
-            // Auto-load on init (uses cache if available)
-            if( $('#cc-gmc-promos-table').length > 0 ) {
-                loadPromotions(false);
-            }
-
-            // Manual Sync Click (Forces Refresh)
-            $('#cc_load_promos').click(function(){
-                loadPromotions(true);
-            });
-
-            // --- UI: EDIT PROMOTION CLICK ---
-            $(document).on('click', '.cc-edit-promo', function(e){
-                e.preventDefault();
-                var d = $(this).data();
-                
-                // Populate Form
-                $('#pg_id').val(d.id); 
-                $('#pg_title').val(d.title);
-                $('#pg_dates').val(d.dates);
-                $('#pg_app').val(d.app).trigger('change');
-                $('#pg_type').val(d.type).trigger('change');
-                $('#pg_code').val(d.code);
-                
-                // Scroll to Form
-                $('html, body').animate({
-                    scrollTop: $("#cc_promo_form_container").offset().top - 50
-                }, 500);
-                
-                // Flash Form
-                $('#cc_promo_form_container').css('border', '2px solid #2271b1').animate({borderWidth: 0}, 1500, function(){ $(this).css('border',''); });
-                $('#cc_form_title').text('Edit Promotion: ' + d.id);
-            });
-
-            // --- API: SUBMIT (Create/Update) ---
-            $('#pg_api_submit').click(function(){
-                var $btn = $(this);
-                var originalText = $btn.html();
-                
-                // Basic Validation
-                if( !$('#pg_id').val() || !$('#pg_title').val() ) {
-                    alert('Please fill in Promotion ID and Title first.');
-                    return;
-                }
-
-                $btn.prop('disabled', true).text('Sending...');
-
-                $.post(ajaxurl, {
-                    action: 'cc_submit_promo_to_gmc',
-                    security: '<?php echo esc_js( wp_create_nonce("cc_promo_api_submit") ); ?>',
-                    data: {
-                        id: $('#pg_id').val(),
-                        title: $('#pg_title').val(),
-                        dates: $('#pg_dates').val(),
-                        app: $('#pg_app').val(),
-                        type: $('#pg_type').val(),
-                        code: $('#pg_code').val()
-                    }
-                }, function(response) {
-                    if(response.success) {
-                        alert('Success! Promotion pushed to Google Merchant Center.');
-                        // Force refresh list to show new promo
-                        loadPromotions(true);
-                    } else {
-                        alert('Error: ' + (response.data || 'Could not connect to API.'));
-                    }
-                    $btn.prop('disabled', false).html(originalText);
-                });
-            });
-        });
-        </script>
         <?php
-
-        // --- 3. CORE: LOCAL ASSIGNMENTS TABLE ---
+        // Bulk assignments table logic follows...
         global $wpdb;
-        // ... (Bulk Action Logic) ...
+        // ... (Keep existing bulk logic) ...
         if ( isset( $_POST['gmc_promo_bulk_action'] ) && ! empty( $_POST['gmc_promo_products'] ) && check_admin_referer( 'cirrusly_promo_bulk', 'cc_promo_nonce' ) ) {
             $new_promo_id = isset($_POST['gmc_new_promo_id']) ? sanitize_text_field( wp_unslash( $_POST['gmc_new_promo_id'] ) ) : '';
             $action = sanitize_text_field( wp_unslash( $_POST['gmc_promo_bulk_action'] ) );
@@ -439,9 +421,8 @@ class Cirrusly_Commerce_GMC_UI {
             if ( $total_pages > 1 ) {
                 echo '<div class="tablenav bottom"><div class="tablenav-pages" style="float:right; margin:5px 0;">' . wp_kses_post( $page_links ) . '</div><div class="clear"></div></div>';
             }
-
-            echo '</form><script>jQuery("#cb-all-promo").change(function(){jQuery("input[name=\'gmc_promo_products[]\']").prop("checked",this.checked);});</script>';
-            
+            // Inline script was here; moved to enqueue_scripts
+            echo '</form>';
             wp_reset_postdata();
         }
     }
@@ -619,7 +600,7 @@ class Cirrusly_Commerce_GMC_UI {
         woocommerce_wp_text_input( array( 'id' => '_gmc_custom_label_0', 'label' => 'Custom Label 0' ) );
         echo '</div>';
     }
-    
+
     /**
      * Render the quick-edit UI controls for Google Merchant Center data in the products list.
      *
@@ -760,4 +741,5 @@ class Cirrusly_Commerce_GMC_UI {
         }
         return new WP_Error( 'not_pro', 'Pro version required.' );
     }
+
 }

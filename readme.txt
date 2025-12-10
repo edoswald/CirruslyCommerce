@@ -64,6 +64,16 @@ Upgrade to Pro or Pro Plus for added functionality.
 * **Automated Discounts (Pro Plus):** Full integration with Google's "Automated Discounts" program. We validate Google's secure pricing tokens (JWT) to dynamically update the cart price to match the discounted ad price.
 * **Psychological Repricing (Pro Plus):** Automatically round calculated prices to .99, .50, or the nearest 5 to maximize click-through rate (CTR) and conversion.
 
+== External Services ==
+
+This plugin sends data to the Google Platform API to enable Google Customer Reviews surveys for your customers.
+
+* **Service:** Google Platform API (Google Customer Reviews)
+* **Data Transmitted:** Google Merchant Center ID (Merchant ID) and the customer's Order ID.
+* **Trigger Point:** Data is transmitted on the WooCommerce "Order Received" (Thank You) page via the `woocommerce_thankyou` hook.
+* **Privacy Policy:** [Google Privacy Policy](https://policies.google.com/privacy)
+* **Terms of Service:** [Google Terms of Service](https://policies.google.com/terms)
+
 == Installation ==
 
 1.  Upload the plugin files to the `/wp-content/plugins/cirrusly-commerce` directory, or install directly from the WordPress plugins screen.
