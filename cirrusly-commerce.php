@@ -41,6 +41,7 @@ if ( ! function_exists( 'cc_fs' ) ) {
                 'has_premium_version' => true,
                 'has_addons'          => false,
                 'has_paid_plans'      => true,
+                'is_org_compliant'    => true
                 'wp_org_gatekeeper'   => 'OA7#BoRiBNqdf52FvzEf!!074aRLPs8fspif$7K1#4u4Csys1fQlCecVcUTOs2mcpeVHi#C2j9d09fOTvbC0HloPT7fFee5WdS3G',
                 'trial'               => array(
                     'days'               => 3,
@@ -137,7 +138,6 @@ class Cirrusly_Commerce_Main {
         add_filter( 'plugin_action_links_' . plugin_basename( __FILE__ ), array( $this, 'add_settings_link' ) );
     }
 
-    // ... [Keep existing methods: add_weekly_schedule, activate, deactivate, add_settings_link] ...
     public function add_weekly_schedule( $schedules ) {
         if ( ! isset( $schedules['weekly'] ) ) {
             $schedules['weekly'] = array(
