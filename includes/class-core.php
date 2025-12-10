@@ -74,9 +74,9 @@ class Cirrusly_Commerce_Core {
 
     public function handle_audit_inline_save() {
         if ( ! current_user_can( 'edit_products' ) || ! check_ajax_referer( 'cc_audit_save', '_nonce', false ) ) {
-            wp_send_json_error('Permission denied');
+            wp_send_json_error( __( 'Permission denied', 'cirrusly-commerce' ) );
         }
-        if ( ! self::cirrusly_is_pro() ) wp_send_json_error('Pro feature required');
+        if ( ! self::cirrusly_is_pro() ) wp_send_json_error( __( 'Pro feature required', 'cirrusly-commerce' ) );
 
         $pid = intval( $_POST['pid'] );
         $val = floatval( $_POST['value'] );
@@ -87,7 +87,7 @@ class Cirrusly_Commerce_Core {
             delete_transient( 'cw_audit_data' );
             wp_send_json_success();
         }
-        wp_send_json_error('Invalid data');
+        wp_send_json_error( __( 'Invalid data', 'cirrusly-commerce' ) );
     }
 
     public function clear_metrics_cache() {
@@ -96,7 +96,9 @@ class Cirrusly_Commerce_Core {
         global $wpdb;
         $pattern = $wpdb->esc_like( '_transient_cc_analytics_pnl_' ) . '%';
         $timeout_pattern = $wpdb->esc_like( '_transient_timeout_cc_analytics_pnl_' ) . '%';
-        $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->options} WHERE option_name LIKE %s OR option_name LIKE %s", $pattern, $timeout_pattern ) );    }
+        // FIX: Replaced invalid $wpdb->options with {$wpdb->prefix}options
+        $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}options WHERE option_name LIKE %s OR option_name LIKE %s", $pattern, $timeout_pattern ) );    
+    }
 
     public static function cirrusly_is_pro() {
         // 1. Secure Developer Override
@@ -187,20 +189,20 @@ class Cirrusly_Commerce_Core {
         
         $current_page = isset( $_GET['page'] ) ? sanitize_text_field( wp_unslash( $_GET['page'] ) ) : '';
         
-        // Define Base Nav Items
+        // Define Base Nav Items with I18n
         $nav_items = array(
-            'cirrusly-commerce' => 'Dashboard',
+            'cirrusly-commerce' => __( 'Dashboard', 'cirrusly-commerce' ),
         );
 
         // Add Analytics for Pro Plus users (inserted second)
         if ( self::cirrusly_is_pro_plus() ) {
-            $nav_items['cirrusly-analytics'] = 'Analytics';
+            $nav_items['cirrusly-analytics'] = __( 'Analytics', 'cirrusly-commerce' );
         }
 
         // Add remaining items
-        $nav_items['cirrusly-gmc']   = 'Compliance Hub';
-        $nav_items['cirrusly-audit'] = 'Financial Audit';
-        $nav_items['cirrusly-settings'] = 'Settings';
+        $nav_items['cirrusly-gmc']   = __( 'Compliance Hub', 'cirrusly-commerce' );
+        $nav_items['cirrusly-audit'] = __( 'Financial Audit', 'cirrusly-commerce' );
+        $nav_items['cirrusly-settings'] = __( 'Settings', 'cirrusly-commerce' );
 
         echo '<div class="cc-global-nav">';
         foreach ( $nav_items as $slug => $label ) {

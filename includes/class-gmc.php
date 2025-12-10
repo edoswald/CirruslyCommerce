@@ -158,47 +158,30 @@ class Cirrusly_Commerce_GMC {
      * Generates a unique identifier from issue type and problem description.
      * Used for deduplication between local and API results.
      *
-     * Documentation & Verification:
-     * - Approach: Normalizes error strings to find semantic equivalence.
-     * - Equivalence: Maps "missing value [gtin]" (Google) to "Missing SKU" (Local).
-     * - Edge Cases: Restricted terms must match on the specific word (captured via regex) to avoid over-deduplication.
-     *
      * @param array $issue Issue array with 'msg', 'type', 'reason'.
      * @return string Unique signature.
      */
     private static function get_issue_signature( $issue ) {
         $msg = isset( $issue['msg'] ) ? $issue['msg'] : '';
         
-        // Documentation: Strip "[Google API]" prefix to ensure apples-to-apples comparison of the core message.
-        //  Normalize text first, then strip prefix for case-insensitive matching
         $norm = strtolower( trim( $msg ) );
         $norm = str_replace( '[google api]', '', $norm );
         
-        // Additional normalization: collapse multiple spaces, remove common punctuation
         $norm = preg_replace( '/\s+/', ' ', $norm );
         $norm = trim( preg_replace( '/[.!?,;:]+/', '', $norm ) );     
        
-        // Documentation: Normalize specific "Missing Identifier" errors.
-        // Google often says "Limited performance due to missing value [gtin]" or "Identifier exists".
-        // Local validation says "Missing SKU (Identifier)".
-        // These are semantically identical for the user's purpose.
         if ( strpos( $norm, 'missing sku' ) !== false || strpos( $norm, 'missing identifier' ) !== false || strpos( $norm, 'identifier exists' ) !== false ) {
             return 'missing_identifier';
         }
         
-        // Equivalence: "Missing Image" (Local) vs "Missing value [image link]" (Google)
         if ( strpos( $norm, 'missing image' ) !== false ) {
             return 'missing_image';
         }
         
-        // Equivalence: "Missing Price" (Local) vs "Missing value [price]" (Google)
         if ( strpos( $norm, 'missing price' ) !== false ) {
             return 'missing_price';
         }
         
-        // Edge Case: Restricted Terms
-        // We cannot just return 'restricted_term' because a product might have two DIFFERENT violations (e.g., "Covid" and "Magic").
-        // We attempt to extract the specific term in quotes to create a specific signature.
         if ( strpos( $norm, 'restricted term' ) !== false ) {
             if ( preg_match( '/"([^"]+)"/', $norm, $m ) ) {
                 return 'restricted_term_' . $m[1];
@@ -206,7 +189,6 @@ class Cirrusly_Commerce_GMC {
             return 'restricted_term_general';
         }
 
-        // Fallback: Hash the normalized string for exact matches on unmapped issues.
         return md5( $norm );
     }
 
@@ -215,18 +197,15 @@ class Cirrusly_Commerce_GMC {
      * Uses strict regex boundaries and optionally calls Pro NLP analysis.
      */
     public static function run_gmc_scan_logic( $batch_size = 100, $paged = 1 ) {
-        // Allow cron/CLI contexts, but require capability for interactive requests.
         if ( ! wp_doing_cron() && ! ( defined( 'WP_CLI' ) && WP_CLI ) && ! current_user_can( 'edit_products' ) ) {
             return array();
         }
 
-        // Normalize paging parameters to safe integers.
         $batch_size = max( 1, (int) $batch_size );
         $paged      = max( 1, (int) $paged );
 
         $results = array();
         
-        // 1. Fetch Pro Statuses (Real data from Google)
         $google_issues = array();
         if ( class_exists( 'Cirrusly_Commerce_Core' ) && 
              Cirrusly_Commerce_Core::cirrusly_is_pro() && 
@@ -234,7 +213,6 @@ class Cirrusly_Commerce_GMC {
             $google_issues = Cirrusly_Commerce_GMC_Pro::fetch_google_real_statuses();
         }
 
-        // 2. Scan Local Products
         $args = array(
             'post_type'      => 'product',
             'posts_per_page' => $batch_size,
@@ -244,7 +222,6 @@ class Cirrusly_Commerce_GMC {
         );
         $products = get_posts( $args );
 
-        // Load rules once
         $monitored_terms = self::get_monitored_terms();
 
         foreach ( $products as $pid ) {
@@ -252,10 +229,8 @@ class Cirrusly_Commerce_GMC {
             $p = wc_get_product( $pid );
             if ( ! $p ) continue;
 
-            // --- METADATA CHECKS ---
             $is_custom = get_post_meta( $pid, '_gla_identifier_exists', true );
             
-            // CHECK: GTIN / MPN Existence
             if ( 'no' !== $is_custom && ! $p->get_sku() ) {
                 $product_issues[] = array(
                     'type' => 'warning',
@@ -264,7 +239,6 @@ class Cirrusly_Commerce_GMC {
                 );
             }
             
-            // CHECK: Missing Image
             if ( ! $p->get_image_id() ) {
                 $product_issues[] = array(
                     'type' => 'critical',
@@ -273,7 +247,6 @@ class Cirrusly_Commerce_GMC {
                 );
             }
 
-            // CHECK: Price
             if ( '' === $p->get_price() ) {
                 $product_issues[] = array(
                     'type' => 'critical',
@@ -282,8 +255,6 @@ class Cirrusly_Commerce_GMC {
                 );
             }
 
-            // --- CONTENT POLICY CHECKS (Local) ---
-            // Prepare text content: Clean, lowercase, and tag-stripped
             $title_raw   = $p->get_name();
             $desc_raw    = $p->get_description() . ' ' . $p->get_short_description();
             $title_clean = strtolower( wp_strip_all_tags( $title_raw ) );
@@ -291,17 +262,13 @@ class Cirrusly_Commerce_GMC {
 
             foreach ( $monitored_terms as $category => $terms ) {
                 foreach ( $terms as $word => $rule ) {
-                    // Use \b and 'u' modifier for robust word boundary detection
-                    // preg_quote ensures special chars in terms don't break regex
                     $pattern = '/\b' . preg_quote( $word, '/' ) . '\b/iu';
                     $found   = false;
 
-                    // Check Title
                     if ( preg_match( $pattern, $title_clean ) ) {
                         $found = true;
                     }
 
-                    // Check Description (if scope is 'all')
                     if ( ! $found && isset( $rule['scope'] ) && 'all' === $rule['scope'] ) {
                         if ( preg_match( $pattern, $desc_clean ) ) {
                             $found = true;
@@ -311,51 +278,40 @@ class Cirrusly_Commerce_GMC {
                     if ( $found ) {
                         $product_issues[] = array(
                             'type'   => ( isset($rule['severity']) && 'Critical' === $rule['severity'] ) ? 'critical' : 'warning',
-                            'msg'    => 'Restricted Term (' . ucfirst($category) . '): "' . ucfirst($word) . '"',
+                            'msg'    => sprintf( 
+                                /* translators: 1: The violation category (e.g. Medical), 2: The restricted word found */
+                                __( 'Restricted Term (%1$s): "%2$s"', 'cirrusly-commerce' ), 
+                                ucfirst($category), 
+                                ucfirst($word) 
+                            ),
                             'reason' => isset($rule['reason']) ? $rule['reason'] : 'Potential policy violation.'
                         );
                     }
                 }
             }
             
-            // --- ADVANCED NLP & EDITORIAL CHECK (Pro Plus Only) ---
-            // Checks for Editorial Standards (Caps, Punctuation) and NLP Misrepresentation
             if ( Cirrusly_Commerce_Core::cirrusly_is_pro_plus() && 
                  class_exists( 'Cirrusly_Commerce_GMC_Pro' ) && 
                  method_exists( 'Cirrusly_Commerce_GMC_Pro', 'scan_product_with_nlp' ) ) {
                  
                 $nlp_issues = Cirrusly_Commerce_GMC_Pro::scan_product_with_nlp( $p, $product_issues );
                 if ( ! empty( $nlp_issues ) ) {
-                    // Verification: NLP issues are merged BEFORE deduplication. 
-                    // They will be treated as "Local" issues and will trump any generic API error if a collision occurs.
                     $product_issues = array_merge( $product_issues, $nlp_issues );
                 }
             }
 
-            // --- DEDUPLICATION PREP (Local Signatures) ---
-            // Documentation: 
-            // 1. Gathers signatures for Basic Local Checks AND Pro NLP Checks.
-            // 2. Used to filter incoming Google API issues.
             $local_signatures = array();
             foreach ( $product_issues as $local_issue ) {
                 $local_signatures[] = self::get_issue_signature( $local_issue );
             }
 
-            // --- MERGE GOOGLE API ISSUES ---
-            // Verification Cross-Compatibility:
-            // - Pro Inactive: $google_issues is empty. Loop skipped. No impact on Free/Local scan.
-            // - Pro Active: Duplicates are identified via signature and skipped.
-            // - NLP: NLP issues are already in $local_signatures, so they are protected from being overwritten.
             if ( isset( $google_issues[ $pid ] ) ) {
                 foreach ( $google_issues[ $pid ] as $g_issue ) {
                     $g_sig = self::get_issue_signature( $g_issue );
                     
-                    // Logic: Only add if not found in local signatures.
-                    // This prioritizes local advice (which is often more specific/actionable) over generic API errors.
                     if ( ! in_array( $g_sig, $local_signatures, true ) ) {
                         $product_issues[] = $g_issue;
                     } else {
-                        // Debug Logging for duplicates
                         if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
                             error_log( sprintf( 'Cirrusly GMC: Duplicate issue skipped. PID: %d, Sig: %s, Source: Google API', $pid, $g_sig ) );
                         }

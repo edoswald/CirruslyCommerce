@@ -4,7 +4,7 @@ Contributors: edoswald
 Tags: Google Merchant Center, WooCommerce, pricing, MSRP, profit margin
 Requires at least: 5.8 
 Tested up to: 6.9 
-Stable tag: 1.3.1 
+Stable tag: 1.3.2 
 Requires PHP: 8.1 
 License: GPLv2 or later 
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
@@ -89,12 +89,11 @@ Store Audit: A financial breakdown of every product to spot profit leaks.
 
 == Changelog ==
 
-= 1.3.1 =
+= 1.3.2 =
 
 +* **New Feature:** Admin Setup Wizard (Pro/Pro Plus) - Automated onboarding runs on activation with milestone-based prompts and persistent multi-step saves. Rerun anytime from the admin menu to reconfigure your store's financial settings.
 +* **New Feature:** Analytics Dashboard (Pro Plus) - Real-time P&L summaries, inventory velocity tracking, and daily GMC performance snapshots with visual charts.
 +* **Enhancement:** Intelligent Issue Deduplication (Pro/Pro Plus) - Signature-based deduplication with Google NLP integration merges related audit issues, reducing noise and improving focus on critical problems.
-
 
 = 1.3 =
 

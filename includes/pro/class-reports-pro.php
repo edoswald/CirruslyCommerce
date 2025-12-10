@@ -26,7 +26,7 @@ class Cirrusly_Commerce_Reports_Pro {
 
         // 3. Send using Mailer Utility
         $to = !empty( $config['email_recipient'] ) ? $config['email_recipient'] : get_option('admin_email');
-        $subject = 'Weekly Profit Report: ' . html_entity_decode( strip_tags( wc_price( $report_data['totals']['net_profit'] ) ) ) . ' Net';
+        $subject = 'Weekly Profit Report: ' . html_entity_decode( wp_strip_all_tags( wc_price( $report_data['totals']['net_profit'] ) ) ) . ' Net';
 
         // Ensure Mailer is loaded (if not autoloaded)
         if ( ! class_exists( 'Cirrusly_Commerce_Mailer' ) ) {

@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Cirrusly Commerce
  * Description: All-in-one suite: GMC Assistant, Promotion Manager, Pricing Engine, and Store Financial Audit that doesn't cost an arm and a leg.
- * Version: 1.3.1
+ * Version: 1.3.2
  * Author: Cirrusly Weather
  * Author URI: https://cirruslyweather.com
  * Text Domain: cirrusly-commerce
@@ -23,7 +23,7 @@ if ( file_exists( plugin_dir_path( __FILE__ ) . 'vendor/autoload.php' ) ) {
 }
 
 // Define Constants
-define( 'CIRRUSLY_COMMERCE_VERSION', '1.3.1' );
+define( 'CIRRUSLY_COMMERCE_VERSION', '1.3.2' );
 define( 'CIRRUSLY_COMMERCE_PATH', plugin_dir_path( __FILE__ ) );
 define( 'CIRRUSLY_COMMERCE_URL', plugin_dir_url( __FILE__ ) );
 
@@ -32,7 +32,9 @@ define( 'CIRRUSLY_COMMERCE_URL', plugin_dir_url( __FILE__ ) );
 // -------------------------------------------------------------------------
 if ( ! function_exists( 'cc_fs' ) ) {
     // Create a helper function for easy SDK access.
+    // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound
     function cc_fs() {
+        // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound
         global $cc_fs;
 
         if ( ! isset( $cc_fs ) ) {
@@ -64,7 +66,7 @@ if ( ! function_exists( 'cc_fs' ) ) {
                 ),
             ) );
         }
-
+    // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound
         return $cc_fs;
     }
 

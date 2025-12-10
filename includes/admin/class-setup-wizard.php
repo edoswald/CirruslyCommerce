@@ -32,8 +32,8 @@ class Cirrusly_Commerce_Setup_Wizard {
     public function register_wizard_page() {
         add_submenu_page( 
             null, 
-            'Setup Cirrusly', 
-            'Setup Cirrusly', 
+            __( 'Setup Cirrusly', 'cirrusly-commerce' ), 
+            __( 'Setup Cirrusly', 'cirrusly-commerce' ), 
             'manage_options', 
             'cirrusly-setup', 
             array( $this, 'render_wizard' ) 
@@ -135,15 +135,15 @@ class Cirrusly_Commerce_Setup_Wizard {
         }
 
         // Dynamic Message Logic
-        $title = 'Setup Required';
-        $msg   = 'Please run the setup wizard.';
+        $title = __( 'Setup Required', 'cirrusly-commerce' );
+        $msg   = __( 'Please run the setup wizard.', 'cirrusly-commerce' );
 
         if ( $type === 'plan' ) {
-            $title = 'Thanks for upgrading!';
-            $msg   = 'You have unlocked new Pro features. Run the wizard to configure them.';
+            $title = __( 'Thanks for upgrading!', 'cirrusly-commerce' );
+            $msg   = __( 'You have unlocked new Pro features. Run the wizard to configure them.', 'cirrusly-commerce' );
         } elseif ( $type === 'feature' ) {
-            $title = 'New Features Available!';
-            $msg   = 'We have added major new features that require configuration. Please check your settings.';
+            $title = __( 'New Features Available!', 'cirrusly-commerce' );
+            $msg   = __( 'We have added major new features that require configuration. Please check your settings.', 'cirrusly-commerce' );
         }
 
         echo '<div class="notice notice-info is-dismissible" style="padding:15px; border-left-color:#2271b1;">
@@ -152,8 +152,8 @@ class Cirrusly_Commerce_Setup_Wizard {
                     <h3>' . esc_html( $title ) . '</h3>
                     <p>' . esc_html( $msg ) . '</p>
                     <p>
-                        <a href="' . esc_url( $url ) . '" class="button button-primary">Run Setup Wizard</a> 
-                        <a href="' . esc_url( $dismiss_url ) . '" class="button button-secondary" style="margin-left:10px;">Dismiss</a>
+                        <a href="' . esc_url( $url ) . '" class="button button-primary">' . esc_html__( 'Run Setup Wizard', 'cirrusly-commerce' ) . '</a> 
+                        <a href="' . esc_url( $dismiss_url ) . '" class="button button-secondary" style="margin-left:10px;">' . esc_html__( 'Dismiss', 'cirrusly-commerce' ) . '</a>
                     </p>
                 </div>
             </div>
@@ -208,15 +208,15 @@ class Cirrusly_Commerce_Setup_Wizard {
             <div class="cc-wizard-container">
                 <div class="cc-wizard-header">
                      <img src="<?php echo esc_url( CIRRUSLY_COMMERCE_URL . 'assets/images/logo.svg' ); ?>" style="height: 40px; width: auto;" alt="Cirrusly Commerce">
-                    <h2 style="margin-top: 10px;">Setup Guide</h2>
+                    <h2 style="margin-top: 10px;"><?php esc_html_e( 'Setup Guide', 'cirrusly-commerce' ); ?></h2>
                 </div>
 
                 <div class="cc-wizard-progress">
-                    <span class="cc-step <?php echo $step >= 1 ? 'active' : ''; ?>">1. License</span>
-                    <span class="cc-step <?php echo $step >= 2 ? 'active' : ''; ?>">2. Connect</span>
-                    <span class="cc-step <?php echo $step >= 3 ? 'active' : ''; ?>">3. Finance</span>
-                    <span class="cc-step <?php echo $step >= 4 ? 'active' : ''; ?>">4. Visuals</span>
-                    <span class="cc-step <?php echo $step >= 5 ? 'active' : ''; ?>">5. Finish</span>
+                    <span class="cc-step <?php echo $step >= 1 ? 'active' : ''; ?>"><?php esc_html_e( '1. License', 'cirrusly-commerce' ); ?></span>
+                    <span class="cc-step <?php echo $step >= 2 ? 'active' : ''; ?>"><?php esc_html_e( '2. Connect', 'cirrusly-commerce' ); ?></span>
+                    <span class="cc-step <?php echo $step >= 3 ? 'active' : ''; ?>"><?php esc_html_e( '3. Finance', 'cirrusly-commerce' ); ?></span>
+                    <span class="cc-step <?php echo $step >= 4 ? 'active' : ''; ?>"><?php esc_html_e( '4. Visuals', 'cirrusly-commerce' ); ?></span>
+                    <span class="cc-step <?php echo $step >= 5 ? 'active' : ''; ?>"><?php esc_html_e( '5. Finish', 'cirrusly-commerce' ); ?></span>
                 </div>
 
                 <form method="post" enctype="multipart/form-data">
@@ -249,10 +249,13 @@ class Cirrusly_Commerce_Setup_Wizard {
         if ( $is_pro ) {
             echo '<div style="text-align:center; padding: 40px;">
                 <span class="dashicons dashicons-yes-alt" style="font-size:60px; height:60px; width:60px; color:#008a20;"></span>
-                <h3>Premium License Active!</h3>
-                <p>You have unlocked ' . ($is_plus ? '<strong>Pro Plus</strong>' : '<strong>Pro</strong>') . ' features.</p>
-                <div class="cc-wizard-footer">
-                    <button type="submit" name="save_step" class="button button-primary button-hero">Let\'s Configure &rarr;</button>
+                <h3>' . esc_html__( 'Premium License Active!', 'cirrusly-commerce' ) . '</h3>
+                <p>' . sprintf( 
+                    /* translators: %s: plan name (Pro or Pro Plus) */
+                    esc_html__( 'You have unlocked %s features.', 'cirrusly-commerce' ), 
+                    '<strong>' . ($is_plus ? esc_html__('Pro Plus', 'cirrusly-commerce') : esc_html__('Pro', 'cirrusly-commerce')) . '</strong>'
+                ) . '</p>                <div class="cc-wizard-footer">
+                    <button type="submit" name="save_step" class="button button-primary button-hero">' . esc_html__( 'Let\'s Configure &rarr;', 'cirrusly-commerce' ) . '</button>
                 </div>
             </div>';
             return;
@@ -261,49 +264,49 @@ class Cirrusly_Commerce_Setup_Wizard {
         // Logic for Free Users: Offer Trials
         $upgrade_url = function_exists('cc_fs') ? cc_fs()->get_upgrade_url() : '#';
         ?>
-        <h3>Choose your Edition</h3>
-        <p>You are currently on the Free version. Continue for free or start a risk-free trial to unlock automation.</p>
+        <h3><?php esc_html_e( 'Choose your Edition', 'cirrusly-commerce' ); ?></h3>
+        <p><?php esc_html_e( 'You are currently on the Free version. Continue for free or start a risk-free trial to unlock automation.', 'cirrusly-commerce' ); ?></p>
         
         <div class="cc-pricing-grid">
             <div class="cc-pricing-col">
-                <h4>Free</h4>
-                <p style="font-size: 24px; font-weight: bold;">$0</p>
+                <h4><?php esc_html_e( 'Free', 'cirrusly-commerce' ); ?></h4>
+                <p style="font-size: 24px; font-weight: bold;"><?php esc_html_e( '$0', 'cirrusly-commerce' ); ?></p>
                 <ul class="cc-feature-list">
-                    <li><span class="dashicons dashicons-yes" style="color:green;"></span> Health Scan (Manual)</li>
-                    <li><span class="dashicons dashicons-yes" style="color:green;"></span> Profit Audit</li>
-                    <li><span class="dashicons dashicons-yes" style="color:green;"></span> Basic Badges</li>
+                    <li><span class="dashicons dashicons-yes" style="color:green;"></span> <?php esc_html_e( 'Health Scan (Manual)', 'cirrusly-commerce' ); ?></li>
+                    <li><span class="dashicons dashicons-yes" style="color:green;"></span> <?php esc_html_e( 'Profit Audit', 'cirrusly-commerce' ); ?></li>
+                    <li><span class="dashicons dashicons-yes" style="color:green;"></span> <?php esc_html_e( 'Basic Badges', 'cirrusly-commerce' ); ?></li>
                 </ul>
-                <button type="submit" name="save_step" class="button button-secondary" style="width:100%;">Continue Free</button>
+                <button type="submit" name="save_step" class="button button-secondary" style="width:100%;"><?php esc_html_e( 'Continue Free', 'cirrusly-commerce' ); ?></button>
             </div>
 
             <div class="cc-pricing-col">
-                <span class="cc-tag">Best Value</span>
-                <h4>Pro</h4>
-                <p style="font-size: 24px; font-weight: bold;">3-Day Trial</p>
+                <span class="cc-tag"><?php esc_html_e( 'Best Value', 'cirrusly-commerce' ); ?></span>
+                <h4><?php esc_html_e( 'Pro', 'cirrusly-commerce' ); ?></h4>
+                <p style="font-size: 24px; font-weight: bold;"><?php esc_html_e( '3-Day Trial', 'cirrusly-commerce' ); ?></p>
                 <ul class="cc-feature-list">
-                    <li><span class="dashicons dashicons-yes" style="color:green;"></span> <strong>API Sync</strong></li>
-                    <li><span class="dashicons dashicons-yes" style="color:green;"></span> Multi-Profile Profit</li>
-                    <li><span class="dashicons dashicons-yes" style="color:green;"></span> Smart Inventory Badges</li>
+                    <li><span class="dashicons dashicons-yes" style="color:green;"></span> <strong><?php esc_html_e( 'API Sync', 'cirrusly-commerce' ); ?></strong></li>
+                    <li><span class="dashicons dashicons-yes" style="color:green;"></span> <?php esc_html_e( 'Multi-Profile Profit', 'cirrusly-commerce' ); ?></li>
+                    <li><span class="dashicons dashicons-yes" style="color:green;"></span> <?php esc_html_e( 'Smart Inventory Badges', 'cirrusly-commerce' ); ?></li>
                 </ul>
-                <a href="<?php echo esc_url($upgrade_url); ?>" target="_blank" class="button button-primary" style="width:100%;">Start Trial</a>
-                <p style="font-size:11px; color:#777; margin-top:5px;">Opens in new window. <br>Refresh after purchase.</p>
+                <a href="<?php echo esc_url($upgrade_url); ?>" target="_blank" class="button button-primary" style="width:100%;"><?php esc_html_e( 'Start Trial', 'cirrusly-commerce' ); ?></a>
+                <p style="font-size:11px; color:#777; margin-top:5px;"><?php esc_html_e( 'Opens in new window.', 'cirrusly-commerce' ); ?> <br><?php esc_html_e( 'Refresh after purchase.', 'cirrusly-commerce' ); ?></p>
             </div>
 
             <div class="cc-pricing-col featured">
-                <span class="cc-tag">Automated</span>
-                <h4>Pro Plus</h4>
-                <p style="font-size: 24px; font-weight: bold;">7-Day Trial</p>
+                <span class="cc-tag"><?php esc_html_e( 'Automated', 'cirrusly-commerce' ); ?></span>
+                <h4><?php esc_html_e( 'Pro Plus', 'cirrusly-commerce' ); ?></h4>
+                <p style="font-size: 24px; font-weight: bold;"><?php esc_html_e( '7-Day Trial', 'cirrusly-commerce' ); ?></p>
                 <ul class="cc-feature-list">
-                    <li><span class="dashicons dashicons-yes" style="color:green;"></span> <strong>All Pro Features</strong></li>
-                    <li><span class="dashicons dashicons-yes" style="color:green;"></span> Automated Discounts</li>
-                    <li><span class="dashicons dashicons-yes" style="color:green;"></span> Dynamic Repricing</li>
+                    <li><span class="dashicons dashicons-yes" style="color:green;"></span> <strong><?php esc_html_e( 'All Pro Features', 'cirrusly-commerce' ); ?></strong></li>
+                    <li><span class="dashicons dashicons-yes" style="color:green;"></span> <?php esc_html_e( 'Automated Discounts', 'cirrusly-commerce' ); ?></li>
+                    <li><span class="dashicons dashicons-yes" style="color:green;"></span> <?php esc_html_e( 'Dynamic Repricing', 'cirrusly-commerce' ); ?></li>
                 </ul>
-                <a href="<?php echo esc_url($upgrade_url); ?>" target="_blank" class="button button-primary" style="width:100%;">Start Trial</a>
+                <a href="<?php echo esc_url($upgrade_url); ?>" target="_blank" class="button button-primary" style="width:100%;"><?php esc_html_e( 'Start Trial', 'cirrusly-commerce' ); ?></a>
             </div>
         </div>
         
         <div style="text-align: center; margin-top: 20px; font-size: 12px; color: #777;">
-            <a href="#" onclick="location.reload();">I've already started my trial (Refresh)</a>
+            <a href="#" onclick="location.reload();"><?php esc_html_e( 'I\'ve already started my trial (Refresh)', 'cirrusly-commerce' ); ?></a>
         </div>
         <?php
     }
@@ -321,31 +324,31 @@ class Cirrusly_Commerce_Setup_Wizard {
             delete_transient( 'cirrusly_wizard_upload_success' );
         }
         ?>
-        <h3>Connect Google Merchant Center</h3>
-        <p>Enter your Merchant ID to enable Health Scans.</p>
+        <h3><?php esc_html_e( 'Connect Google Merchant Center', 'cirrusly-commerce' ); ?></h3>
+        <p><?php esc_html_e( 'Enter your Merchant ID to enable Health Scans.', 'cirrusly-commerce' ); ?></p>
         <?php if ( ! empty( $upload_success ) ) : ?>
             <div class="notice notice-success" style="margin:10px 0;">
-                <p><?php echo esc_html( 'Service Account JSON uploaded successfully.' ); ?></p>
+                <p><?php esc_html_e( 'Service Account JSON uploaded successfully.', 'cirrusly-commerce' ); ?></p>
             </div>
         <?php endif; ?>
 
         <table class="form-table">
             <tr>
-                <th>Merchant ID</th>
+                <th><?php esc_html_e( 'Merchant ID', 'cirrusly-commerce' ); ?></th>
                 <td><input type="text" name="merchant_id" value="<?php echo esc_attr( $val ); ?>" class="regular-text" placeholder="e.g. 123456789"></td>
             </tr>
             <?php if ( $is_pro ): ?>
             <tr>
-                <th>Service Account JSON <span class="cc-tag">PRO</span></th>
+                <th><?php esc_html_e( 'Service Account JSON', 'cirrusly-commerce' ); ?> <span class="cc-tag">PRO</span></th>
                 <td>
                     <input type="file" name="cirrusly_service_account" accept=".json">
-                    <p class="description">Upload your Google Cloud Key for Real-Time API scanning.</p>
+                    <p class="description"><?php esc_html_e( 'Upload your Google Cloud Key for Real-Time API scanning.', 'cirrusly-commerce' ); ?></p>
                 </td>
             </tr>
             <?php endif; ?>
         </table>
         <div class="cc-wizard-footer">
-            <button type="submit" name="save_step" class="button button-primary button-hero">Next: Financials &rarr;</button>
+            <button type="submit" name="save_step" class="button button-primary button-hero"><?php esc_html_e( 'Next: Financials &rarr;', 'cirrusly-commerce' ); ?></button>
         </div>
         <?php
     }
@@ -367,39 +370,39 @@ class Cirrusly_Commerce_Setup_Wizard {
         
         $is_pro = Cirrusly_Commerce_Core::cirrusly_is_pro();
         ?>
-        <h3>Profit Engine Setup</h3>
-        <p>Configure your baseline costs to calculate accurate Net Profit margins.</p>
+        <h3><?php esc_html_e( 'Profit Engine Setup', 'cirrusly-commerce' ); ?></h3>
+        <p><?php esc_html_e( 'Configure your baseline costs to calculate accurate Net Profit margins.', 'cirrusly-commerce' ); ?></p>
         
         <table class="form-table">
             <tr>
-                <th>Payment Fees</th>
+                <th><?php esc_html_e( 'Payment Fees', 'cirrusly-commerce' ); ?></th>
                 <td>
                     <input type="number" step="0.1" name="payment_pct" value="<?php echo esc_attr( $pct ); ?>" style="width: 70px;"> % + 
                     <input type="number" step="0.01" name="payment_flat" value="<?php echo esc_attr( $flat ); ?>" style="width: 70px;"> $
-                    <p class="description">e.g., Stripe is usually 2.9% + $0.30</p>
+                    <p class="description"><?php esc_html_e( 'e.g., Stripe is usually 2.9% + $0.30', 'cirrusly-commerce' ); ?></p>
                 </td>
             </tr>
             <?php if ( $is_pro ): ?>
             <tr style="background: #f0f6fc;">
-                <th>Multi-Profile <span class="cc-tag">PRO</span></th>
+                <th><?php esc_html_e( 'Multi-Profile', 'cirrusly-commerce' ); ?> <span class="cc-tag">PRO</span></th>
                 <td>
-                    <label><input type="radio" name="profile_mode" value="single" <?php checked('single', isset($conf['profile_mode'])?$conf['profile_mode']:'single'); ?>> Single</label>
-                    <label><input type="radio" name="profile_mode" value="multi" <?php checked('multi', isset($conf['profile_mode'])?$conf['profile_mode']:''); ?>> Mixed (PayPal + Stripe)</label>
-                    <p class="description">Calculates blended rates for split-payment stores.</p>
+                    <label><input type="radio" name="profile_mode" value="single" <?php checked('single', isset($conf['profile_mode'])?$conf['profile_mode']:'single'); ?>> <?php esc_html_e( 'Single', 'cirrusly-commerce' ); ?></label>
+                    <label><input type="radio" name="profile_mode" value="multi" <?php checked('multi', isset($conf['profile_mode'])?$conf['profile_mode']:''); ?>> <?php esc_html_e( 'Mixed (PayPal + Stripe)', 'cirrusly-commerce' ); ?></label>
+                    <p class="description"><?php esc_html_e( 'Calculates blended rates for split-payment stores.', 'cirrusly-commerce' ); ?></p>
                 </td>
             </tr>
             <?php endif; ?>
             <tr>
-                <th>Avg. Shipping Cost</th>
+                <th><?php esc_html_e( 'Avg. Shipping Cost', 'cirrusly-commerce' ); ?></th>
                 <td>
                     <input type="number" step="0.01" name="default_shipping" value="<?php echo esc_attr( $def_cost ); ?>" class="regular-text"> $
-                    <p class="description">Used as the default cost for products without a specific Shipping Class.</p>
+                    <p class="description"><?php esc_html_e( 'Used as the default cost for products without a specific Shipping Class.', 'cirrusly-commerce' ); ?></p>
                 </td>
             </tr>
         </table>
 
         <div class="cc-wizard-footer">
-            <button type="submit" name="save_step" class="button button-primary button-hero">Next: Storefront &rarr;</button>
+            <button type="submit" name="save_step" class="button button-primary button-hero"><?php esc_html_e( 'Next: Storefront &rarr;', 'cirrusly-commerce' ); ?></button>
         </div>
         <?php
     }
@@ -419,35 +422,35 @@ class Cirrusly_Commerce_Setup_Wizard {
         $smart_inventory = isset( $badge_config['smart_inventory'] ) ? $badge_config['smart_inventory'] : 'yes';
         $smart_performance = isset( $badge_config['smart_performance'] ) ? $badge_config['smart_performance'] : 'yes';
         ?>
-        <h3>Storefront Appearance</h3>
-        <p>Enable visual features to increase urgency and conversion.</p>
+        <h3><?php esc_html_e( 'Storefront Appearance', 'cirrusly-commerce' ); ?></h3>
+        <p><?php esc_html_e( 'Enable visual features to increase urgency and conversion.', 'cirrusly-commerce' ); ?></p>
         
         <div style="background: #fff; border: 1px solid #ddd; padding: 15px; border-radius: 4px; margin-bottom: 15px;">
             <label>
                 <input type="checkbox" name="enable_msrp" value="yes" <?php checked( 'yes', $enable_msrp ); ?>> 
-                <strong>MSRP Strikethrough</strong>
+                <strong><?php esc_html_e( 'MSRP Strikethrough', 'cirrusly-commerce' ); ?></strong>
             </label>
-            <p class="description" style="margin-left: 25px;">Shows "Original Price" crossed out.</p>
+            <p class="description" style="margin-left: 25px;"><?php esc_html_e( 'Shows "Original Price" crossed out.', 'cirrusly-commerce' ); ?></p>
         </div>
 
         <div style="background: #fff; border: 1px solid #ddd; padding: 15px; border-radius: 4px; margin-bottom: 15px;">
             <label>
                 <input type="checkbox" name="enable_badges" value="yes" <?php checked( 'yes', $enable_badges ); ?>> 
-                <strong>Smart Badges</strong>
+                <strong><?php esc_html_e( 'Smart Badges', 'cirrusly-commerce' ); ?></strong>
             </label>
-            <p class="description" style="margin-left: 25px;">Standard "New" and "Sale" badges.</p>
+            <p class="description" style="margin-left: 25px;"><?php esc_html_e( 'Standard "New" and "Sale" badges.', 'cirrusly-commerce' ); ?></p>
             
             <?php if ( $is_pro ): ?>
             <div style="margin-left: 25px; margin-top: 10px; padding-top: 10px; border-top: 1px dashed #ccc;">
                 <span class="cc-tag">PRO</span><br>
-                <label><input type="checkbox" name="smart_inventory" value="yes" <?php checked( 'yes', $smart_inventory ); ?>> Low Stock Warning (Qty < 5)</label><br>
-                <label><input type="checkbox" name="smart_performance" value="yes" <?php checked( 'yes', $smart_performance ); ?>> Best Seller Badge</label>
+                <label><input type="checkbox" name="smart_inventory" value="yes" <?php checked( 'yes', $smart_inventory ); ?>> <?php esc_html_e( 'Low Stock Warning (Qty < 5)', 'cirrusly-commerce' ); ?></label><br>
+                <label><input type="checkbox" name="smart_performance" value="yes" <?php checked( 'yes', $smart_performance ); ?>> <?php esc_html_e( 'Best Seller Badge', 'cirrusly-commerce' ); ?></label>
             </div>
             <?php endif; ?>
         </div>
 
         <div class="cc-wizard-footer">
-            <button type="submit" name="save_step" class="button button-primary button-hero">Finish Setup &rarr;</button>
+            <button type="submit" name="save_step" class="button button-primary button-hero"><?php esc_html_e( 'Finish Setup &rarr;', 'cirrusly-commerce' ); ?></button>
         </div>
         <?php
     }
@@ -459,10 +462,10 @@ class Cirrusly_Commerce_Setup_Wizard {
         ?>
         <div style="text-align: center;">
             <span class="dashicons dashicons-yes-alt" style="font-size: 80px; width: 80px; height: 80px; color: #008a20; margin-bottom: 20px;"></span>
-            <h3>Setup Complete!</h3>
-            <p>Your store is now configured.</p>
+            <h3><?php esc_html_e( 'Setup Complete!', 'cirrusly-commerce' ); ?></h3>
+            <p><?php esc_html_e( 'Your store is now configured.', 'cirrusly-commerce' ); ?></p>
             <br>
-            <button type="submit" name="save_step" class="button button-primary button-hero">Complete Setup</button>
+            <button type="submit" name="save_step" class="button button-primary button-hero"><?php esc_html_e( 'Complete Setup', 'cirrusly-commerce' ); ?></button>
         </div>
         <?php
     }
@@ -549,6 +552,6 @@ class Cirrusly_Commerce_Setup_Wizard {
 
 // Initialize the Wizard on admin screens only
 if ( is_admin() ) {
-    $wizard = new Cirrusly_Commerce_Setup_Wizard();
-    $wizard->init();
+    $cirrusly_wizard = new Cirrusly_Commerce_Setup_Wizard();
+    $cirrusly_wizard->init();
 }

@@ -156,7 +156,7 @@ class Cirrusly_Commerce_Dashboard_UI {
                     <p style="margin:0;"><?php esc_html_e( 'Snapshot of recent performance.', 'cirrusly-commerce' ); ?></p>
                 </div>
                 <div style="text-align:right;">
-                     <span style="font-size:24px; font-weight:bold; color:#008a20;"><?php echo wc_price( $m['weekly_revenue'] ); ?></span><br>
+                     <span style="font-size:24px; font-weight:bold; color:#008a20;"><?php echo wp_kses_post( wc_price( $m['weekly_revenue'] ) ); ?></span><br>
                      <span style="font-size:12px; color:#555;"><?php echo esc_html( $m['weekly_orders'] ); ?> orders</span>
                 </div>
             </div>
@@ -193,7 +193,7 @@ class Cirrusly_Commerce_Dashboard_UI {
                 <div class="cc-card-head"><span>GMC Health</span> <span class="dashicons dashicons-google"></span></div>
                 <div class="cc-stat-row"><span>Critical Issues</span><span class="cc-stat-val <?php echo $m['gmc_critical'] > 0 ? 'cc-val-bad' : 'cc-val-good'; ?>"><?php echo esc_html( $m['gmc_critical'] ); ?></span></div>
                 <div class="cc-stat-row"><span>Warnings</span><span class="cc-stat-val" style="<?php echo $m['gmc_warnings'] > 0 ? 'color:#dba617;' : 'color:#008a20;'; ?>"><?php echo esc_html( $m['gmc_warnings'] ); ?></span></div>
-                <div class="cc-stat-row"><span>Content Policy</span><?php echo ( $m['content_issues'] > 0 ) ? '<span class="cc-stat-val cc-val-bad">' . esc_html( $m['content_issues'] ) . ' Issues</span>' : '<span class="cc-stat-val cc-val-good">Pass</span>'; ?></div>
+                <div class="cc-stat-row"><span>Content Policy</span><?php echo wp_kses_post( ( $m['content_issues'] > 0 ) ? '<span class="cc-stat-val cc-val-bad">' . esc_html( $m['content_issues'] ) . ' Issues</span>' : '<span class="cc-stat-val cc-val-good">Pass</span>' ); ?></div>
                 <div class="cc-stat-row" style="margin-top:15px; padding-top:10px; border-top:1px solid #f0f0f1; border-bottom:none;">
                     <span>Sync Status</span>
                     <?php if($is_pro): ?><span class="gmc-badge" style="background:#008a20;color:#fff;">ACTIVE</span><?php else: ?><span class="gmc-badge" style="background:#ccc;color:#666;">INACTIVE (PRO)</span><?php endif; ?>
@@ -219,18 +219,18 @@ class Cirrusly_Commerce_Dashboard_UI {
         ?>
         <div class="cc-widget-container" style="display:flex; flex-direction:column; gap:15px;">
             <div style="border-bottom:1px solid #eee; padding-bottom:10px; display:flex; justify-content:space-between; align-items:end;">
-                <div><span style="color:#777; font-size:11px; text-transform:uppercase;">Last 7 Days</span><br><span style="font-size:20px; font-weight:600; color:#008a20;"><?php echo wc_price($m['weekly_revenue']); ?></span></div>
-                <div style="text-align:right;"><span style="font-size:12px; color:#555;"><?php echo esc_html($m['weekly_orders']); ?> Orders</span><br><span style="font-size:12px; color:<?php echo ($m['avg_margin'] < 15 ? '#d63638' : '#008a20'); ?>;"><?php echo esc_html($m['avg_margin']); ?>% Margin</span></div>
+                <div><span style="color:#777; font-size:11px; text-transform:uppercase;">Last 7 Days</span><br><span style="font-size:20px; font-weight:600; color:#008a20;"><?php echo wp_kses_post( wc_price($m['weekly_revenue']) ); ?></span></div>
+                <div style="text-align:right;"><span style="font-size:12px; color:#555;"><?php echo esc_html($m['weekly_orders']); ?> Orders</span><br><span style="font-size:12px; color:<?php echo esc_attr( ($m['avg_margin'] < 15 ? '#d63638' : '#008a20') ); ?>;"><?php echo esc_html($m['avg_margin']); ?>% Margin</span></div>
             </div>
             <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:5px;">
                 <div style="background:#f9f9f9; padding:10px; border-radius:4px; text-align:center;">
-                    <span class="dashicons dashicons-google" style="color:#555;"></span> <strong style="display:block; color:<?php echo $m['gmc_critical'] > 0 ? '#d63638' : '#008a20'; ?>;"><?php echo $m['gmc_critical'] > 0 ? esc_html($m['gmc_critical']) . ' Critical' : 'Healthy'; ?></strong><span style="font-size:10px; color:#777;">GMC</span>
+                    <span class="dashicons dashicons-google" style="color:#555;"></span> <strong style="display:block; color:<?php echo esc_attr( $m['gmc_critical'] > 0 ? '#d63638' : '#008a20' ); ?>;"><?php echo $m['gmc_critical'] > 0 ? esc_html($m['gmc_critical']) . ' Critical' : 'Healthy'; ?></strong><span style="font-size:10px; color:#777;">GMC</span>
                 </div>
                 <div style="background:#f9f9f9; padding:10px; border-radius:4px; text-align:center;">
-                    <span class="dashicons dashicons-warning" style="color:#555;"></span> <strong style="display:block; color:<?php echo $m['loss_makers'] > 0 ? '#d63638' : '#777'; ?>;"><?php echo esc_html($m['loss_makers']); ?></strong><span style="font-size:10px; color:#777;">Loss Makers</span>
+                    <span class="dashicons dashicons-warning" style="color:#555;"></span> <strong style="display:block; color:<?php echo esc_attr( $m['loss_makers'] > 0 ? '#d63638' : '#777' ); ?>;"><?php echo esc_html($m['loss_makers']); ?></strong><span style="font-size:10px; color:#777;">Loss Makers</span>
                 </div>
                 <div style="background:#f9f9f9; padding:10px; border-radius:4px; text-align:center;">
-                    <span class="dashicons dashicons-clipboard" style="color:#555;"></span> <strong style="display:block; color:<?php echo $m['missing_cost'] > 0 ? '#d63638' : '#777'; ?>;"><?php echo esc_html($m['missing_cost']); ?></strong><span style="font-size:10px; color:#777;">No Cost</span>
+                    <span class="dashicons dashicons-clipboard" style="color:#555;"></span> <strong style="display:block; color:<?php echo esc_attr( $m['missing_cost'] > 0 ? '#d63638' : '#777' ); ?>;"><?php echo esc_html($m['missing_cost']); ?></strong><span style="font-size:10px; color:#777;">No Cost</span>
                 </div>
             </div>
             <div style="text-align:center; margin-top:5px;">

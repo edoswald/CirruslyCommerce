@@ -159,9 +159,9 @@ class Cirrusly_Commerce_Audit_UI {
 
                 <form method="post" enctype="multipart/form-data" style="margin:0;">
                      <?php wp_nonce_field('cc_import_action', 'cc_import_nonce'); ?>
-                     <label class="button button-secondary" style="cursor:pointer;" title="Import Cost CSV" <?php echo $disabled_attr; ?>>
+                     <label class="button button-secondary" style="cursor:pointer;" title="Import Cost CSV" <?php echo esc_attr( $disabled_attr ); ?>>
                          <span class="dashicons dashicons-upload"></span> Import
-                         <input type="file" name="csv_import" style="display:none;" onchange="this.form.submit()" <?php echo $disabled_attr; ?>>
+                         <input type="file" name="csv_import" style="display:none;" onchange="this.form.submit()" <?php echo esc_attr( $disabled_attr ); ?>>
                      </label>
                 </form>
             </div>
@@ -230,9 +230,9 @@ class Cirrusly_Commerce_Audit_UI {
                 echo '<tr>
                     <td>'.esc_html($row['id']).'</td>
                     <td><a href="'.esc_url(get_edit_post_link($row['id'])).'">'.wp_kses_post($name_html).'</a></td>
-                    <td>'.$cost_cell.'</td>
+                    <td>'.wp_kses_post($cost_cell).'</td>
                     <td>'.wp_kses_post(wc_price($row['price'])).'</td>
-                    <td style="'.esc_attr($ship_style).'">'.$ship_cell.'</td>
+                    <td style="'.esc_attr($ship_style).'">'.wp_kses_post($ship_cell).'</td>
                     <td class="col-net" style="'.esc_attr($net_style).'">'.wp_kses_post(wc_price($row['net'])).'</td>
                     <td class="col-margin">'.esc_html(number_format($row['margin'],1)).'%</td>
                     <td>'.wp_kses_post(implode(' ',$row['alerts'])).'</td>
@@ -263,7 +263,7 @@ class Cirrusly_Commerce_Audit_UI {
                         pid: pid,
                         field: field,
                         value: val,
-                        _nonce: '<?php echo wp_create_nonce("cc_audit_save"); ?>'
+                        _nonce: '<?php echo esc_js( wp_create_nonce("cc_audit_save") ); ?>'
                     }, function(res){
                         $el.css('opacity', '1');
                         if(res.success) {

@@ -38,11 +38,9 @@ class Cirrusly_Commerce_Analytics_Pro {
             return;
         }
 
-        // Add filter to inject SRI attributes for Chart.js
-        add_filter( 'script_loader_tag', array( $this, 'add_chartjs_sri_attributes' ), 10, 3 );
-
-        // Load Chart.js from CDN (Specific UMD version for SRI)
-        wp_enqueue_script( 'cc-chartjs', 'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js', array(), '4.4.0', true );
+        // Removed CDN to comply with Plugin Directory guidelines.
+        // Ensure chart.umd.min.js is present in assets/js/vendor/
+        wp_enqueue_script( 'cc-chartjs', CIRRUSLY_COMMERCE_URL . 'assets/js/vendor/chart.umd.min.js', array(), '4.4.0', true );
         
         // Inline CSS for the analytics dashboard
         wp_enqueue_style( 'cc-analytics-styles', false );
@@ -61,23 +59,10 @@ class Cirrusly_Commerce_Analytics_Pro {
 
     /**
      * Filter to add Integrity and Crossorigin attributes to Chart.js.
-     * * @param string $tag    The script tag.
-     * @param string $handle The script handle.
-     * @param string $src    The script source.
-     * @return string Modified script tag.
+     * Deprecated for local files, keeping method stub to prevent fatal errors if hooked elsewhere, 
+     * but returning tag unmodified.
      */
-    public function add_chartjs_sri_attributes( $tag, $handle, $src ) { // phpcs:ignore VariableAnalysis.CodeAnalysis.VariableAnalysis.UnusedVariable
-        if ( 'cc-chartjs' === $handle ) {
-            // SRI Hash for Chart.js v4.4.0 (UMD Minified)
-            // Note: Verify this hash corresponds to the exact file version on jsDelivr.
-            $sri_hash = 'sha384-e6nUZLBkQ86NJ6TVVKAeSaK8jWa3NhkYWZFomE39AvDbQWeie9PlQqM3pmYW5d1g'; 
-            
-            $tag = str_replace( 
-                '<script ', 
-                '<script integrity="' . esc_attr( $sri_hash ) . '" crossorigin="anonymous" ', 
-                $tag 
-            );
-        }
+    public function add_chartjs_sri_attributes( $tag, $handle, $src ) { 
         return $tag;
     }
 
@@ -86,7 +71,7 @@ class Cirrusly_Commerce_Analytics_Pro {
      */
     public function render_analytics_view() {
     if ( ! current_user_can( 'manage_woocommerce' ) ) {
-        wp_die( __( 'You do not have sufficient permissions to access this page.' ) );
+        wp_die( esc_html__( 'You do not have sufficient permissions to access this page.', 'cirrusly-commerce' ) );
     }
 
         if ( class_exists( 'Cirrusly_Commerce_Core' ) ) {
@@ -106,22 +91,22 @@ class Cirrusly_Commerce_Analytics_Pro {
             <div class="cc-analytics-grid">
                 <div class="cc-metric-card" style="border-top: 3px solid #2271b1;">
                     <h3>Net Sales</h3>
-                    <div class="cc-metric-val"><?php echo wc_price( $data['revenue'] ); ?></div>
+                    <div class="cc-metric-val"><?php echo wp_kses_post( wc_price( $data['revenue'] ) ); ?></div>
                     <div class="cc-metric-sub"><?php echo esc_html( $data['count'] ); ?> Orders</div>
                 </div>
                 <div class="cc-metric-card" style="border-top: 3px solid #d63638;">
                     <h3>Total Costs</h3>
-                    <div class="cc-metric-val"><?php echo wc_price( $data['total_costs'] ); ?></div>
+                    <div class="cc-metric-val"><?php echo wp_kses_post( wc_price( $data['total_costs'] ) ); ?></div>
                     <div class="cc-metric-sub">COGS + Ship + Fees</div>
                 </div>
                 <div class="cc-metric-card" style="border-top: 3px solid #00a32a;">
                     <h3>Net Profit</h3>
-                    <div class="cc-metric-val" style="color:#00a32a;"><?php echo wc_price( $data['net_profit'] ); ?></div>
-                    <div class="cc-metric-sub"><?php echo number_format( $data['margin'], 1 ); ?>% Margin</div>
+                    <div class="cc-metric-val" style="color:#00a32a;"><?php echo wp_kses_post( wc_price( $data['net_profit'] ) ); ?></div>
+                    <div class="cc-metric-sub"><?php echo esc_html( number_format( $data['margin'], 1 ) ); ?>% Margin</div>
                 </div>
                 <div class="cc-metric-card" style="border-top: 3px solid #dba617;">
                     <h3>Projected Stockouts</h3>
-                    <div class="cc-metric-val"><?php echo count( $velocity ); ?></div>
+                    <div class="cc-metric-val"><?php echo esc_html( count( $velocity ) ); ?></div>
                     <div class="cc-metric-sub">Next 14 Days</div>
                 </div>
             </div>
@@ -147,8 +132,8 @@ class Cirrusly_Commerce_Analytics_Pro {
                             } else {
                                 foreach ( $top_products as $p ) {
                                     echo '<tr>';
-                                    echo '<td><a href="' . get_edit_post_link($p['id']) . '">'. esc_html($p['name']) .'</a><br><small style="color:#888;">'. $p['qty'] .' sold</small></td>';
-                                    echo '<td style="text-align:right; font-weight:bold; color:#00a32a;">' . wc_price($p['net']) . '</td>';
+                                    echo '<td><a href="' . esc_url( get_edit_post_link($p['id']) ) . '">'. esc_html($p['name']) .'</a><br><small style="color:#888;">'. esc_html($p['qty']) .' sold</small></td>';
+                                    echo '<td style="text-align:right; font-weight:bold; color:#00a32a;">' . wp_kses_post( wc_price($p['net']) ) . '</td>';
                                     echo '</tr>';
                                 }
                             }
@@ -175,11 +160,11 @@ class Cirrusly_Commerce_Analytics_Pro {
                     <tbody>
                         <?php foreach ( $velocity as $v ) : ?>
                             <tr>
-                                <td><a href="<?php echo get_edit_post_link($v['id']); ?>"><?php echo esc_html( $v['name'] ); ?></a></td>
+                                <td><a href="<?php echo esc_url( get_edit_post_link($v['id']) ); ?>"><?php echo esc_html( $v['name'] ); ?></a></td>
                                 <td style="color:#d63638; font-weight:bold;"><?php echo esc_html( $v['stock'] ); ?></td>
-                                <td><?php echo number_format( $v['velocity'], 1 ); ?> / day</td>
-                                <td><?php echo round( $v['days_left'] ); ?> days</td>
-                                <td><a href="<?php echo get_edit_post_link($v['id']); ?>" class="button button-small">Restock</a></td>
+                                <td><?php echo esc_html( number_format( $v['velocity'], 1 ) ); ?> / day</td>
+                                <td><?php echo esc_html( round( $v['days_left'] ) ); ?> days</td>
+                                <td><a href="<?php echo esc_url( get_edit_post_link($v['id']) ); ?>" class="button button-small">Restock</a></td>
                             </tr>
                         <?php endforeach; ?>
                     </tbody>
@@ -195,7 +180,7 @@ class Cirrusly_Commerce_Analytics_Pro {
             if (!ctx) return;
 
             // Prepare Data from PHP
-            const history = <?php echo wp_json_encode( $gmc_history ); ?>;
+            const history = <?php echo wp_json_encode( $gmc_history, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT ); ?>;
             const labels = [];
             const criticalData = [];
             const warningData = [];
