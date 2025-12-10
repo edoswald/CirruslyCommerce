@@ -40,8 +40,11 @@ class Cirrusly_Commerce_Badges {
     }
 
     /**
-     * Enqueue critical inline CSS and frontend JS using standard WordPress functions.
-     * * Handles styling for badges and the JS logic to relocate badges in the DOM.
+     * Attach critical badge CSS and the frontend badge-relocation JavaScript to WordPress' enqueue system.
+     *
+     * Enqueues inline styles that style product badges (sizes, pill appearance, tooltips, and layout containers)
+     * and registers an inline script that moves hidden badge payloads into product image wrappers on the frontend.
+     * The relocation script is only enqueued on non-admin pages.
      */
     public function enqueue_frontend_assets() {
         // 1. Critical CSS
@@ -108,6 +111,14 @@ class Cirrusly_Commerce_Badges {
         }
     }
 
+    /**
+     * Outputs badge markup for the current product on single product pages.
+     *
+     * If a global product is available and badge content is generated, echoes a
+     * wrapper div with the badge markup. The badge HTML is sanitized before output.
+     *
+     * @return void
+     */
     public function render_single_badges() {
         global $product;
         if ( ! $product ) return;
@@ -116,7 +127,10 @@ class Cirrusly_Commerce_Badges {
     }
 
     /**
-     * Outputs a hidden payload container with product badge HTML for grid/list views.
+     * Echoes a hidden container containing badge HTML for the current product used in grid and list views.
+     *
+     * Uses the global $product; does nothing if no product is available. The badge HTML is sanitized
+     * with wp_kses_post before being echoed inside a div.cw-badge-payload with inline display:none.
      */
     public function render_grid_payload() {
         global $product;
@@ -125,12 +139,15 @@ class Cirrusly_Commerce_Badges {
         if ( $html ) echo '<div class="cw-badge-payload" style="display:none;">' . wp_kses_post( $html ) . '</div>';
     }
 
-    /**
-     * Build HTML markup for all badges that apply to a product.
+    / **
+     * Generate the HTML markup for badges applicable to the given product.
      *
-     * @param \WC_Product|null|false $product The product object to evaluate.
-     * @return string HTML markup for the product's badges.
-     */
+     * Produces concatenated badge elements for smart badges (Pro), sale-based discounts,
+     * new-arrival, and custom tag badges when those conditions apply.
+     *
+     * @param \WC_Product|null|false $product The product to evaluate. If falsy, the method returns an empty string.
+     * @return string HTML string containing zero or more badge elements; empty string if no badges apply or the product is invalid.
+     * /
     private function get_badge_html( $product ) {
         if ( ! $product ) return '';
         
