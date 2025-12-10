@@ -1,0 +1,10 @@
+.git
+.github
+.gitignore
+.DS_Store
+*.code-workspace
+composer.json
+composer.lock
+test
+documentation
+README.md

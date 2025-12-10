@@ -4,7 +4,7 @@ Contributors: edoswald
 Tags: Google Merchant Center, WooCommerce, pricing, MSRP, profit margin
 Requires at least: 5.8 
 Tested up to: 6.9 
-Stable tag: 1.3 
+Stable tag: 1.3.1 
 Requires PHP: 8.1 
 License: GPLv2 or later 
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
@@ -89,12 +89,27 @@ Store Audit: A financial breakdown of every product to spot profit leaks.
 
 == Changelog ==
 
+= 1.3.1 =
+
++* **New Feature:** Admin Setup Wizard (Pro/Pro Plus) - Automated onboarding runs on activation with milestone-based prompts and persistent multi-step saves. Rerun anytime from the admin menu to reconfigure your store's financial settings.
++* **New Feature:** Analytics Dashboard (Pro Plus) - Real-time P&L summaries, inventory velocity tracking, and daily GMC performance snapshots with visual charts.
++* **Enhancement:** Intelligent Issue Deduplication (Pro/Pro Plus) - Signature-based deduplication with Google NLP integration merges related audit issues, reducing noise and improving focus on critical problems.
+
+
 = 1.3 =
-**Note:** Effective from this release, only changes to the free version of the plugin will be listed. For changes to the Pro version of the plugin (which also include the free changes), please refer to the pro version README instead.
+
 * Refactor of entire plugin to improve both frontend and admin loading times
-* **New Feature:** Gutenberg Blocks! 
+* Split of plugin into three options: Starter (Free), Pro, and Pro Plus.
+* **New Feature:** Gutenberg Blocks - MSRP display, Sale Countdown, Smart Badges, Automated Discount Notice (Pro)
+* **UI Update:** GMC Hub is now 'Compliance Hub,' to make way for potential inclusion of other shopping services in the future.
+* **UI Update:** Improved explanatory text throughout plugin to limit need to refer to user manual.
+* **Enhancement:** MSRP injection location is now customizable on the product page.
+* **Fix:** Add Google NLP for better audit results (Pro)
+* Plugin now requires PHP 8.1 due to Composer requirements and for security reasons.
 
 = 1.2.1 =
+
+**Note:** in-house development release
 * **New Feature:** Introduced "Freemium" architecture. Pro features are now visible in the interface (grayed out) to showcase advanced capabilities if downloading from Freemius. They are not visible from the WP Plugin Directory version. 
 * **Enhancement:** Added "System Info" tool to the support menu (header) to easily copy environment details for faster troubleshooting.
 * **Enhancement:** Pricing Engine now supports 5%, 15%, and 25% "Off MSRP" strategies.

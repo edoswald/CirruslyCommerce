@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Cirrusly Commerce
  * Description: All-in-one suite: GMC Assistant, Promotion Manager, Pricing Engine, and Store Financial Audit that doesn't cost an arm and a leg.
- * Version: 1.3
+ * Version: 1.3.1
  * Author: Cirrusly Weather
  * Author URI: https://cirruslyweather.com
  * Text Domain: cirrusly-commerce
@@ -23,7 +23,7 @@ if ( file_exists( plugin_dir_path( __FILE__ ) . 'vendor/autoload.php' ) ) {
 }
 
 // Define Constants
-define( 'CIRRUSLY_COMMERCE_VERSION', '1.3' );
+define( 'CIRRUSLY_COMMERCE_VERSION', '1.3.1' );
 define( 'CIRRUSLY_COMMERCE_PATH', plugin_dir_path( __FILE__ ) );
 define( 'CIRRUSLY_COMMERCE_URL', plugin_dir_url( __FILE__ ) );
 
@@ -124,9 +124,22 @@ class Cirrusly_Commerce_Main {
 
         // 2. Load Pro-Only Modules
         // Automated Discounts was completely moved to the Pro directory.
-        if ( Cirrusly_Commerce_Core::cirrusly_is_pro_plus() ) {
-            if ( file_exists( $includes_path . 'pro/class-automated-discounts.php' ) ) {
-                require_once $includes_path . 'pro/class-automated-discounts.php';
+     if ( Cirrusly_Commerce_Core::cirrusly_is_pro_plus() ) {
+         if ( file_exists( $includes_path . 'pro/class-automated-discounts.php' ) ) {
+             require_once $includes_path . 'pro/class-automated-discounts.php';
+         }
+        // [NEW] Analytics Module
+        // We check for the file first to prevent fatal errors if files are missing
+        if ( file_exists( $includes_path . 'pro/class-analytics-pro.php' ) ) {
+            require_once $includes_path . 'pro/class-analytics-pro.php';
+        }
+     }
+
+        // 2.5 Load Admin Setup Wizard
+        if ( is_admin() ) {
+            // Check if file exists to prevent errors during updates/git syncs
+            if ( file_exists( $includes_path . 'admin/class-setup-wizard.php' ) ) {
+                require_once $includes_path . 'admin/class-setup-wizard.php';
             }
         }
 
@@ -146,6 +159,12 @@ class Cirrusly_Commerce_Main {
         // Only init Automated Discounts if the class was loaded (i.e., user is Pro Plus)
         if ( class_exists( 'Cirrusly_Commerce_Automated_Discounts' ) ) {
             new Cirrusly_Commerce_Automated_Discounts();
+        }
+
+        // [NEW] Init Analytics
+        // This ensures the class is only started if the require_once above succeeded
+        if ( class_exists( 'Cirrusly_Commerce_Analytics_Pro' ) ) {
+            new Cirrusly_Commerce_Analytics_Pro();
         }
         
         Cirrusly_Commerce_Help::init();
@@ -199,6 +218,9 @@ class Cirrusly_Commerce_Main {
             $scan_config['merchant_id_pro'] = $legacy_id;
             update_option( 'cirrusly_scan_config', $scan_config );
         }
+
+        // [NEW] Trigger Setup Wizard Redirect
+        set_transient( 'cirrusly_activation_redirect', true, 60 );
     }
 
     /**

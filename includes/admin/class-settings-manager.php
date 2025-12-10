@@ -212,6 +212,13 @@ class Cirrusly_Commerce_Settings_Manager {
         } else {
             echo '<h1>Settings</h1>';
         }
+
+    // --- NEW: Rerun Wizard Button Here ---
+            echo '<div style="float: right; margin-top: -40px;">
+                    <a href="' . esc_url( admin_url( 'admin.php?page=cirrusly-setup' ) ) . '" class="button button-secondary">
+                    <span class="dashicons dashicons-admin-tools" style="vertical-align:text-top;"></span> Rerun Setup Wizard
+                    </a>
+                </div>';
         
         echo '<nav class="nav-tab-wrapper">
                 <a href="?page=cirrusly-settings&tab=general" class="nav-tab '.($tab=='general'?'nav-tab-active':'').'">General Settings</a>
