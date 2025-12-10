@@ -66,11 +66,11 @@ class Cirrusly_Commerce_Analytics_Pro {
      * @param string $src    The script source.
      * @return string Modified script tag.
      */
-    public function add_chartjs_sri_attributes( $tag, $handle, $src ) {
+    public function add_chartjs_sri_attributes( $tag, $handle, $src ) { // phpcs:ignore VariableAnalysis.CodeAnalysis.VariableAnalysis.UnusedVariable
         if ( 'cc-chartjs' === $handle ) {
             // SRI Hash for Chart.js v4.4.0 (UMD Minified)
             // Note: Verify this hash corresponds to the exact file version on jsDelivr.
-            $sri_hash = 'sha384-[jsdelivr-hash]'; 
+            $sri_hash = 'sha384-e6nUZLBkQ86NJ6TVVKAeSaK8jWa3NhkYWZFomE39AvDbQWeie9PlQqM3pmYW5d1g'; 
             
             $tag = str_replace( 
                 '<script ', 
@@ -355,7 +355,31 @@ class Cirrusly_Commerce_Analytics_Pro {
     private static function get_inventory_velocity() {
         // 1. Get Sales for last 30 days per product
         $sold_map = array();
+
+    // Check if HPOS is enabled
+    if ( class_exists( 'Automattic\WooCommerce\Utilities\OrderUtil' ) 
+         && \Automattic\WooCommerce\Utilities\OrderUtil::custom_orders_table_usage_is_enabled() ) {
+        // HPOS-compatible approach: use wc_get_orders() and aggregate in PHP
+        $date_query = array(
+            'after'     => wp_date( 'Y-m-d', strtotime( '-30 days' ) ),
+            'inclusive' => true,
+        );
         
+        $orders = wc_get_orders( array(
+            'limit'        => -1, // Or paginate if needed
+            'status'       => array( 'wc-completed', 'wc-processing' ),
+            'date_created' => $date_query,
+        ) );
+        
+        foreach ( $orders as $order ) {
+            foreach ( $order->get_items() as $item ) {
+                $pid = $item->get_product_id();
+                $qty = $item->get_quantity();
+                $sold_map[ $pid ] = ( $sold_map[ $pid ] ?? 0 ) + $qty;
+            }
+        }
+    } else {
+
         // Lightweight query for speed
         global $wpdb;
         $order_items = $wpdb->get_results( $wpdb->prepare( "
@@ -415,6 +439,7 @@ class Cirrusly_Commerce_Analytics_Pro {
 
         return $risky_items;
     }
+}
 
     /**
      * Hook: Capture daily GMC scan results for historical trending.

@@ -63,8 +63,9 @@ class Cirrusly_Commerce_Setup_Wizard {
      * Trigger 1: Plan Upgrade (Free -> Pro -> Pro Plus)
      */
     public function detect_plan_change() {
-        if ( ! function_exists( 'cc_fs' ) ) return;
-
+        if ( ! function_exists( 'cc_fs' ) || ! current_user_can( 'manage_options' ) ) {
+            return;
+        }
         $current_plan = 'free';
         if ( cc_fs()->is_plan( 'proplus' ) ) {
             $current_plan = 'proplus';
@@ -158,7 +159,10 @@ class Cirrusly_Commerce_Setup_Wizard {
      */
     public function render_wizard() {
         $step = isset( $_GET['step'] ) ? absint( $_GET['step'] ) : 1;
-        
+        if ( $step < 1 || $step > 5 ) {
+            $step = 1;
+        }        
+
         // Handle Save Logic
         if ( isset( $_POST['save_step'] ) && check_admin_referer( 'cirrusly_wizard_step_' . $step ) ) {
             $this->save_step( $step );
@@ -309,6 +313,20 @@ class Cirrusly_Commerce_Setup_Wizard {
         ?>
         <h3>Connect Google Merchant Center</h3>
         <p>Enter your Merchant ID to enable Health Scans.</p>
+        $is_pro = Cirrusly_Commerce_Core::cirrusly_is_pro();
+        $upload_success = get_transient( 'cirrusly_wizard_upload_success' );
+        if ( $upload_success ) {
+            delete_transient( 'cirrusly_wizard_upload_success' );
+        }
+        ?>
+        <h3>Connect Google Merchant Center</h3>
+        <p>Enter your Merchant ID to enable Health Scans.</p>
+        <?php if ( ! empty( $upload_success ) ) : ?>
+            <div class="notice notice-success" style="margin:10px 0;">
+                <p><?php echo esc_html( 'Service Account JSON uploaded successfully.' ); ?></p>
+            </div>
+        <?php endif; ?>
+
         <table class="form-table">
             <tr>
                 <th>Merchant ID</th>
@@ -527,6 +545,8 @@ class Cirrusly_Commerce_Setup_Wizard {
     } // End save_step
 } // End Class
 
-// Initialize the Wizard
-$wizard = new Cirrusly_Commerce_Setup_Wizard();
-$wizard->init();
+// Initialize the Wizard on admin screens only
+if ( is_admin() ) {
+    $wizard = new Cirrusly_Commerce_Setup_Wizard();
+    $wizard->init();
+}
