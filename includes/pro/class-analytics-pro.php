@@ -405,11 +405,11 @@ class Cirrusly_Commerce_Analytics_Pro {
         foreach ( $order_items as $row ) {
             $sold_map[$row->product_id] = $row->qty;
         }
+    }
+    $risky_items = array();
 
-        $risky_items = array();
-
-        // 2. Compare against current stock
-        foreach ( $sold_map as $pid => $qty_30 ) {
+    // 2. Compare against current stock
+    foreach ( $sold_map as $pid => $qty_30 ) {
             $product = wc_get_product( $pid );
             if ( ! $product || ! $product->managing_stock() ) continue;
 
@@ -431,15 +431,16 @@ class Cirrusly_Commerce_Analytics_Pro {
                 );
             }
         }
-        
-        // Sort by urgency
-        usort( $risky_items, function($a, $b) {
-            return $a['days_left'] <=> $b['days_left'];
-        });
-
-        return $risky_items;
     }
+        
+    // Sort by urgency
+    usort( $risky_items, function($a, $b) {
+        return $a['days_left'] <=> $b['days_left'];
+    });
+
+    return $risky_items;
 }
+
 
     /**
      * Hook: Capture daily GMC scan results for historical trending.

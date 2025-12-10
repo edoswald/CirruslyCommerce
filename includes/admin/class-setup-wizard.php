@@ -310,10 +310,6 @@ class Cirrusly_Commerce_Setup_Wizard {
         $val = isset( $gcr['merchant_id'] ) ? $gcr['merchant_id'] : '';
         
         $is_pro = Cirrusly_Commerce_Core::cirrusly_is_pro();
-        ?>
-        <h3>Connect Google Merchant Center</h3>
-        <p>Enter your Merchant ID to enable Health Scans.</p>
-        $is_pro = Cirrusly_Commerce_Core::cirrusly_is_pro();
         $upload_success = get_transient( 'cirrusly_wizard_upload_success' );
         if ( $upload_success ) {
             delete_transient( 'cirrusly_wizard_upload_success' );
@@ -499,8 +495,8 @@ class Cirrusly_Commerce_Setup_Wizard {
         // Step 3: Finance
         if ( $step === 3 ) {
             $conf = get_option( 'cirrusly_shipping_config', array() );
-            $conf['payment_pct']  = isset( $_POST['payment_pct'] ) ? sanitize_text_field( $_POST['payment_pct'] ) : 2.9;
-            $conf['payment_flat'] = isset( $_POST['payment_flat'] ) ? sanitize_text_field( $_POST['payment_flat'] ) : 0.30;
+            $conf['payment_pct']  = isset( $_POST['payment_pct'] ) ? floatval( $_POST['payment_pct'] ) : 2.9;
+            $conf['payment_flat'] = isset( $_POST['payment_flat'] ) ? floatval( $_POST['payment_flat'] ) : 0.30;
             
             // Pro: Profile Mode
             if ( isset( $_POST['profile_mode'] ) ) {
