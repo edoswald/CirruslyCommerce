@@ -285,7 +285,7 @@ foreach ( $monitored_terms as $category => $terms ) {
                                 /* translators: 1: The violation category (e.g. Medical), 2: The restricted word found */
                                 __( 'Restricted Term (%1$s): "%2$s"', 'cirrusly-commerce' ), 
                                 ucfirst($category), 
-                                ucfirst($word) 
+                                $word 
                             ),
                             'reason' => isset($rule['reason']) ? $rule['reason'] : 'Potential policy violation.'
                         );

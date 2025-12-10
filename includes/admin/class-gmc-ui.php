@@ -713,8 +713,22 @@ class Cirrusly_Commerce_GMC_UI {
         }
 
         // Scan Products
-        $products = get_posts( array( 'post_type' => 'product', 'posts_per_page' => -1 ) );
-        foreach ( $products as $prod ) {
+        $batch_size = 100;
+        $paged = 1;
+        $has_more = true;
+        
+        while ( $has_more ) {
+            $products = get_posts( array( 
+                'post_type' => 'product', 
+                'posts_per_page' => $batch_size,
+                'paged' => $paged
+            ) );
+            
+            if ( empty( $products ) ) {
+                $has_more = false;
+                break;
+            }
+            foreach ( $products as $prod ) {
             // Note: Added post_excerpt to ensure Short Description is also scanned
             $content = $prod->post_title . ' ' . $prod->post_content . ' ' . $prod->post_excerpt;
             $found_in_prod = $scan_text( $content );
@@ -727,6 +741,9 @@ class Cirrusly_Commerce_GMC_UI {
                     'terms' => $found_in_prod
                 );
             }
+            
+            $has_more = ( count( $products ) === $batch_size );
+            $paged++;
         }
 
         return $issues;
