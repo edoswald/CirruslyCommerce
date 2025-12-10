@@ -15,7 +15,7 @@ The Financial Operating System for WooCommerce. Google Merchant Center Complianc
 
 Cirrusly Commerce is the financial operating system for WooCommerce stores. It is the only plugin that combines **Google Merchant Center compliance**, **Net Profit Auditing**, and **Dynamic Pricing** into a single, powerful suite.
 
-Originally a set of code snippets used on our site Cirrusly Weather, Cirrusly Commerce expands  works alongside your existing feed plugin to fix data errors, visualize true profit margins (after COGS and fees), and increase conversion rates with psychological pricing.
+Originally a set of code snippets used on our site Cirrusly Weather, Cirrusly Commerce works alongside your existing feed plugin to fix data errors, visualize true profit margins (after COGS and fees), and increase conversion rates with psychological pricing.
 
 ### 🚀 1. Google Merchant Center Compliance & Feed Repair
 Your product feed is your business's lifeline. Don't let a suspension kill your revenue.
