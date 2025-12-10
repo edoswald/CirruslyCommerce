@@ -360,21 +360,32 @@ class Cirrusly_Commerce_Analytics_Pro {
          && \Automattic\WooCommerce\Utilities\OrderUtil::custom_orders_table_usage_is_enabled() ) {
         // HPOS-compatible approach: use wc_get_orders() and aggregate in PHP
 
-        $orders = wc_get_orders( array(
-            'limit'       => -1, 
-            'status'      => array( 'wc-completed', 'wc-processing' ),
-            // REPLACE 'date_created' => $date_query WITH:
-            'date_after'  => wp_date( 'Y-m-d', strtotime( '-30 days' ) ),
-        ) );
-        
-        foreach ( $orders as $order ) {
-            foreach ( $order->get_items() as $item ) {
-                $pid = $item->get_product_id();
-                $qty = $item->get_quantity();
-                $sold_map[ $pid ] = ( $sold_map[ $pid ] ?? 0 ) + $qty;
+            $page = 1;
+            $max_pages = 1000; // Safety limit matching get_pnl_data
+
+            while( $page <= $max_pages ) {
+                $orders = wc_get_orders( array(
+                    'limit'       => 250,
+                    'page'        => $page,
+                    'status'      => array( 'wc-completed', 'wc-processing' ),
+                    // REPLACE 'date_created' => $date_query WITH:
+                    'date_after'  => wp_date( 'Y-m-d', strtotime( '-30 days' ) ),
+                ) );
+
+                if ( empty( $orders ) ) {
+                    break;
+                }
+
+                foreach ( $orders as $order ) {
+                    foreach ( $order->get_items() as $item ) {
+                        $pid = $item->get_product_id();
+                        $qty = $item->get_quantity();
+                        $sold_map[ $pid ] = ( $sold_map[ $pid ] ?? 0 ) + $qty;
+                    }
+                }
+                $page++;
             }
-        }
-    } else {
+        } else {
 
         // Lightweight query for speed
         global $wpdb;

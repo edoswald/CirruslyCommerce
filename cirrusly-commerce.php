@@ -124,16 +124,16 @@ class Cirrusly_Commerce_Main {
 
         // 2. Load Pro-Only Modules
         // Automated Discounts was completely moved to the Pro directory.
-        if ( Cirrusly_Commerce_Core::cirrusly_is_pro_plus() ) {
-            if ( file_exists( $includes_path . 'pro/class-automated-discounts.php' ) ) {
-                require_once $includes_path . 'pro/class-automated-discounts.php';
-            }
+     if ( Cirrusly_Commerce_Core::cirrusly_is_pro_plus() ) {
+         if ( file_exists( $includes_path . 'pro/class-automated-discounts.php' ) ) {
+             require_once $includes_path . 'pro/class-automated-discounts.php';
+         }
         // [NEW] Analytics Module
         // We check for the file first to prevent fatal errors if files are missing
         if ( file_exists( $includes_path . 'pro/class-analytics-pro.php' ) ) {
             require_once $includes_path . 'pro/class-analytics-pro.php';
         }
-        }
+     }
 
         // 2.5 Load Admin Setup Wizard
         if ( is_admin() ) {
@@ -220,7 +220,7 @@ class Cirrusly_Commerce_Main {
         }
 
         // [NEW] Trigger Setup Wizard Redirect
-    set_transient( 'cirrusly_activation_redirect', true, 60 );
+        set_transient( 'cirrusly_activation_redirect', true, 60 );
     }
 
     /**
