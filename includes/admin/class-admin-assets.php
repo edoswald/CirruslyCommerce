@@ -6,25 +6,34 @@ if ( ! defined( 'ABSPATH' ) ) {
 class Cirrusly_Commerce_Admin_Assets {
 
     /**
-     * Enqueue and localize admin scripts and styles.
+     * Enqueue and localize admin styles, scripts, and UI helper inline code for plugin and product admin pages.
      *
-     * @param string $hook The current admin page hook.
+     * When the current admin page is part of the plugin or a product edit screen, this registers and enqueues
+     * the base admin CSS and JS, conditionally enqueues audit and pricing scripts, localizes their data objects,
+     * and attaches UI helper JavaScript as an inline script on the base admin JS handle.
+     *
+     * @param string $hook The current admin page hook (e.g., 'post.php', 'post-new.php', or plugin page hook).
      */
     public function enqueue( $hook ) {
         $page = isset( $_GET['page'] ) ? sanitize_text_field( wp_unslash( $_GET['page'] ) ) : '';
         $is_plugin_page = strpos( $page, 'cirrusly-' ) !== false;
         $is_product_page = 'post.php' === $hook || 'post-new.php' === $hook;
 
-        // Only load assets on relevant pages to maintain performance
         if ( ! $is_plugin_page && ! $is_product_page ) {
             return;
         }
 
-        // 1. Core Styles & Media
         wp_enqueue_media(); 
-        wp_enqueue_style( 'cirrusly-admin-css', CIRRUSLY_COMMERCE_URL . 'assets/css/admin.css', array(), CIRRUSLY_COMMERCE_VERSION );
         
-        // 2. Audit Page JS
+        // Base Admin CSS
+        wp_register_style( 'cirrusly-admin-css', CIRRUSLY_COMMERCE_URL . 'assets/css/admin.css', array(), CIRRUSLY_COMMERCE_VERSION );
+        wp_enqueue_style( 'cirrusly-admin-css' );
+
+        // NEW: Base Admin JS (for attaching inline scripts)
+        wp_register_script( 'cirrusly-admin-base-js', false, array( 'jquery' ), CIRRUSLY_COMMERCE_VERSION, true );
+        wp_enqueue_script( 'cirrusly-admin-base-js' );
+
+        // ... [Keep Audit JS and Pricing JS Logic] ...
         if ( $page === 'cirrusly-audit' ) {
             wp_enqueue_script( 'cirrusly-audit-js', CIRRUSLY_COMMERCE_URL . 'assets/js/audit.js', array( 'jquery' ), CIRRUSLY_COMMERCE_VERSION, true );
             wp_localize_script( 'cirrusly-audit-js', 'cc_audit_vars', array(
@@ -33,11 +42,10 @@ class Cirrusly_Commerce_Admin_Assets {
             ));
         }
 
-        // 3. Product Pricing Engine JS
         if ( $is_product_page ) {
             wp_enqueue_script( 'cirrusly-pricing-js', CIRRUSLY_COMMERCE_URL . 'assets/js/pricing.js', array( 'jquery' ), CIRRUSLY_COMMERCE_VERSION, true );
             
-            // Reconstruct config logic here to ensure JS has data
+            // Reconstruct config logic...
             $config = get_option( 'cirrusly_shipping_config', array() );
             $defaults = array(
                 'revenue_tiers_json' => json_encode(array(
@@ -55,7 +63,6 @@ class Cirrusly_Commerce_Admin_Assets {
             );
             $config = wp_parse_args( $config, $defaults );
             
-            // Pass configuration to JS for real-time margin calculation
             $js_config = array(
                 'revenue_tiers' => json_decode( $config['revenue_tiers_json'] ),
                 'matrix_rules'  => json_decode( $config['matrix_rules_json'] ),
@@ -84,8 +91,7 @@ class Cirrusly_Commerce_Admin_Assets {
             wp_localize_script( 'cirrusly-pricing-js', 'cw_vars', array( 'ship_config' => $js_config, 'id_map' => $id_map ));
         }
         
-        // 4. UI Helper Scripts (Tab switching, dynamic rows)
-        // Moved from inline string to a cleaner heredoc or simple string
+        // 4. UI Helper Scripts attached via wp_add_inline_script to base handle
         $js_ui_helpers = '
         jQuery(document).ready(function($){
             var frame; var $currentBtn;
@@ -101,7 +107,6 @@ class Cirrusly_Commerce_Admin_Assets {
             });
             $(document).on("click", ".cc-remove-btn", function(e){ e.preventDefault(); $(this).siblings("input").val(""); });
             
-            // Dynamic Rows (Settings Page)
             $("#cc-add-badge-row").click(function(){
                 var idx = $("#cc-badge-rows tr").length + 1000;
                 var row = "<tr><td><input type=\'text\' name=\'cirrusly_badge_config[custom_badges]["+idx+"][tag]\'></td><td><input type=\'text\' name=\'cirrusly_badge_config[custom_badges]["+idx+"][url]\' class=\'regular-text\'> <button type=\'button\' class=\'button cc-upload-btn\'>Upload</button></td><td><input type=\'text\' name=\'cirrusly_badge_config[custom_badges]["+idx+"][tooltip]\'></td><td><input type=\'number\' name=\'cirrusly_badge_config[custom_badges]["+idx+"][width]\' value=\'60\'> px</td><td><button type=\'button\' class=\'button cc-remove-row\'><span class=\'dashicons dashicons-trash\'></span></button></td></tr>";
@@ -125,6 +130,6 @@ class Cirrusly_Commerce_Admin_Assets {
             $(document).on("click", ".cc-remove-row", function(){ $(this).closest("tr").remove(); });
         });';
         
-        wp_add_inline_script( 'common', $js_ui_helpers );
+        wp_add_inline_script( 'cirrusly-admin-base-js', $js_ui_helpers );
     }
 }

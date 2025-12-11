@@ -35,7 +35,7 @@ class Cirrusly_Commerce_Audit {
     /**
      * Build per-product financial audit data used by the admin table and CSV export.
      *
-     * Reads cached results from the transient `cw_audit_data` and, if absent or when
+     * Reads cached results from the transient `cirrusly_audit_data` and, if absent or when
      * `$force_refresh` is true, recomputes per-product financial metrics (costs,
      * shipping, revenue tiers, fees, margin, net, alerts, categories and pricing
      * metadata) and caches the result for 1 hour.
@@ -62,8 +62,18 @@ class Cirrusly_Commerce_Audit {
      * - msrp: MSRP meta
      */
     public static function get_compiled_data( $force_refresh = false ) {
-        $cache_key = 'cw_audit_data';
+        $cache_key = 'cirrusly_audit_data';
         $data = get_transient( $cache_key );
+        
+        // MIGRATION: Check for old transient and migrate if found
+        if ( false === $data ) {
+            $old_data = get_transient( 'cw_audit_data' );
+            if ( false !== $old_data ) {
+                $data = $old_data;
+                set_transient( $cache_key, $data, 1 * HOUR_IN_SECONDS );
+                delete_transient( 'cw_audit_data' );
+            }
+        }
         
         if ( false === $data || $force_refresh ) {
             // FIXED: Replaced unsafe/missing Core method call with direct option retrieval.

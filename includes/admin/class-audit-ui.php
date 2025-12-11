@@ -4,23 +4,24 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 class Cirrusly_Commerce_Audit_UI {
 
     /**
-     * Render the Store Financial Audit admin page and output its HTML interface.
+     * Render the Store Financial Audit admin page.
      *
-     * Renders dashboard metrics, filter controls, a sortable/paginated products table,
-     * and a PRO tools card. Processes filter, search, sort, and pagination inputs;
-     * may delete the audit transient when a refresh is requested; and delegates CSV
-     * import handling to the Pro handler when a valid import nonce is submitted.
-     * Verifies the current user has the 'edit_products' capability and terminates
-     * with "No permission" if the check fails.
+     * Processes input (filters, search, sorting, pagination), handles transient refresh and CSV import (delegated to Pro when applicable), enforces the 'edit_products' capability, and outputs the dashboard overview, filters toolbar, sortable/paginated products table, and Pro-only inline editing UI.
      */
     public static function render_page() {
         if ( ! current_user_can( 'edit_products' ) ) wp_die( 'No permission' );
         
         // Handle Import Submission (Delegated to Pro)
-        if ( isset($_POST['cc_import_nonce']) && wp_verify_nonce($_POST['cc_import_nonce'], 'cc_import_action') ) {
-            if ( Cirrusly_Commerce_Core::cirrusly_is_pro() && class_exists( 'Cirrusly_Commerce_Audit_Pro' ) ) {
-                Cirrusly_Commerce_Audit_Pro::handle_import();
-            }
+        if (
+            isset( $_POST['cc_import_nonce'] )
+            && wp_verify_nonce(
+                sanitize_text_field( wp_unslash( $_POST['cc_import_nonce'] ) ),
+                'cc_import_action'
+            )
+            && Cirrusly_Commerce_Core::cirrusly_is_pro()
+            && class_exists( 'Cirrusly_Commerce_Audit_Pro' )
+        ) {
+            Cirrusly_Commerce_Audit_Pro::handle_import();
         }
 
         echo '<div class="wrap">'; 
@@ -29,8 +30,10 @@ class Cirrusly_Commerce_Audit_UI {
         settings_errors('cirrusly_audit');
 
         // 1. Handle Cache & Refresh
-        $refresh = isset( $_GET['refresh_audit'] ) && isset( $_GET['_wpnonce'] ) && wp_verify_nonce( $_GET['_wpnonce'], 'cc_refresh_audit' );
-        if ( $refresh ) delete_transient( 'cw_audit_data' );
+        $refresh = isset( $_GET['refresh_audit'] ) && isset( $_GET['_wpnonce'] ) && wp_verify_nonce( sanitize_text_field( wp_unslash( $_GET['_wpnonce'] ) ), 'cc_refresh_audit' );
+        if ( $refresh ) {
+            delete_transient( 'cirrusly_audit_data' );
+        }
 
         // 2. Get Data via Core Logic
         $cached_data = Cirrusly_Commerce_Audit::get_compiled_data( $refresh );
@@ -142,7 +145,7 @@ class Cirrusly_Commerce_Audit_UI {
 
             <div class="cc-toolbar-actions" style="display:flex; align-items:center; gap:8px; border-left:1px solid #ddd; padding-left:15px;">
                 <?php if(!$is_pro): ?>
-                     <a href="<?php echo esc_url( function_exists('cc_fs') ? cc_fs()->get_upgrade_url() : '#' ); ?>" title="Upgrade to Pro" style="color:#d63638; text-decoration:none; margin-right:5px; font-weight:bold;">
+                     <a href="<?php echo esc_url( function_exists('cirrusly_fs') ? cirrusly_fs()->get_upgrade_url() : '#' ); ?>" title="Upgrade to Pro" style="color:#d63638; text-decoration:none; margin-right:5px; font-weight:bold;">
                         <span class="dashicons dashicons-lock"></span>
                      </a>
                 <?php endif; ?>
@@ -152,9 +155,9 @@ class Cirrusly_Commerce_Audit_UI {
                     <span class="dashicons dashicons-download"></span> Export
                 </a>
                 <?php else: ?>
-                     <label class="button button-secondary" style="cursor:<?php echo $is_pro ? 'pointer' : 'not-allowed'; ?>; <?php echo $is_pro ? '' : 'opacity:0.6;'; ?>" title="Import Cost CSV">
-                    <span class="dashicons dashicons-download"></span> Export
-                </span>
+                    <label class="button button-secondary" style="cursor:not-allowed; opacity:0.6;" title="Export CSV is available in Pro.">
+                        <span class="dashicons dashicons-download"></span> Export
+                    </label>
                 <?php endif; ?>
 
                 <form method="post" enctype="multipart/form-data" style="margin:0;">
@@ -247,35 +250,35 @@ class Cirrusly_Commerce_Audit_UI {
         }
 
         if($is_pro) {
-            ?>
-            <script>
+            $nonce = wp_create_nonce("cc_audit_save");
+            $script = "
             jQuery(document).ready(function($){
                 $('.cc-inline-edit').on('blur', function(){
-                    var $el = $(this);
-                    var $row = $el.closest('tr');
-                    var pid = $el.data('pid');
-                    var field = $el.data('field');
-                    var val = $el.text();
-                    $el.css('opacity', '0.5');
+                    var \$el = $(this);
+                    var \$row = \$el.closest('tr');
+                    var pid = \$el.data('pid');
+                    var field = \$el.data('field');
+                    var val = \$el.text();
+                    \$el.css('opacity', '0.5');
 
                     $.post(ajaxurl, {
                         action: 'cc_audit_save',
                         pid: pid,
                         field: field,
                         value: val,
-                        _nonce: '<?php echo esc_js( wp_create_nonce("cc_audit_save") ); ?>'
+                        _nonce: '" . esc_js( $nonce ) . "'
                     }, function(res){
-                        $el.css('opacity', '1');
+                        \$el.css('opacity', '1');
                         if(res.success) {
-                            $el.css('background-color', '#e7f6e7');
-                            setTimeout(function(){ $el.css('background-color', 'transparent'); }, 1500);
+                            \$el.css('background-color', '#e7f6e7');
+                            setTimeout(function(){ \$el.css('background-color', 'transparent'); }, 1500);
                             if(res.data) {
-                                if(res.data.net_html) $row.find('.col-net').html(res.data.net_html);
-                                if(res.data.net_style) $row.find('.col-net').attr('style', res.data.net_style);
-                                if(res.data.margin) $row.find('.col-margin').text(res.data.margin + '%');
+                                if(res.data.net_html) \$row.find('.col-net').html(res.data.net_html);
+                                if(res.data.net_style) \$row.find('.col-net').attr('style', res.data.net_style);
+                                if(res.data.margin) \$row.find('.col-margin').text(res.data.margin + '%');
                             }
                         } else {
-                            $el.css('background-color', '#f8d7da');
+                            \$el.css('background-color', '#f8d7da');
                             alert('Save Failed: ' + (res.data || 'Unknown error'));
                         }
                     });
@@ -287,9 +290,9 @@ class Cirrusly_Commerce_Audit_UI {
                     sel.removeAllRanges();
                     sel.addRange(range);
                 });
-            });
-            </script>
-            <?php
+            });";
+            
+            wp_add_inline_script( 'cirrusly-audit-js', $script );
         }
         echo '</div>'; 
     }

@@ -5,14 +5,14 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class Cirrusly_Commerce_Analytics_Pro {
 
+    /**
+     * Register admin hooks required for the analytics feature.
+     *
+     * Attaches WordPress actions to register the analytics submenu, enqueue analytics assets on admin pages, and capture the daily GMC snapshot.
+     */
     public function __construct() {
-        // 1. Admin Menu
         add_action( 'admin_menu', array( $this, 'register_analytics_page' ), 20 );
-        
-        // 2. Assets (Chart.js)
         add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_assets' ) );
-
-        // 3. GMC History Recorder (Hooks after the main daily scan)
         add_action( 'cirrusly_gmc_daily_scan', array( $this, 'capture_daily_gmc_snapshot' ), 20 );
     }
 
@@ -33,9 +33,6 @@ class Cirrusly_Commerce_Analytics_Pro {
     /**
      * Enqueue Chart.js and the analytics UI styles for the Cirrusly analytics admin page.
      *
-     * Adds the Chart.js vendor script and an inline stylesheet used by the analytics dashboard
-     * when the current admin page hook targets the Cirrusly analytics screen.
-     *
      * @param string $hook The current admin page hook name; assets are enqueued only when it contains 'cirrusly-analytics'.
      */
     public function enqueue_assets( $hook ) {
@@ -43,98 +40,59 @@ class Cirrusly_Commerce_Analytics_Pro {
             return;
         }
 
-        // Ensure chart.umd.min.js is present in assets/js/vendor/
         wp_enqueue_script( 'cc-chartjs', CIRRUSLY_COMMERCE_URL . 'assets/js/vendor/chart.umd.min.js', array(), '4.4.0', true );
         
-        // Inline CSS matching the Dashboard UI style + New Dropdown Styles
+        // 1. Inline CSS
         wp_enqueue_style( 'cc-analytics-styles', false );
         wp_add_inline_style( 'cc-analytics-styles', "
             .cc-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; background: #fff; padding: 10px 15px; border: 1px solid #c3c4c7; border-left: 4px solid #2271b1; box-shadow: 0 1px 1px rgba(0,0,0,.04); position: relative; z-index: 100; }
             .cc-toolbar-left { font-size: 13px; color: #646970; }
             .cc-toolbar-right { display: flex; align-items: center; gap: 10px; position: relative; }
-            
-            /* Status Filter Button */
-            .cc-status-trigger { 
-                display: inline-flex; align-items: center; gap: 6px; font-size: 11px; 
-                color: #50575e; background: #f6f7f7; padding: 5px 12px; border-radius: 20px; 
-                border: 1px solid #dcdcde; cursor: pointer; transition: all 0.2s; max-width: 300px;
-            }
+            .cc-status-trigger { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: #50575e; background: #f6f7f7; padding: 5px 12px; border-radius: 20px; border: 1px solid #dcdcde; cursor: pointer; transition: all 0.2s; max-width: 300px; }
             .cc-status-trigger:hover { border-color: #2271b1; color: #2271b1; background: #fff; }
             .cc-status-trigger .dashicons { font-size: 14px; width: 14px; height: 14px; color: #8c8f94; }
-            
-            /* Dropdown Menu */
-            .cc-status-dropdown {
-                display: none; position: absolute; top: 100%; right: 0; margin-top: 10px;
-                background: #fff; border: 1px solid #c3c4c7; box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-                border-radius: 4px; padding: 15px; width: 280px; z-index: 999;
-            }
+            .cc-status-dropdown { display: none; position: absolute; top: 100%; right: 0; margin-top: 10px; background: #fff; border: 1px solid #c3c4c7; box-shadow: 0 5px 15px rgba(0,0,0,0.1); border-radius: 4px; padding: 15px; width: 280px; z-index: 999; }
             .cc-status-dropdown.is-open { display: block; }
             .cc-status-dropdown h4 { margin: 0 0 10px 0; font-size: 12px; text-transform: uppercase; color: #646970; border-bottom: 1px solid #eee; padding-bottom: 5px; }
             .cc-status-list { max-height: 300px; overflow-y: auto; margin-bottom: 10px; }
             .cc-status-item { display: block; margin-bottom: 6px; font-size: 13px; }
             .cc-status-item input { margin-top: 0; }
-            
             .cc-analytics-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 20px; }
-            
             .cc-metric-card { background: #fff; padding: 20px; border-radius: 0; border: 1px solid #dcdcde; box-shadow: 0 1px 1px rgba(0,0,0,.04); position: relative; }
             .cc-metric-card h3 { margin: 0 0 10px 0; font-size: 13px; color: #646970; text-transform: uppercase; font-weight: 600; }
             .cc-metric-val { font-size: 28px; font-weight: 400; color: #1d2327; line-height: 1.2; }
             .cc-metric-sub { font-size: 12px; color: #646970; margin-top: 8px; }
-            
             .cc-chart-section { background: #fff; padding: 20px; border: 1px solid #dcdcde; box-shadow: 0 1px 1px rgba(0,0,0,.04); margin-bottom: 20px; }
             .cc-chart-header h2 { font-size: 1.3em; margin: 0; padding: 0 0 15px 0; font-weight: 600; color: #1d2327; }
-
             .cc-table-wrapper { background: #fff; border: 1px solid #c3c4c7; margin-bottom: 20px; }
             .cc-section-title { font-size: 1.1em; padding: 12px 15px; margin: 0; border-bottom: 1px solid #eaecf0; background: #fbfbfb; font-weight: 600; color: #1d2327; }
-            
-            /* Responsive adjustments */
-            @media (max-width: 960px) {
-                .cc-analytics-grid { grid-template-columns: repeat(2, 1fr); }
-            }
-            @media (max-width: 600px) {
-                .cc-analytics-grid { grid-template-columns: 1fr; }
-                .cc-toolbar { flex-direction: column; align-items: flex-start; gap: 10px; }
-                .cc-status-dropdown { right: auto; left: 0; width: 100%; box-sizing: border-box; }
-            }
+            @media (max-width: 960px) { .cc-analytics-grid { grid-template-columns: repeat(2, 1fr); } }
+            @media (max-width: 600px) { .cc-analytics-grid { grid-template-columns: 1fr; } .cc-toolbar { flex-direction: column; align-items: flex-start; gap: 10px; } .cc-status-dropdown { right: auto; left: 0; width: 100%; box-sizing: border-box; } }
         " );
     }
 
     /**
-     * Render the Pro Plus Analytics admin dashboard and inject prepared analytics data for display.
+     * Renders the Pro Plus Analytics admin page, including filter controls, metric cards, chart placeholders, top products and inventory risk tables.
      *
-     * Enforces the `manage_woocommerce` capability and will terminate with an error if the current user
-     * lacks permission. Reads UI state (period and status filters), handles a nonce-protected refresh
-     * action (redirects to remove the refresh parameter), and prepares analytics payloads including
-     * P&L history, inventory velocity risk items, and GMC history. Outputs the admin HTML for KPI
-     * cards, tables, filter controls, and the Chart.js initialization script that consumes the JSON
-     * payloads.
+     * Outputs the analytics HTML and enqueues UI elements for interaction; may terminate execution on insufficient permissions or after performing a forced data refresh redirect.
+     *
+     * @return void
      */
     public function render_analytics_view() {
         if ( ! current_user_can( 'manage_woocommerce' ) ) {
             wp_die( esc_html__( 'You do not have sufficient permissions to access this page.', 'cirrusly-commerce' ) );
         }
 
-        // 1. Handle Date Selection
-        $default_days = 90;
-        $days = isset($_GET['period']) ? intval($_GET['period']) : $default_days;
-        $days = max( 7, min( $days, 365 ) ); 
+        $params = self::get_filter_params();
+        $days = $params['days'];
+        $selected_statuses = $params['statuses'];
 
-        // 2. Handle Status Filters
-        $all_statuses = wc_get_order_statuses(); // ['wc-processing' => 'Processing', ...]
-        $selected_statuses = array();
+        $all_statuses = wc_get_order_statuses();
 
-        if ( isset( $_GET['cc_statuses'] ) && is_array( $_GET['cc_statuses'] ) ) {
-            // User submitted specific statuses
-            $selected_statuses = array_map( 'sanitize_text_field', $_GET['cc_statuses'] );
-        }
-
-        // 3. Handle Refresh Action
         if ( isset( $_GET['cc_refresh'] ) && check_admin_referer( 'cc_refresh_analytics' ) ) {
-            // Clear analytics transients for common period values
             global $wpdb;
-            $wpdb->query( "DELETE FROM {$wpdb->options} WHERE option_name LIKE '_transient_cc_analytics_pnl_v4_%' OR option_name LIKE '_transient_timeout_cc_analytics_pnl_v4_%'" );
-            
-            wp_redirect( remove_query_arg( array( 'cc_refresh', '_wpnonce' ) ) );
+            $wpdb->query( "DELETE FROM {$wpdb->prefix}options WHERE option_name LIKE '_transient_cc_analytics_pnl_v4_%' OR option_name LIKE '_transient_timeout_cc_analytics_pnl_v4_%'" );
+            wp_safe_redirect( remove_query_arg( array( 'cc_refresh', '_wpnonce' ) ) );
             exit;
         }
 
@@ -142,24 +100,13 @@ class Cirrusly_Commerce_Analytics_Pro {
             Cirrusly_Commerce_Core::render_page_header( 'Pro Plus Analytics' );
         }
         
-        // Pass selected statuses (empty array = use defaults)
         $data = self::get_pnl_data( $days, $selected_statuses );
-        
-        // If we defaulted inside get_pnl_data, update our local variable for the checkbox UI
         if ( empty( $selected_statuses ) ) {
             $selected_statuses = $data['statuses_used'];
         }
-
         $velocity = self::get_inventory_velocity();
-        $gmc_history = get_option( 'cirrusly_gmc_history', array() );
-
-        // Prepare JSON for JS
-        $perf_history_json = wp_json_encode( $data['history'], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT );
-        $gmc_history_json  = wp_json_encode( $gmc_history, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT );
-        
         $refresh_url = wp_nonce_url( add_query_arg( array( 'cc_refresh' => '1' ) ), 'cc_refresh_analytics' );
         
-        // --- PREPARE HUMAN READABLE STATUS LABEL ---
         $readable_labels = array();
         foreach ( $selected_statuses as $slug ) {
             $lookup_slug = ( strpos( $slug, 'wc-' ) === 0 ) ? $slug : 'wc-' . $slug;
@@ -170,33 +117,82 @@ class Cirrusly_Commerce_Analytics_Pro {
             }
         }
         $status_text = implode( ', ', $readable_labels );
-        // -------------------------------------------
+
+        // ---------------------------------------------------------
+        // Script Generation (Moved from enqueue_assets for Architecture/Performance)
+        // ---------------------------------------------------------
+        $gmc_history = get_option( 'cirrusly_gmc_history', array() );
+        $perf_history_json = wp_json_encode( $data['history'], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT );
+        $gmc_history_json  = wp_json_encode( $gmc_history, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT );
+
+        $script = "
+        document.addEventListener('DOMContentLoaded', function() {
+            const trigger = document.getElementById('ccStatusTrigger');
+            const dropdown = document.getElementById('ccStatusDropdown');
+            if(trigger && dropdown){
+                trigger.addEventListener('click', function(e){ e.stopPropagation(); dropdown.classList.toggle('is-open'); });
+                document.addEventListener('click', function(e){ if(!dropdown.contains(e.target) && e.target !== trigger){ dropdown.classList.remove('is-open'); } });
+            }
+            const perfCtx = document.getElementById('performanceChart');
+            if (perfCtx) {
+                const perfData = {$perf_history_json};
+                const dates = Object.keys(perfData);
+                const sales = dates.map(d => perfData[d].revenue);
+                const costs = dates.map(d => perfData[d].costs);
+                const profit = dates.map(d => perfData[d].profit);
+                new Chart(perfCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: dates,
+                        datasets: [
+                            { label: 'Net Profit', data: profit, type: 'line', borderColor: '#00a32a', borderWidth: 2, fill: false, tension: 0.3, order: 1 },
+                            { label: 'Net Sales', data: sales, backgroundColor: '#2271b1', order: 2 },
+                            { label: 'Total Costs', data: costs, backgroundColor: '#d63638', order: 3 }
+                        ]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, plugins: { legend: { position: 'bottom' } }, scales: { y: { beginAtZero: true, grid: { borderDash: [2, 2] } }, x: { grid: { display: false } } } }
+                });
+            }
+            const ctx = document.getElementById('gmcTrendChart');
+            if (ctx) {
+                const history = {$gmc_history_json};
+                const labels = Object.keys(history).slice(-30);
+                const criticalData = labels.map(d => history[d].critical || 0);
+                const warningData = labels.map(d => history[d].warnings || 0);
+                new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [{ label: 'Disapproved', data: criticalData, borderColor: '#d63638', backgroundColor: 'rgba(214, 54, 56, 0.1)', fill: true, tension: 0.3 }, { label: 'Warnings', data: warningData, borderColor: '#dba617', borderDash: [5, 5], fill: false, tension: 0.3 }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } }, scales: { y: { beginAtZero: true } } }
+                });
+            }
+        });";
+
+        wp_add_inline_script( 'cc-chartjs', $script );
 
         ?>
         <div class="wrap cc-analytics-wrapper">
-            
             <form method="get" action="" id="cc-analytics-form">
                 <input type="hidden" name="page" value="cirrusly-analytics">
-                
                 <div class="cc-toolbar">
                     <div class="cc-toolbar-left">
                         Found <strong><?php echo intval($data['count']); ?></strong> orders in the last <?php echo intval($days); ?> days.
                     </div>
                     <div class="cc-toolbar-right">
-                        
                         <div style="position:relative;">
                             <div class="cc-status-trigger" id="ccStatusTrigger" title="<?php echo esc_attr($status_text); ?>">
                                 <span class="dashicons dashicons-filter"></span>
                                 Filters: <?php echo esc_html( substr($status_text, 0, 30) . (strlen($status_text)>30 ? '...' : '') ); ?>
                                 <span class="dashicons dashicons-arrow-down-alt2" style="font-size:10px; width:10px; height:10px; margin-left:auto;"></span>
                             </div>
-                            
                             <div class="cc-status-dropdown" id="ccStatusDropdown">
                                 <h4>Filter Statuses</h4>
                                 <div class="cc-status-list">
                                     <?php foreach ( $all_statuses as $slug => $label ) : ?>
                                         <label class="cc-status-item">
-                                            <input type="checkbox" name="cc_statuses[]" value="<?php echo esc_attr($slug); ?>" 
+                                            <input type="checkbox" name="cirrusly_statuses[]" value="<?php echo esc_attr($slug); ?>" 
                                                 <?php checked( in_array( $slug, $selected_statuses ) || in_array( str_replace('wc-','',$slug), $selected_statuses ) ); ?>>
                                             <?php echo esc_html( $label ); ?>
                                         </label>
@@ -208,7 +204,6 @@ class Cirrusly_Commerce_Analytics_Pro {
                                 </div>
                             </div>
                         </div>
-
                         <select name="period" id="cc_period_selector" onchange="document.getElementById('cc-analytics-form').submit()" style="vertical-align: top;">
                             <option value="7" <?php selected( $days, 7 ); ?>>Last 7 Days</option>
                             <option value="30" <?php selected( $days, 30 ); ?>>Last 30 Days</option>
@@ -216,7 +211,6 @@ class Cirrusly_Commerce_Analytics_Pro {
                             <option value="180" <?php selected( $days, 180 ); ?>>Last 6 Months</option>
                             <option value="365" <?php selected( $days, 365 ); ?>>Last Year</option>
                         </select>
-
                         <a href="<?php echo esc_url( $refresh_url ); ?>" class="button button-secondary" title="Force Refresh Data">
                             <span class="dashicons dashicons-update" style="margin-top:3px;"></span>
                         </a>
@@ -290,15 +284,7 @@ class Cirrusly_Commerce_Analytics_Pro {
             <div class="cc-table-wrapper">
                 <div class="cc-section-title" style="border-left: 4px solid #dba617;">⚠️ Inventory Risk: High Velocity Items</div>
                 <table class="wp-list-table widefat striped">
-                    <thead>
-                        <tr>
-                            <th>Product</th>
-                            <th>Current Stock</th>
-                            <th>Avg Daily Sales</th>
-                            <th>Est. Days Left</th>
-                            <th>Action</th>
-                        </tr>
-                    </thead>
+                    <thead><tr><th>Product</th><th>Current Stock</th><th>Avg Daily Sales</th><th>Est. Days Left</th><th>Action</th></tr></thead>
                     <tbody>
                         <?php foreach ( $velocity as $v ) : ?>
                             <tr>
@@ -313,69 +299,29 @@ class Cirrusly_Commerce_Analytics_Pro {
                 </table>
             </div>
             <?php endif; ?>
-
         </div>
-
-        <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // Dropdown Toggle Logic
-            const trigger = document.getElementById('ccStatusTrigger');
-            const dropdown = document.getElementById('ccStatusDropdown');
-            
-            if(trigger && dropdown){
-                trigger.addEventListener('click', function(e){
-                    e.stopPropagation();
-                    dropdown.classList.toggle('is-open');
-                });
-                document.addEventListener('click', function(e){
-                    if(!dropdown.contains(e.target) && e.target !== trigger){
-                        dropdown.classList.remove('is-open');
-                    }
-                });
-            }
-
-            // Chart 1
-            const perfCtx = document.getElementById('performanceChart');
-            if (perfCtx) {
-                const perfData = <?php echo $perf_history_json; ?>;
-                const dates = Object.keys(perfData);
-                const sales = dates.map(d => perfData[d].revenue);
-                const costs = dates.map(d => perfData[d].costs);
-                const profit = dates.map(d => perfData[d].profit);
-
-                new Chart(perfCtx, {
-                    type: 'bar',
-                    data: {
-                        labels: dates,
-                        datasets: [
-                            { label: 'Net Profit', data: profit, type: 'line', borderColor: '#00a32a', borderWidth: 2, fill: false, tension: 0.3, order: 1 },
-                            { label: 'Net Sales', data: sales, backgroundColor: '#2271b1', order: 2 },
-                            { label: 'Total Costs', data: costs, backgroundColor: '#d63638', order: 3 }
-                        ]
-                    },
-                    options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, plugins: { legend: { position: 'bottom' } }, scales: { y: { beginAtZero: true, grid: { borderDash: [2, 2] } }, x: { grid: { display: false } } } }
-                });
-            }
-            // Chart 2
-            const ctx = document.getElementById('gmcTrendChart');
-            if (ctx) {
-                const history = <?php echo $gmc_history_json; ?>;
-                const labels = Object.keys(history).slice(-30);
-                const criticalData = labels.map(d => history[d].critical || 0);
-                const warningData = labels.map(d => history[d].warnings || 0);
-
-                new Chart(ctx, {
-                    type: 'line',
-                    data: {
-                        labels: labels,
-                        datasets: [{ label: 'Disapproved', data: criticalData, borderColor: '#d63638', backgroundColor: 'rgba(214, 54, 56, 0.1)', fill: true, tension: 0.3 }, { label: 'Warnings', data: warningData, borderColor: '#dba617', borderDash: [5, 5], fill: false, tension: 0.3 }]
-                    },
-                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } }, scales: { y: { beginAtZero: true } } }
-                });
-            }
-        });
-        </script>
         <?php
+    }
+
+    /**
+     * Helper: Extract and sanitize filter parameters (days and statuses) from GET request.
+     *
+     * @return array Associative array with keys 'days' (int) and 'statuses' (array of strings).
+     */
+    private static function get_filter_params() {
+        $default_days = 90;
+        $days = isset($_GET['period']) ? intval($_GET['period']) : $default_days;
+        $days = max( 7, min( $days, 365 ) ); 
+
+        $selected_statuses = array();
+        if ( isset( $_GET['cirrusly_statuses'] ) && is_array( $_GET['cirrusly_statuses'] ) ) {
+            $selected_statuses = array_map( 'sanitize_text_field', wp_unslash( $_GET['cirrusly_statuses'] ) );
+        }
+
+        return array(
+            'days'     => $days,
+            'statuses' => $selected_statuses,
+        );
     }
 
     /**
@@ -388,19 +334,19 @@ class Cirrusly_Commerce_Analytics_Pro {
      * @param int   $days            Number of days to include (ending today). Defaults to 90.
      * @param array $custom_statuses Optional array of order status slugs (e.g., ['wc-completed']). If empty, a sensible default set is auto-discovered.
      * @return array An associative array with keys:
-     *               - revenue (float): Total order revenue.
-     *               - cogs (float): Total cost of goods sold.
-     *               - shipping (float): Total estimated shipping costs.
-     *               - fees (float): Total calculated fees.
-     *               - refunds (float): Total refunded amounts.
-     *               - total_costs (float): Sum of cogs, shipping, fees, and refunds.
-     *               - net_profit (float): revenue minus total_costs.
-     *               - margin (float): Net profit expressed as percentage of revenue (0 if revenue is 0).
-     *               - count (int): Number of orders considered.
-     *               - products (array): List of products aggregated with entries like ['id'=>int, 'name'=>string, 'qty'=>int, 'net'=>float], sorted by net descending.
-     *               - history (array): Map of Y-m-d => ['revenue'=>float, 'costs'=>float, 'profit'=>float] for each day in the period.
-     *               - method (string): Query method used (e.g., 'HPOS API' or 'Direct SQL').
-     *               - statuses_used (array): The order statuses used to build the result.
+     * - revenue (float): Total order revenue.
+     * - cogs (float): Total cost of goods sold.
+     * - shipping (float): Total estimated shipping costs.
+     * - fees (float): Total calculated fees.
+     * - refunds (float): Total refunded amounts.
+     * - total_costs (float): Sum of cogs, shipping, fees, and refunds.
+     * - net_profit (float): revenue minus total_costs.
+     * - margin (float): Net profit expressed as percentage of revenue (0 if revenue is 0).
+     * - count (int): Number of orders considered.
+     * - products (array): List of products aggregated with entries like ['id'=>int, 'name'=>string, 'qty'=>int, 'net'=>float], sorted by net descending.
+     * - history (array): Map of Y-m-d => ['revenue'=>float, 'costs'=>float, 'profit'=>float] for each day in the period.
+     * - method (string): Query method used (e.g., 'HPOS API' or 'Direct SQL').
+     * - statuses_used (array): The order statuses used to build the result.
      */
     private static function get_pnl_data( $days = 90, $custom_statuses = array() ) {
         // Initialize Dates
@@ -487,6 +433,7 @@ class Cirrusly_Commerce_Analytics_Pro {
 
             $status_placeholders = implode( ',', array_fill( 0, count( $sql_statuses ), '%s' ) );
             
+            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
             $sql = $wpdb->prepare( "
                 SELECT ID FROM {$wpdb->posts} 
                 WHERE post_type = 'shop_order' 
@@ -575,17 +522,18 @@ class Cirrusly_Commerce_Analytics_Pro {
     }
 
     /**
-     * Identify inventory items at risk of stockout based on 30-day sales velocity.
+     * Identify products likely to stock out within 14 days based on 30-day sales velocity.
      *
-     * Computes average daily sales for each product over the last 30 days and returns
-     * items whose estimated days remaining (stock / velocity) is less than 14.
+     * Computes each product's average daily sales over the past 30 days, estimates days remaining
+     * as current stock divided by that velocity, and returns items with estimated days remaining
+     * less than 14, sorted by ascending `days_left`.
      *
-     * @return array[] An array of risky items sorted by ascending `days_left`. Each item is an associative array with keys:
-     *                 - 'id' (int): Product ID.
-     *                 - 'name' (string): Product name.
-     *                 - 'stock' (float|int): Current stock quantity.
-     *                 - 'velocity' (float): Average daily sales over the last 30 days.
-     *                 - 'days_left' (float): Estimated days remaining at the current velocity.
+     * @return array[] List of risky items sorted by `days_left` ascending. Each item contains:
+     * - 'id' (int): Product ID.
+     * - 'name' (string): Product name.
+     * - 'stock' (float|int): Current stock quantity.
+     * - 'velocity' (float): Average daily sales over the last 30 days.
+     * - 'days_left' (float): Estimated days remaining at the current velocity.
      */
     private static function get_inventory_velocity() {
         // Use simpler logic for velocity too
@@ -642,11 +590,28 @@ class Cirrusly_Commerce_Analytics_Pro {
 
 
     /**
-     * Hook: Capture daily GMC scan results for historical trending.
-     * Hooks into 'cirrusly_gmc_daily_scan' at priority 20.
+     * Aggregate daily Google Merchant Center scan results and append a dated snapshot to history.
+     *
+     * Reads the `cirrusly_gmc_scan_data` option, counts critical issues and warnings from the latest scan,
+     * stores a timestamped entry keyed by today's date in the `cirrusly_gmc_history` option, trims history
+     * to the most recent 90 days, and persists the updated history.
+     *
+     * @return void
      */
     public function capture_daily_gmc_snapshot() {
-        $scan_data = get_option( 'woo_gmc_scan_data', array() );
+        $scan_data = get_option( 'cirrusly_gmc_scan_data' );
+
+        // Runtime Fallback: Migration from 'woo_gmc_scan_data' if new key is missing
+        if ( false === $scan_data ) {
+            $old_scan_data = get_option( 'woo_gmc_scan_data' );
+            if ( false !== $old_scan_data ) {
+                $scan_data = $old_scan_data;
+                update_option( 'cirrusly_gmc_scan_data', $old_scan_data );
+                delete_option( 'woo_gmc_scan_data' );
+            } else {
+                $scan_data = array();
+            }
+        }
         
         if ( empty( $scan_data['results'] ) ) return;
 

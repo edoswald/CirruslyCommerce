@@ -330,11 +330,14 @@ class Cirrusly_Commerce_GMC_Pro {
             wp_send_json_error( 'Merchant ID not configured.' );
         }
 
-        // Extract POST data
-        $data = isset( $_POST['data'] ) ? wp_unslash( $_POST['data'] ) : array();
-        $data = is_array( $data ) ? $data : array();
-        $id    = isset( $data['id'] ) ? sanitize_text_field( $data['id'] ) : '';
-        $title = isset( $data['title'] ) ? sanitize_text_field( $data['title'] ) : '';
+        // Extract and Sanitize POST data using custom prefix
+        $raw_data = isset( $_POST['cirrusly_promo_data'] ) ? wp_unslash( $_POST['cirrusly_promo_data'] ) : array();
+        
+        // Sanitize the whole array at once since we expect text fields
+        $data  = is_array( $raw_data ) ? array_map( 'sanitize_text_field', $raw_data ) : array();
+
+        $id    = isset( $data['id'] ) ? $data['id'] : '';
+        $title = isset( $data['title'] ) ? $data['title'] : '';
 
         if ( '' === $id || '' === $title ) {
             wp_send_json_error( 'Promotion ID and Title are required.' );
@@ -353,7 +356,7 @@ class Cirrusly_Commerce_GMC_Pro {
             $promo->setRedemptionChannel( array( 'ONLINE' ) );
 
             // 1. Parse Dates (Format: YYYY-MM-DD/YYYY-MM-DD)
-            $dates_raw = isset( $data['dates'] ) ? sanitize_text_field( $data['dates'] ) : '';
+            $dates_raw = isset( $data['dates'] ) ? $data['dates'] : '';
             if ( ! empty( $dates_raw ) && strpos( $dates_raw, '/' ) !== false ) {
                 list( $start_str, $end_str ) = explode( '/', $dates_raw );
                 
@@ -390,15 +393,18 @@ class Cirrusly_Commerce_GMC_Pro {
             }
 
             // 2. Product Applicability
-            $app_val = isset( $data['app'] ) ? sanitize_text_field( $data['app'] ) : 'ALL_PRODUCTS';
+            $app_val = isset( $data['app'] ) ? $data['app'] : 'ALL_PRODUCTS';
             $promo->setProductApplicability( $app_val );
 
             // 3. Offer Type & Generic Code
-            $type_val = isset( $data['type'] ) ? sanitize_text_field( $data['type'] ) : 'NO_CODE';
+            $type_val = isset( $data['type'] ) ? $data['type'] : 'NO_CODE';
             $promo->setOfferType( $type_val );
             
-            if ( 'GENERIC_CODE' === $type_val && ! empty( $data['code'] ) ) {
-                $promo->setGenericRedemptionCode( sanitize_text_field( $data['code'] ) );
+            if ( 'GENERIC_CODE' === $type_val ) {
+                if ( empty( $data['code'] ) ) {
+                    wp_send_json_error( 'Redemption code is required for GENERIC_CODE promotions.' );
+                }
+                $promo->setGenericRedemptionCode( $data['code'] );
             }
 
             // Send to Google

@@ -115,15 +115,23 @@ class Cirrusly_Commerce_Blocks {
 	}
 
 	/**
-     * Render the MSRP block.
+     * Render the MSRP block HTML for a resolved product context.
+     *
+     * When a product cannot be resolved this returns an empty string on the frontend
+     * and a preview placeholder when rendering in the block editor (REST requests).
+     *
+     * @param array       $attributes Block attributes (supports `textAlign`, `isBold`, `showStrikethrough`, and optional `productId` to force a product context).
+     * @param string|null $content    Inner block content (unused).
+     * @return string HTML markup for the MSRP block or an empty string/preview placeholder when no MSRP is available.
      */
     public function render_msrp_block( $attributes, $content ) {
         // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound
         global $product;
-        $product = $this->ensure_product_context( $attributes, $product );
+        // Use a plugin-specific variable to avoid overwriting global $product
+        $cirrusly_product = $this->ensure_product_context( $attributes, $product );
         
         // If still no product (empty store?), fail gracefully
-        if ( ! $product || ! is_object( $product ) ) {
+        if ( ! $cirrusly_product || ! is_object( $cirrusly_product ) ) {
             if ( defined( 'REST_REQUEST' ) && REST_REQUEST ) return '<div class="cw-placeholder">Add a product to preview MSRP.</div>';
             return '';
         }
@@ -131,7 +139,7 @@ class Cirrusly_Commerce_Blocks {
         $msrp_html = '';
         // FIXED: Check for and call the Frontend class directly, as that is where get_msrp_html resides.
         if ( class_exists( 'Cirrusly_Commerce_Pricing_Frontend' ) ) {
-            $msrp_html = Cirrusly_Commerce_Pricing_Frontend::get_msrp_html( $product );
+            $msrp_html = Cirrusly_Commerce_Pricing_Frontend::get_msrp_html( $cirrusly_product );
         }
         
         if ( empty( $msrp_html ) ) {
@@ -154,13 +162,24 @@ class Cirrusly_Commerce_Blocks {
     }
 
     /**
-     * Render the Countdown Block
+     * Render the countdown timer block for a product.
+     *
+     * Uses block attributes and product meta to determine an end date and returns the HTML
+     * for a countdown timer, or a preview/empty string when no date is available.
+     *
+     * @param array  $attributes Block attributes. Recognized keys: `useMeta` (bool) to prefer product meta,
+     *                           `manualDate` (string) to override with a manual end date,
+     *                           `label` (string) timer label, and `textAlign` (string) alignment.
+     * @param string $content    Inner block content (unused).
+     * @return string HTML for the countdown timer, a placeholder HTML for editor previews, or an empty string when no valid date or timer generator is available.
      */
     public function render_countdown_block( $attributes, $content ) {
         // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound
         global $product;
-        $product = $this->ensure_product_context( $attributes, $product );
-        if ( ! $product || ! is_object( $product ) ) {
+        // Use a plugin-specific variable to avoid overwriting global $product
+        $cirrusly_product = $this->ensure_product_context( $attributes, $product );
+
+        if ( ! $cirrusly_product || ! is_object( $cirrusly_product ) ) {
              if ( defined( 'REST_REQUEST' ) && REST_REQUEST ) return '<div class="cw-placeholder">Add a product to preview Timer.</div>';
              return '';
         }
@@ -170,7 +189,7 @@ class Cirrusly_Commerce_Blocks {
         // Priority 1: Smart / Meta (if enabled)
         if ( ! empty( $attributes['useMeta'] ) ) {
              if ( class_exists( 'Cirrusly_Commerce_Countdown' ) ) {
-                 $config = Cirrusly_Commerce_Countdown::get_smart_countdown_config( $product );
+                 $config = Cirrusly_Commerce_Countdown::get_smart_countdown_config( $cirrusly_product );
                  if ( $config && is_array( $config ) && ! empty( $config['end'] ) ) {
                      $end_date = $config['end'];
                  }
@@ -200,20 +219,29 @@ class Cirrusly_Commerce_Blocks {
     }
 
     /**
-     * Render the Badges Block
+     * Render the Badges block markup for a resolved product context.
+     *
+     * If no valid product or no active badges are available, returns an empty string on the frontend;
+     * when rendering for the editor (REST_REQUEST), returns brief placeholder HTML indicating the state.
+     *
+     * @param array  $attributes Block attributes (recognized: 'align' => string, defaults to 'left').
+     * @param string $content    Inner block content (unused).
+     * @return string Rendered HTML for the badges block, or an empty string (or editor placeholder HTML) when nothing should be shown.
      */
     public function render_badges_block( $attributes, $content ) {
         // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound
         global $product;
-        $product = $this->ensure_product_context( $attributes, $product );
-        if ( ! $product || ! is_object( $product ) ) {
+        // Use a plugin-specific variable to avoid overwriting global $product
+        $cirrusly_product = $this->ensure_product_context( $attributes, $product );
+        
+        if ( ! $cirrusly_product || ! is_object( $cirrusly_product ) ) {
             if ( defined( 'REST_REQUEST' ) && REST_REQUEST ) return '<div class="cw-placeholder">Add a product to preview Badges.</div>';
             return '';
         }
 
         $html = '';
         if ( class_exists( 'Cirrusly_Commerce_Badges' ) ) {
-            $html = Cirrusly_Commerce_Badges::get_badge_html( $product );
+            $html = Cirrusly_Commerce_Badges::get_badge_html( $cirrusly_product );
         }
 
         if ( empty( $html ) ) {
@@ -228,17 +256,25 @@ class Cirrusly_Commerce_Blocks {
     }
 
     /**
-     * Render the Discount Notice Block
+     * Render the discount notice block for a product when an active discount exists.
+     *
+     * The block outputs a styled HTML notice containing the configured message.
+     * The notice is shown if an active automated discount applies to the resolved product,
+     * or always shown when rendering in the block editor (REST requests) to provide a preview.
+     *
+     * @param array  $attributes Block attributes (e.g., 'message' to customize the notice text).
+     * @param string $content    Inner block content (unused; kept for render callback signature compatibility).
+     * @return string The rendered HTML for the discount notice, or an empty string when the notice should not be displayed.
      */
     public function render_discount_notice_block( $attributes, $content ) {
         // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound
         global $product;
         // Notice block might be global, but usually context-aware
-        $product = $this->ensure_product_context( $attributes, $product );
+        $cirrusly_product = $this->ensure_product_context( $attributes, $product );
         
         $has_discount = false;
-        if ( $product && is_object($product) && class_exists( 'Cirrusly_Commerce_Automated_Discounts' ) ) {
-            $discount = Cirrusly_Commerce_Automated_Discounts::get_active_discount( $product->get_id() );
+        if ( $cirrusly_product && is_object($cirrusly_product) && class_exists( 'Cirrusly_Commerce_Automated_Discounts' ) ) {
+            $discount = Cirrusly_Commerce_Automated_Discounts::get_active_discount( $cirrusly_product->get_id() );
             if ( $discount ) $has_discount = true;
         }
 

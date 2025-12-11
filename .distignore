@@ -11,6 +11,7 @@ phpcs.xml
 phpunit.xml.dist
 webpack.config.js
 .DS_Store
+LICENSE
 *.code-workspace
 
 # Dependencies

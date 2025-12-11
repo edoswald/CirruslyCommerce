@@ -9,7 +9,7 @@ class Cirrusly_Commerce_Setup_Wizard {
      * Define versions that introduced major features requiring setup.
      * Add to this array when you release significant updates to prompt a re-run.
      */
-    const MILESTONES = array( '1.5', '2.0' );
+    const MILESTONES = array( '1.7', '2.0' );
 
     /**
      * Initialize hooks.
@@ -63,13 +63,13 @@ class Cirrusly_Commerce_Setup_Wizard {
      * Trigger 1: Plan Upgrade (Free -> Pro -> Pro Plus)
      */
     public function detect_plan_change() {
-        if ( ! function_exists( 'cc_fs' ) || ! current_user_can( 'manage_options' ) ) {
+        if ( ! function_exists( 'cirrusly_fs' ) || ! current_user_can( 'manage_options' ) ) {
             return;
         }
         $current_plan = 'free';
-        if ( cc_fs()->is_plan( 'proplus' ) ) {
+        if ( cirrusly_fs()->is_plan( 'proplus' ) ) {
             $current_plan = 'proplus';
-        } elseif ( cc_fs()->can_use_premium_code() ) {
+        } elseif ( cirrusly_fs()->can_use_premium_code() ) {
             $current_plan = 'pro';
         }
 
@@ -135,15 +135,15 @@ class Cirrusly_Commerce_Setup_Wizard {
         }
 
         // Dynamic Message Logic
-        $title = __( 'Setup Required', 'cirrusly-commerce' );
-        $msg   = __( 'Please run the setup wizard.', 'cirrusly-commerce' );
+        $title = __( 'Setup Recommended', 'cirrusly-commerce' );
+        $msg   = __( 'The setup wizard helps you configure important settings for optimal performance.', 'cirrusly-commerce' );
 
         if ( $type === 'plan' ) {
-            $title = __( 'Thanks for upgrading!', 'cirrusly-commerce' );
-            $msg   = __( 'You have unlocked new Pro features. Run the wizard to configure them.', 'cirrusly-commerce' );
+            $title = __( 'Thanks for Your Support', 'cirrusly-commerce' );
+            $msg   = __( 'Additional features are available with your new plan. Run the wizard to configure them.', 'cirrusly-commerce' );
         } elseif ( $type === 'feature' ) {
-            $title = __( 'New Features Available!', 'cirrusly-commerce' );
-            $msg   = __( 'We have added major new features that require configuration. Please check your settings.', 'cirrusly-commerce' );
+            $title = __( 'New Features!', 'cirrusly-commerce' );
+            $msg   = __( 'This version includes major new features. We recommend running the wizard to configure them.', 'cirrusly-commerce' );
         }
 
         echo '<div class="notice notice-info is-dismissible" style="padding:15px; border-left-color:#2271b1;">
@@ -239,11 +239,15 @@ class Cirrusly_Commerce_Setup_Wizard {
     }
 
     /**
-     * STEP 1: License & Edition Selection
+     * Render the first setup wizard step that presents license/edition choices and upgrade actions.
+     *
+     * Displays the current license state when a premium license is active and provides navigation
+     * to continue configuration. For users on the free plan, presents Free, Pro, and Pro Plus
+     * edition options with feature summaries and actions to start trials or continue with the free plan.
      */
     private function render_step_license() {
-        $is_pro = function_exists('cc_fs') && cc_fs()->can_use_premium_code();
-        $is_plus = function_exists('cc_fs') && cc_fs()->is_plan('proplus');
+        $is_pro = function_exists('cirrusly_fs') && cirrusly_fs()->can_use_premium_code();
+        $is_plus = function_exists('cirrusly_fs') && cirrusly_fs()->is_plan('proplus');
         
         // If already Pro/Plus, show success and move on
         if ( $is_pro ) {
@@ -262,10 +266,10 @@ class Cirrusly_Commerce_Setup_Wizard {
         }
 
         // Logic for Free Users: Offer Trials
-        $upgrade_url = function_exists('cc_fs') ? cc_fs()->get_upgrade_url() : '#';
+        $upgrade_url = function_exists('cirrusly_fs') ? cirrusly_fs()->get_upgrade_url() : '#';
         ?>
         <h3><?php esc_html_e( 'Choose your Edition', 'cirrusly-commerce' ); ?></h3>
-        <p><?php esc_html_e( 'You are currently on the Free version. Continue for free or start a risk-free trial to unlock automation.', 'cirrusly-commerce' ); ?></p>
+        <p><?php esc_html_e( 'The free version offers essential features to get you started. However, upgrading unlocks automation and advanced tools. Take advantage of a risk-free trial to explore these benefits, or continue with your current plan.', 'cirrusly-commerce' ); ?></p>
         
         <div class="cc-pricing-grid">
             <div class="cc-pricing-col">
@@ -312,7 +316,15 @@ class Cirrusly_Commerce_Setup_Wizard {
     }
 
     /**
-     * STEP 2: Connect (GMC)
+     * Render the "Connect Google Merchant Center" wizard step HTML.
+     *
+     * Outputs the step 2 form for entering a Merchant ID, shows a success notice if a
+     * service-account upload was completed, and — for Pro users — renders a file input
+     * for uploading a Service Account JSON. If an upload-success transient is present
+     * it will be cleared.
+     *
+     * The method reads and echoes stored option values and transient state; it does not
+     * return a value.
      */
     private function render_step_connect() {
         $gcr = get_option( 'cirrusly_google_reviews_config', array() );
@@ -335,14 +347,14 @@ class Cirrusly_Commerce_Setup_Wizard {
         <table class="form-table">
             <tr>
                 <th><?php esc_html_e( 'Merchant ID', 'cirrusly-commerce' ); ?></th>
-                <td><input type="text" name="merchant_id" value="<?php echo esc_attr( $val ); ?>" class="regular-text" placeholder="e.g. 123456789"></td>
+                <td><input type="text" name="cirrusly_merchant_id" value="<?php echo esc_attr( $val ); ?>" class="regular-text" placeholder="e.g. 123456789"></td>
             </tr>
             <?php if ( $is_pro ): ?>
             <tr>
                 <th><?php esc_html_e( 'Service Account JSON', 'cirrusly-commerce' ); ?> <span class="cc-tag">PRO</span></th>
                 <td>
                     <input type="file" name="cirrusly_service_account" accept=".json">
-                    <p class="description"><?php esc_html_e( 'Upload your Google Cloud Key for Real-Time API scanning.', 'cirrusly-commerce' ); ?></p>
+                    <p class="description"><?php esc_html_e( 'Upload your Google Cloud Key for Real-Time API scanning. This requires advanced setup. Refer to our documentation for guidance.', 'cirrusly-commerce' ); ?></p>
                 </td>
             </tr>
             <?php endif; ?>
@@ -354,7 +366,15 @@ class Cirrusly_Commerce_Setup_Wizard {
     }
 
     /**
-     * STEP 3: Finance
+     * Renders the "Finance" step of the setup wizard, outputting the form fields for payment fees,
+     * shipping defaults, and (for Pro users) multi-profile payment mode.
+     *
+     * Reads the `cirrusly_shipping_config` option to pre-fill:
+     * - `payment_pct` (defaults to 2.9)
+     * - `payment_flat` (defaults to 0.30)
+     * - `class_costs_json` → `default` shipping cost (defaults to 10.00)
+     *
+     * The function emits HTML form controls and does not return a value.
      */
     private function render_step_finance() {
         $conf = get_option( 'cirrusly_shipping_config', array() );
@@ -371,14 +391,14 @@ class Cirrusly_Commerce_Setup_Wizard {
         $is_pro = Cirrusly_Commerce_Core::cirrusly_is_pro();
         ?>
         <h3><?php esc_html_e( 'Profit Engine Setup', 'cirrusly-commerce' ); ?></h3>
-        <p><?php esc_html_e( 'Configure your baseline costs to calculate accurate Net Profit margins.', 'cirrusly-commerce' ); ?></p>
+        <p><?php esc_html_e( 'The Cirrusly Commerce Profit Engine is what sets our plugin apart from others. We recommend spending extra time on this step to ensure your costs are accurately configured. The more accurate your inputs, the better your profit insights.', 'cirrusly-commerce' ); ?></p>
         
         <table class="form-table">
             <tr>
                 <th><?php esc_html_e( 'Payment Fees', 'cirrusly-commerce' ); ?></th>
                 <td>
-                    <input type="number" step="0.1" name="payment_pct" value="<?php echo esc_attr( $pct ); ?>" style="width: 70px;"> % + 
-                    <input type="number" step="0.01" name="payment_flat" value="<?php echo esc_attr( $flat ); ?>" style="width: 70px;"> $
+                    <input type="number" step="0.1" name="cirrusly_payment_pct" value="<?php echo esc_attr( $pct ); ?>" style="width: 70px;"> % + 
+                    <input type="number" step="0.01" name="cirrusly_payment_flat" value="<?php echo esc_attr( $flat ); ?>" style="width: 70px;"> $
                     <p class="description"><?php esc_html_e( 'e.g., Stripe is usually 2.9% + $0.30', 'cirrusly-commerce' ); ?></p>
                 </td>
             </tr>
@@ -386,8 +406,8 @@ class Cirrusly_Commerce_Setup_Wizard {
             <tr style="background: #f0f6fc;">
                 <th><?php esc_html_e( 'Multi-Profile', 'cirrusly-commerce' ); ?> <span class="cc-tag">PRO</span></th>
                 <td>
-                    <label><input type="radio" name="profile_mode" value="single" <?php checked('single', isset($conf['profile_mode'])?$conf['profile_mode']:'single'); ?>> <?php esc_html_e( 'Single', 'cirrusly-commerce' ); ?></label>
-                    <label><input type="radio" name="profile_mode" value="multi" <?php checked('multi', isset($conf['profile_mode'])?$conf['profile_mode']:''); ?>> <?php esc_html_e( 'Mixed (PayPal + Stripe)', 'cirrusly-commerce' ); ?></label>
+                    <label><input type="radio" name="cirrusly_profile_mode" value="single" <?php checked('single', isset($conf['profile_mode'])?$conf['profile_mode']:'single'); ?>> <?php esc_html_e( 'Single', 'cirrusly-commerce' ); ?></label>
+                    <label><input type="radio" name="cirrusly_profile_mode" value="multi" <?php checked('multi', isset($conf['profile_mode'])?$conf['profile_mode']:''); ?>> <?php esc_html_e( 'Mixed (PayPal + Stripe)', 'cirrusly-commerce' ); ?></label>
                     <p class="description"><?php esc_html_e( 'Calculates blended rates for split-payment stores.', 'cirrusly-commerce' ); ?></p>
                 </td>
             </tr>
@@ -395,7 +415,7 @@ class Cirrusly_Commerce_Setup_Wizard {
             <tr>
                 <th><?php esc_html_e( 'Avg. Shipping Cost', 'cirrusly-commerce' ); ?></th>
                 <td>
-                    <input type="number" step="0.01" name="default_shipping" value="<?php echo esc_attr( $def_cost ); ?>" class="regular-text"> $
+                    <input type="number" step="0.01" name="cirrusly_default_shipping" value="<?php echo esc_attr( $def_cost ); ?>" class="regular-text"> $
                     <p class="description"><?php esc_html_e( 'Used as the default cost for products without a specific Shipping Class.', 'cirrusly-commerce' ); ?></p>
                 </td>
             </tr>
@@ -427,7 +447,7 @@ class Cirrusly_Commerce_Setup_Wizard {
         
         <div style="background: #fff; border: 1px solid #ddd; padding: 15px; border-radius: 4px; margin-bottom: 15px;">
             <label>
-                <input type="checkbox" name="enable_msrp" value="yes" <?php checked( 'yes', $enable_msrp ); ?>> 
+                <input type="checkbox" name="cirrusly_enable_msrp" value="yes" <?php checked( 'yes', $enable_msrp ); ?>> 
                 <strong><?php esc_html_e( 'MSRP Strikethrough', 'cirrusly-commerce' ); ?></strong>
             </label>
             <p class="description" style="margin-left: 25px;"><?php esc_html_e( 'Shows "Original Price" crossed out.', 'cirrusly-commerce' ); ?></p>
@@ -435,7 +455,7 @@ class Cirrusly_Commerce_Setup_Wizard {
 
         <div style="background: #fff; border: 1px solid #ddd; padding: 15px; border-radius: 4px; margin-bottom: 15px;">
             <label>
-                <input type="checkbox" name="enable_badges" value="yes" <?php checked( 'yes', $enable_badges ); ?>> 
+                <input type="checkbox" name="cirrusly_enable_badges" value="yes" <?php checked( 'yes', $enable_badges ); ?>> 
                 <strong><?php esc_html_e( 'Smart Badges', 'cirrusly-commerce' ); ?></strong>
             </label>
             <p class="description" style="margin-left: 25px;"><?php esc_html_e( 'Standard "New" and "Sale" badges.', 'cirrusly-commerce' ); ?></p>
@@ -443,8 +463,8 @@ class Cirrusly_Commerce_Setup_Wizard {
             <?php if ( $is_pro ): ?>
             <div style="margin-left: 25px; margin-top: 10px; padding-top: 10px; border-top: 1px dashed #ccc;">
                 <span class="cc-tag">PRO</span><br>
-                <label><input type="checkbox" name="smart_inventory" value="yes" <?php checked( 'yes', $smart_inventory ); ?>> <?php esc_html_e( 'Low Stock Warning (Qty < 5)', 'cirrusly-commerce' ); ?></label><br>
-                <label><input type="checkbox" name="smart_performance" value="yes" <?php checked( 'yes', $smart_performance ); ?>> <?php esc_html_e( 'Best Seller Badge', 'cirrusly-commerce' ); ?></label>
+                <label><input type="checkbox" name="cirrusly_smart_inventory" value="yes" <?php checked( 'yes', $smart_inventory ); ?>> <?php esc_html_e( 'Low Stock Warning (Qty < 5)', 'cirrusly-commerce' ); ?></label><br>
+                <label><input type="checkbox" name="cirrusly_smart_performance" value="yes" <?php checked( 'yes', $smart_performance ); ?>> <?php esc_html_e( 'Best Seller Badge', 'cirrusly-commerce' ); ?></label>
             </div>
             <?php endif; ?>
         </div>
@@ -479,24 +499,28 @@ class Cirrusly_Commerce_Setup_Wizard {
         if ( $step === 2 ) {
             // Save Connect Settings
             $data = get_option( 'cirrusly_google_reviews_config', array() );
-            $data['merchant_id']    = isset( $_POST['merchant_id'] ) ? sanitize_text_field( $_POST['merchant_id'] ) : '';
+            // Security: Unslash before sanitize
+            $data['merchant_id']    = isset( $_POST['cirrusly_merchant_id'] ) ? sanitize_text_field( wp_unslash( $_POST['cirrusly_merchant_id'] ) ) : '';
             $data['enable_reviews'] = ! empty( $data['merchant_id'] ) ? 'yes' : 'no';
             update_option( 'cirrusly_google_reviews_config', $data );
 
             // Pro File Upload
-            if ( isset( $_FILES['cirrusly_service_account'] ) 
+            // Security: Verify indices to prevent undefined index warnings
+            if ( isset( $_FILES['cirrusly_service_account']['error'] ) 
                  && $_FILES['cirrusly_service_account']['error'] === UPLOAD_ERR_OK
                  && ! empty( $_FILES['cirrusly_service_account']['tmp_name'] ) 
                  && Cirrusly_Commerce_Core::cirrusly_is_pro() ) {
                 if ( class_exists( 'Cirrusly_Commerce_Settings_Pro' ) ) {
                      $input = get_option( 'cirrusly_scan_config', array() );
-                     $input = Cirrusly_Commerce_Settings_Pro::process_service_account_upload( $input, $_FILES['cirrusly_service_account'] );
-                     update_option( 'cirrusly_scan_config', $input );
-                    // Store success flag for wizard feedback
-                    if ( isset( $input['service_account_uploaded'] ) && $input['service_account_uploaded'] === 'yes' ) {
-                        set_transient( 'cirrusly_wizard_upload_success', true, 30 );
-                    }
-
+                     // Security: Ensure the file array exists before passing it
+                     if ( isset( $_FILES['cirrusly_service_account'] ) ) {
+                         $input = Cirrusly_Commerce_Settings_Pro::cirrusly_process_service_account_upload( $input, $_FILES['cirrusly_service_account'] );
+                         update_option( 'cirrusly_scan_config', $input );
+                        // Store success flag for wizard feedback
+                        if ( isset( $input['service_account_uploaded'] ) && $input['service_account_uploaded'] === 'yes' ) {
+                            set_transient( 'cirrusly_wizard_upload_success', true, 30 );
+                        }
+                     }
                 }
             }
         }
@@ -504,12 +528,13 @@ class Cirrusly_Commerce_Setup_Wizard {
         // Step 3: Finance
         if ( $step === 3 ) {
             $conf = get_option( 'cirrusly_shipping_config', array() );
-            $conf['payment_pct']  = isset( $_POST['payment_pct'] ) ? floatval( $_POST['payment_pct'] ) : 2.9;
-            $conf['payment_flat'] = isset( $_POST['payment_flat'] ) ? floatval( $_POST['payment_flat'] ) : 0.30;
+            // Security: Unslash inputs
+            $conf['payment_pct']  = isset( $_POST['cirrusly_payment_pct'] ) ? floatval( wp_unslash( $_POST['cirrusly_payment_pct'] ) ) : 2.9;
+            $conf['payment_flat'] = isset( $_POST['cirrusly_payment_flat'] ) ? floatval( wp_unslash( $_POST['cirrusly_payment_flat'] ) ) : 0.30;
             
             // Pro: Profile Mode
-            if ( isset( $_POST['profile_mode'] ) ) {
-                $conf['profile_mode'] = sanitize_text_field( $_POST['profile_mode'] );
+            if ( isset( $_POST['cirrusly_profile_mode'] ) ) {
+                $conf['profile_mode'] = sanitize_text_field( wp_unslash( $_POST['cirrusly_profile_mode'] ) );
             }
 
             // Default Shipping (Stored in class costs JSON)
@@ -518,8 +543,8 @@ class Cirrusly_Commerce_Setup_Wizard {
                 $costs = array();
             }
             
-            if ( isset( $_POST['default_shipping'] ) ) {
-                $costs['default'] = sanitize_text_field( $_POST['default_shipping'] );
+            if ( isset( $_POST['cirrusly_default_shipping'] ) ) {
+                $costs['default'] = sanitize_text_field( wp_unslash( $_POST['cirrusly_default_shipping'] ) );
             }
             $conf['class_costs_json'] = json_encode( $costs );
 
@@ -530,14 +555,15 @@ class Cirrusly_Commerce_Setup_Wizard {
         if ( $step === 4 ) {
             // MSRP
             $msrp = get_option( 'cirrusly_msrp_config', array() );
-            $msrp['enable_display'] = isset( $_POST['enable_msrp'] ) ? 'yes' : 'no';
+            // Checkboxes: checking existence (isset) is usually sufficient, but we verify the name
+            $msrp['enable_display'] = isset( $_POST['cirrusly_enable_msrp'] ) ? 'yes' : 'no';
             update_option( 'cirrusly_msrp_config', $msrp );
 
             // Badges
             $badges = get_option( 'cirrusly_badge_config', array() );
-            $badges['enable_badges']     = isset( $_POST['enable_badges'] ) ? 'yes' : 'no';
-            $badges['smart_inventory']   = isset( $_POST['smart_inventory'] ) ? 'yes' : 'no';
-            $badges['smart_performance'] = isset( $_POST['smart_performance'] ) ? 'yes' : 'no';
+            $badges['enable_badges']     = isset( $_POST['cirrusly_enable_badges'] ) ? 'yes' : 'no';
+            $badges['smart_inventory']   = isset( $_POST['cirrusly_smart_inventory'] ) ? 'yes' : 'no';
+            $badges['smart_performance'] = isset( $_POST['cirrusly_smart_performance'] ) ? 'yes' : 'no';
             update_option( 'cirrusly_badge_config', $badges );
         }
 

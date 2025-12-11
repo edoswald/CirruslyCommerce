@@ -50,6 +50,11 @@ class Cirrusly_Commerce_Pricing_UI {
         }
     }
 
+    /**
+     * Render pricing-related admin fields for a simple product.
+     *
+     * Outputs inputs for Google Min Price, MAP, MSRP, Shipping Cost, and Sale Timer End, then renders the pricing toolbar.
+     */
     public function pe_render_simple_fields() {
         global $product_object;
         $ship = $product_object->get_meta( '_cw_est_shipping' );
@@ -61,7 +66,7 @@ class Cirrusly_Commerce_Pricing_UI {
         
         woocommerce_wp_text_input( array( 
             'id' => '_auto_pricing_min_price', 
-            'label' => 'Google Min ($) <span class="dashicons dashicons-info" title="' . esc_attr__( 'Automated Discounts Floor.', 'cirrusly-commerce' ) . '"></span>',
+            'label' => 'Google Min Price ($) <span class="dashicons dashicons-info" title="' . esc_attr__( 'Lowest price for Automated Discounts', 'cirrusly-commerce' ) . '"></span>',
             'class' => 'wc_input_price short cw-min-input', 
             'value' => $min, 
             'data_type' => 'price', 
@@ -80,12 +85,15 @@ class Cirrusly_Commerce_Pricing_UI {
     }
 
     /**
-     * Render pricing fields for variable products.
+     * Render pricing-related input fields for a single product variation in the admin UI.
      *
-     * @param int    $loop           Loop index.
-     * @param array  $variation_data Variation data (unused, required by hook).
-     * @param object $variation      Variation post object.
-    */
+     * Outputs inputs for Google Min Price, MAP, MSRP, and Shipping Cost for the specified variation
+     * and renders the pricing toolbar.
+     *
+     * @param int   $loop           Variation index used to name input fields.
+     * @param array $variation_data Variation data (unused; required by the WooCommerce hook).
+     * @param object $variation     Variation post object (WP_Post) for which fields are rendered.
+     */
     public function pe_render_variable_fields( $loop, $variation_data, $variation ) {
         $ship = get_post_meta( $variation->ID, '_cw_est_shipping', true );
         $map  = get_post_meta( $variation->ID, '_cirrusly_map_price', true ); 
@@ -93,22 +101,29 @@ class Cirrusly_Commerce_Pricing_UI {
         $min  = get_post_meta( $variation->ID, '_auto_pricing_min_price', true );
 
         echo '<div class="cw-cogs-wrapper-var"><div class="cw-dual-row-variable four-cols">';
-        woocommerce_wp_text_input( array( 'id' => "_auto_pricing_min_price[$loop]", 'label' => 'Google Min ($)', 'class' => 'wc_input_price short cw-min-input', 'value' => $min, 'wrapper_class' => 'cw-flex-field' ));
-        woocommerce_wp_text_input( array( 'id' => "_cirrusly_map_price[$loop]", 'label' => 'MAP ($)', 'class' => 'wc_input_price short cw-map-input', 'value' => $map, 'wrapper_class' => 'cw-flex-field' ));
-        woocommerce_wp_text_input( array( 'id' => "_alg_msrp[$loop]", 'label' => 'MSRP ($)', 'class' => 'wc_input_price short cw-msrp-input', 'value' => $msrp, 'wrapper_class' => 'cw-flex-field' ));
-        woocommerce_wp_text_input( array( 'id' => "_cw_est_shipping[$loop]", 'label' => 'Base Ship ($)', 'class' => 'wc_input_price short cw-ship-input', 'value' => $ship, 'wrapper_class' => 'cw-flex-field' ));
+        woocommerce_wp_text_input( array( 'id' => "_auto_pricing_min_price[$loop]", 'label' => 'Google Min Price', 'class' => 'wc_input_price short cw-min-input', 'value' => $min, 'wrapper_class' => 'cw-flex-field' ));
+        woocommerce_wp_text_input( array( 'id' => "_cirrusly_map_price[$loop]", 'label' => 'MAP', 'class' => 'wc_input_price short cw-map-input', 'value' => $map, 'wrapper_class' => 'cw-flex-field' ));
+        woocommerce_wp_text_input( array( 'id' => "_alg_msrp[$loop]", 'label' => 'MSRP', 'class' => 'wc_input_price short cw-msrp-input', 'value' => $msrp, 'wrapper_class' => 'cw-flex-field' ));
+        woocommerce_wp_text_input( array( 'id' => "_cw_est_shipping[$loop]", 'label' => 'Shipping Cost', 'class' => 'wc_input_price short cw-ship-input', 'value' => $ship, 'wrapper_class' => 'cw-flex-field' ));
         echo '</div>';
         $this->pe_render_toolbar();
         echo '</div>';
     }
 
+    /**
+     * Render the pricing engine toolbar in the product admin UI.
+     *
+     * Outputs HTML controls for selecting sale pricing strategy, sale rounding,
+     * and regular price strategy, plus a profit and margin display area and a
+     * shipping matrix placeholder.
+     */
     private function pe_render_toolbar() {
         ?>
         <div class="cw-tools-row" style="margin-top:10px;">
             <label>Pricing Engine</label>
             <span style="display:inline-block;">
                 <select class="cw-tool-sale short" style="width:140px;margin:0;">
-                    <option value="">Sale Strategy...</option>
+                    <option value="">Sale Pricing Strategy</option>
                     <option value="msrp_05">5% Off MSRP</option>
                     <option value="msrp_10">10% Off MSRP</option>
                     <option value="msrp_15">15% Off MSRP</option>
@@ -128,7 +143,7 @@ class Cirrusly_Commerce_Pricing_UI {
                     <option value="exact">Exact</option>
                 </select>
                 <select class="cw-tool-reg short" style="width:180px;margin:0;">
-                    <option value="">Reg Strategy...</option>
+                    <option value="">Reg. Price Strategy</option>
                     <optgroup label="From MSRP">
                         <option value="msrp_exact">Match MSRP</option>
                         <option value="msrp_sub_05">5% &lt; MSRP</option>
