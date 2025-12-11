@@ -6,16 +6,20 @@ if ( ! defined( 'ABSPATH' ) ) {
 class Cirrusly_Commerce_Frontend_Assets {
 
 	/**
-	 * Initialize frontend asset registration.
+	 * Hook the class's asset registration method into WordPress's frontend enqueue action.
+	 *
+	 * Registers `register_assets` on the `wp_enqueue_scripts` action with priority 1.
 	 */
 	public function __construct() {
 		add_action( 'wp_enqueue_scripts', array( $this, 'register_assets' ), 1 );
 	}
 
 	/**
-	 * Register base handles.
-	 * * Since we may not have a physical file for every handle, we register 'false' as the source
-	 * or use a core dependency like 'jquery' to ensure proper loading order.
+	 * Register and enqueue base frontend CSS and JavaScript handles used by Cirrusly Commerce.
+	 *
+	 * Registers a style handle `cirrusly-frontend-base` with no source and enqueues it.
+	 * Registers a script handle `cirrusly-frontend-base` with no source, dependent on `jquery`,
+	 * versioned by `CIRRUSLY_COMMERCE_VERSION`, loaded in the footer, and enqueues it.
 	 */
 	public function register_assets() {
 		// Base CSS Handle

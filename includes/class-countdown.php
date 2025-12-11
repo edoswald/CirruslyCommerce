@@ -19,6 +19,17 @@ class Cirrusly_Commerce_Countdown {
         // Removed wp_footer action
     }
 
+    /**
+     * Render a countdown timer based on shortcode attributes.
+     *
+     * Accepted attributes:
+     * - `end` (string): target end date/time; when empty no output is produced.
+     * - `label` (string): optional text displayed with the timer.
+     * - `align` (string): layout alignment; one of 'left', 'center', or 'right' (default 'left').
+     *
+     * @param array|string $atts Shortcode attributes or query string of attributes.
+     * @return string The countdown HTML markup, or an empty string if no valid `end` is provided.
+     */
     public function render_shortcode( $atts ) {
         $a = shortcode_atts( array(
             'end'   => '',
@@ -30,8 +41,19 @@ class Cirrusly_Commerce_Countdown {
     }
 
     /**
-     * Helper to find the active configuration for a product.
-     * Returns array('end' => string, 'label' => string, 'align' => string) or false.
+     * Determine the active countdown configuration for a product.
+     *
+     * Checks product-level manual sale end meta first; if that date is in the future, returns
+     * a manual countdown configuration. If no manual configuration is active and the pro
+     * feature is available, delegates to the pro smart-rules checker. Returns false when
+     * no active countdown configuration is found.
+     *
+     * @param object $product Product object (expected WC_Product or similar) to evaluate.
+     * @return array|false Array with keys:
+     *                     - `end`   : string end date/time for the countdown.
+     *                     - `label` : string label to display (e.g., "Sale Ends In:").
+     *                     - `align` : string alignment value, one of 'left', 'center', 'right'.
+     *                    Returns `false` if no active countdown configuration exists.
      */
     public static function get_smart_countdown_config( $product ) {
         if ( ! is_object( $product ) ) return false;
@@ -58,6 +80,12 @@ class Cirrusly_Commerce_Countdown {
         return false;
     }
 
+    /**
+     * Outputs the countdown timer HTML for the current single product when a countdown configuration is available.
+     *
+     * If executed on a single product page and a valid countdown configuration exists for the current product,
+     * this method echoes the sanitized countdown markup and a small bottom spacer.
+     */
     public function inject_countdown() {
         if ( ! is_product() ) return;
         global $product;
@@ -68,6 +96,14 @@ class Cirrusly_Commerce_Countdown {
         }
     }
 
+    /**
+     * Render HTML markup for a countdown timer targeting the given end date.
+     *
+     * @param string $end_date End date/time string parseable by DateTime/strtotime.
+     * @param string $label Optional label shown before the timer.
+     * @param string $align Alignment of the timer content; expected values: 'left', 'center', 'right'.
+     * @return string HTML markup for the countdown timer, or an empty string if the end date is in the past or cannot be parsed.
+     */
     public static function generate_timer_html( $end_date, $label, $align ) {
         $timezone_string = get_option( 'timezone_string' ) ?: 'America/New_York';
         try {
@@ -121,6 +157,13 @@ class Cirrusly_Commerce_Countdown {
         } catch (Exception $e) { return false; }
     }
 
+    /**
+     * Inlines the countdown's frontend CSS and JavaScript on single product pages.
+     *
+     * The CSS and JS are attached to the 'cirrusly-frontend-base' asset handle so the countdown
+     * markup rendered on product pages receives styling and a DOMContentLoaded-driven initializer.
+     * The initializer updates countdown digits every second and hides timers whose end time has passed.
+     */
     public function enqueue_assets() {
         if ( ! is_product() ) return;
         

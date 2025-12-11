@@ -84,8 +84,14 @@ class Cirrusly_Commerce_GMC {
     }
 
     /**
-     * Update a product's GMC identifier flag based on quick/bulk edit input.
-     * Includes updated nonce verification for Quick/Bulk edit contexts.
+     * Update a product's GMC identifier flag from Quick Edit or Bulk Edit input.
+     *
+     * Verifies the incoming nonce for the Quick Edit or Bulk Edit context, then:
+     * - sets the product meta `_gla_identifier_exists` to `"no"` when `gmc_is_custom_product` is present;
+     * - sets `_gla_identifier_exists` to `"yes"` when a Quick Edit is submitted (and not a bulk edit).
+     * Finally clears the `cirrusly_active_promos_stats` transient.
+     *
+     * @param \WC_Product $product The product being saved via quick or bulk edit.
      */
     public function save_quick_bulk_edit( $product ) {
         // [Security] Verify correct nonce for Quick vs Bulk Edit
@@ -109,7 +115,12 @@ class Cirrusly_Commerce_GMC {
     }
 
     /**
-     * Marks a product as non-custom and redirects to the GMC admin scan tab.
+     * Mark the product identified by $_GET['pid'] as non-custom and redirect to the GMC scan tab.
+     *
+     * Verifies the current user has the 'edit_products' capability and that the provided product ID
+     * is valid, then checks the admin nonce `cc_mark_custom_{pid}`. On success updates the product
+     * meta `_gla_identifier_exists` to `'no'` and redirects to the GMC admin scan page with
+     * `msg=custom_marked`. Calls wp_die on permission or ID/nonce validation failures.
      */
     public function handle_mark_custom() {
         if ( ! current_user_can( 'edit_products' ) ) wp_die('No permission');

@@ -11,16 +11,17 @@ class Cirrusly_Commerce_Audit_Pro {
     }
 
     /**
-     * Stream compiled audit data as a CSV download when the Cirrusly Audit admin export is requested.
+     * Stream compiled audit data as a CSV download for the Cirrusly Audit export action.
      *
-     * When the request includes page=cirrusly-audit and action=export_csv, this method verifies the current
-     * user has the `edit_products` capability and that the Pro feature is enabled. It sends CSV headers,
-     * writes a header row and one CSV row per compiled audit record, then terminates the request.
+     * When the current admin request includes page=cirrusly-audit and action=export_csv this method
+     * verifies the current user has the `edit_products` capability and that the Pro feature is active,
+     * then sends CSV headers, writes a header row and one CSV row per compiled audit record, and
+     * terminates the request after output.
      *
      * CSV filename pattern: store-audit-YYYY-MM-DD.csv
      *
      * Columns emitted: ID, Product Name, Type, Cost (COGS), Shipping Cost, Price, Net Profit, Margin %,
-     * MAP, Google Min, MSRP. Price-like columns that are not greater than zero are emitted as empty.
+     * MAP, Google Min, MSRP. Price-like numeric columns that are not greater than zero are emitted as empty.
      */
     public static function handle_export() {
         if ( isset($_GET['page']) && $_GET['page'] === 'cirrusly-audit' && isset($_GET['action']) && $_GET['action'] === 'export_csv' ) {

@@ -5,6 +5,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class Cirrusly_Commerce_Analytics_Pro {
 
+    /**
+     * Register admin hooks required for the analytics feature.
+     *
+     * Attaches WordPress actions to register the analytics submenu, enqueue analytics assets on admin pages, and capture the daily GMC snapshot.
+     */
     public function __construct() {
         add_action( 'admin_menu', array( $this, 'register_analytics_page' ), 20 );
         add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_assets' ) );
@@ -133,6 +138,13 @@ class Cirrusly_Commerce_Analytics_Pro {
         wp_add_inline_script( 'cc-chartjs', $script );
     }
 
+    /**
+     * Renders the Pro Plus Analytics admin page, including filter controls, metric cards, chart placeholders, top products and inventory risk tables.
+     *
+     * Outputs the analytics HTML and enqueues UI elements for interaction; may terminate execution on insufficient permissions or after performing a forced data refresh redirect.
+     *
+     * @return void
+     */
     public function render_analytics_view() {
         if ( ! current_user_can( 'manage_woocommerce' ) ) {
             wp_die( esc_html__( 'You do not have sufficient permissions to access this page.', 'cirrusly-commerce' ) );
@@ -507,17 +519,18 @@ class Cirrusly_Commerce_Analytics_Pro {
     }
 
     /**
-     * Identify inventory items at risk of stockout based on 30-day sales velocity.
+     * Identify products likely to stock out within 14 days based on 30-day sales velocity.
      *
-     * Computes average daily sales for each product over the last 30 days and returns
-     * items whose estimated days remaining (stock / velocity) is less than 14.
+     * Computes each product's average daily sales over the past 30 days, estimates days remaining
+     * as current stock divided by that velocity, and returns items with estimated days remaining
+     * less than 14, sorted by ascending `days_left`.
      *
-     * @return array[] An array of risky items sorted by ascending `days_left`. Each item is an associative array with keys:
-     * - 'id' (int): Product ID.
-     * - 'name' (string): Product name.
-     * - 'stock' (float|int): Current stock quantity.
-     * - 'velocity' (float): Average daily sales over the last 30 days.
-     * - 'days_left' (float): Estimated days remaining at the current velocity.
+     * @return array[] List of risky items sorted by `days_left` ascending. Each item contains:
+     *               - 'id' (int): Product ID.
+     *               - 'name' (string): Product name.
+     *               - 'stock' (float|int): Current stock quantity.
+     *               - 'velocity' (float): Average daily sales over the last 30 days.
+     *               - 'days_left' (float): Estimated days remaining at the current velocity.
      */
     private static function get_inventory_velocity() {
         // Use simpler logic for velocity too
@@ -574,8 +587,13 @@ class Cirrusly_Commerce_Analytics_Pro {
 
 
     /**
-     * Hook: Capture daily GMC scan results for historical trending.
-     * Hooks into 'cirrusly_gmc_daily_scan' at priority 20.
+     * Aggregate daily Google Merchant Center scan results and append a dated snapshot to history.
+     *
+     * Reads the `cirrusly_gmc_scan_data` option, counts critical issues and warnings from the latest scan,
+     * stores a timestamped entry keyed by today's date in the `cirrusly_gmc_history` option, trims history
+     * to the most recent 90 days, and persists the updated history.
+     *
+     * @return void
      */
     public function capture_daily_gmc_snapshot() {
         $scan_data = get_option( 'cirrusly_gmc_scan_data', array() );

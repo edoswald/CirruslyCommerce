@@ -6,9 +6,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 class Cirrusly_Commerce_Admin_Assets {
 
     /**
-     * Enqueue and localize admin scripts and styles.
+     * Enqueue and localize admin styles, scripts, and UI helper inline code for plugin and product admin pages.
      *
-     * @param string $hook The current admin page hook.
+     * When the current admin page is part of the plugin or a product edit screen, this registers and enqueues
+     * the base admin CSS and JS, conditionally enqueues audit and pricing scripts, localizes their data objects,
+     * and attaches UI helper JavaScript as an inline script on the base admin JS handle.
+     *
+     * @param string $hook The current admin page hook (e.g., 'post.php', 'post-new.php', or plugin page hook).
      */
     public function enqueue( $hook ) {
         $page = isset( $_GET['page'] ) ? sanitize_text_field( wp_unslash( $_GET['page'] ) ) : '';
