@@ -76,7 +76,10 @@ class Cirrusly_Commerce_Settings_Pro {
             } else {
                 add_settings_error( 'cirrusly_scan_config', 'encrypt_error', 'Encryption failed.' );
             }
-        }
+        } else {
+            add_settings_error( 'cirrusly_scan_config', 'security_missing', 'Security module unavailable. Please contact support.' );
+         }
+
 
         return $input;
     }

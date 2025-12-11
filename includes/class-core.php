@@ -136,8 +136,8 @@ class Cirrusly_Commerce_Core {
         }
 
         // 2. Freemius Check
-        if ( function_exists( 'cc_fs' ) ) {
-             return cc_fs()->can_use_premium_code();
+        if ( function_exists( 'cirrusly_fs' ) ) {
+             return cirrusly_fs()->can_use_premium_code();
         }
 
         return false;
@@ -150,9 +150,9 @@ class Cirrusly_Commerce_Core {
         }
 
         // 2. Freemius Check
-        if ( function_exists( 'cc_fs' ) ) {
+        if ( function_exists( 'cirrusly_fs' ) ) {
             // Check if user is on 'proplus' plan (OR higher, if more tiers are added later).
-            return cc_fs()->is_plan( 'proplus' );
+            return cirrusly_fs()->is_plan( 'proplus' );
         }
 
         return false;

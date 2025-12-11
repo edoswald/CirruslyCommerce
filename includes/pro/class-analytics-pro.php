@@ -72,15 +72,9 @@ class Cirrusly_Commerce_Analytics_Pro {
 
         // 2. Prepare Data for Inline Script
         // We need to fetch data here to pass it to the script
-        $default_days = 90;
-        $days = isset($_GET['period']) ? intval($_GET['period']) : $default_days;
-        $days = max( 7, min( $days, 365 ) ); 
-        
-        $selected_statuses = array();
-        // FIXED: Renamed parameter and added wp_unslash
-        if ( isset( $_GET['cirrusly_statuses'] ) && is_array( $_GET['cirrusly_statuses'] ) ) {
-            $selected_statuses = array_map( 'sanitize_text_field', wp_unslash( $_GET['cirrusly_statuses'] ) );
-        }
+        $params = self::get_filter_params();
+        $days = $params['days'];
+        $selected_statuses = $params['statuses'];
 
         $data = self::get_pnl_data( $days, $selected_statuses );
         $gmc_history = get_option( 'cirrusly_gmc_history', array() );
@@ -150,16 +144,11 @@ class Cirrusly_Commerce_Analytics_Pro {
             wp_die( esc_html__( 'You do not have sufficient permissions to access this page.', 'cirrusly-commerce' ) );
         }
 
-        $default_days = 90;
-        $days = isset($_GET['period']) ? intval($_GET['period']) : $default_days;
-        $days = max( 7, min( $days, 365 ) ); 
+        $params = self::get_filter_params();
+        $days = $params['days'];
+        $selected_statuses = $params['statuses'];
 
         $all_statuses = wc_get_order_statuses();
-        $selected_statuses = array();
-        // FIXED: Renamed parameter and added wp_unslash
-        if ( isset( $_GET['cirrusly_statuses'] ) && is_array( $_GET['cirrusly_statuses'] ) ) {
-            $selected_statuses = array_map( 'sanitize_text_field', wp_unslash( $_GET['cirrusly_statuses'] ) );
-        }
 
         if ( isset( $_GET['cc_refresh'] ) && check_admin_referer( 'cc_refresh_analytics' ) ) {
             global $wpdb;
@@ -319,6 +308,27 @@ class Cirrusly_Commerce_Analytics_Pro {
             <?php endif; ?>
         </div>
         <?php
+    }
+
+    /**
+     * Helper: Extract and sanitize filter parameters (days and statuses) from GET request.
+     *
+     * @return array Associative array with keys 'days' (int) and 'statuses' (array of strings).
+     */
+    private static function get_filter_params() {
+        $default_days = 90;
+        $days = isset($_GET['period']) ? intval($_GET['period']) : $default_days;
+        $days = max( 7, min( $days, 365 ) ); 
+
+        $selected_statuses = array();
+        if ( isset( $_GET['cirrusly_statuses'] ) && is_array( $_GET['cirrusly_statuses'] ) ) {
+            $selected_statuses = array_map( 'sanitize_text_field', wp_unslash( $_GET['cirrusly_statuses'] ) );
+        }
+
+        return array(
+            'days'     => $days,
+            'statuses' => $selected_statuses,
+        );
     }
 
     /**
@@ -526,11 +536,11 @@ class Cirrusly_Commerce_Analytics_Pro {
      * less than 14, sorted by ascending `days_left`.
      *
      * @return array[] List of risky items sorted by `days_left` ascending. Each item contains:
-     *               - 'id' (int): Product ID.
-     *               - 'name' (string): Product name.
-     *               - 'stock' (float|int): Current stock quantity.
-     *               - 'velocity' (float): Average daily sales over the last 30 days.
-     *               - 'days_left' (float): Estimated days remaining at the current velocity.
+     * - 'id' (int): Product ID.
+     * - 'name' (string): Product name.
+     * - 'stock' (float|int): Current stock quantity.
+     * - 'velocity' (float): Average daily sales over the last 30 days.
+     * - 'days_left' (float): Estimated days remaining at the current velocity.
      */
     private static function get_inventory_velocity() {
         // Use simpler logic for velocity too

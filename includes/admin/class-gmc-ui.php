@@ -20,139 +20,36 @@ class Cirrusly_Commerce_GMC_UI {
     }
 
     /**
-         * Restrict script enqueuing to the Cirrusly GMC admin page.
-         *
-         * Checks the current admin screen and exits immediately if the screen is not
-         * the Cirrusly Google Merchant Center (cirrusly-gmc) admin page.
-         */
-        public function enqueue_scripts() {
+     * Restrict script enqueuing to the Cirrusly GMC admin page.
+     *
+     * Checks the current admin screen and exits immediately if the screen is not
+     * the Cirrusly Google Merchant Center (cirrusly-gmc) admin page.
+     */
+    public function enqueue_scripts() {
         $screen = get_current_screen();
         if ( ! $screen || false === strpos( $screen->id, '_page_cirrusly-gmc' ) ) {
-            return;
-        }
             return;
         }
 
         // Only enqueue promotions JS if on the promotions tab
         $tab = isset( $_GET['tab'] ) ? sanitize_text_field( wp_unslash( $_GET['tab'] ) ) : 'scan';
         if ( 'promotions' === $tab ) {
-            $nonce_list = esc_js( wp_create_nonce("cc_promo_api_list") );
-            $nonce_submit = esc_js( wp_create_nonce("cc_promo_api_submit") );
+            $nonce_list   = wp_create_nonce( 'cc_promo_api_list' );
+            $nonce_submit = wp_create_nonce( 'cc_promo_api_submit' );
 
-            // We attach this to the base admin JS handle created in class-admin-assets.php
-            $script = "
-            jQuery(document).ready(function($){
-                $('#pg_generate').click(function(){
-                    var id = $('#pg_id').val(), app = $('#pg_app').val(), type = $('#pg_type').val();
-                    var title = $('#pg_title').val(), dates = $('#pg_dates').val(), code = $('#pg_code').val();
-                    var str = id + ',' + app + ',' + type + ',' + title + ',' + dates + ',ONLINE,' + dates + ',' + (type==='GENERIC_CODE' ? code : '');
-                    $('#pg_output').text(str);
-                    $('#pg_result_area').fadeIn();
-                });
+            wp_enqueue_script(
+                'cc-admin-promotions',
+                CIRRUSLY_COMMERCE_URL . 'assets/js/admin-promotions.js',
+                array( 'jquery', 'cirrusly-admin-base-js' ),
+                '1.0.0',
+                true
+            );
 
-                var loadPromotions = function( forceRefresh ) {
-                    var \$btn = $('#cc_load_promos');
-                    var \$table = $('#cc-gmc-promos-table tbody');
-                    
-                    \$btn.prop('disabled', true).html('<span class=\"dashicons dashicons-update\" style=\"animation:spin 2s linear infinite;\"></span> Syncing...');
-                    if( forceRefresh ) \$table.html('<tr class=\"cc-empty-row\"><td colspan=\"6\" style=\"padding:20px; text-align:center;\">Refreshing data...</td></tr>');
-                    
-                    $.post(ajaxurl, {
-                        action: 'cc_list_promos_gmc',
-                        security: '{$nonce_list}',
-                        force_refresh: forceRefresh ? 1 : 0
-                    }, function(res) {
-                        \$btn.prop('disabled', false).html('<span class=\"dashicons dashicons-update\"></span> Sync from Google');
-                        if(res.success) {
-                            \$table.empty();
-                            if(res.data.length === 0) {
-                                \$table.html('<tr class=\"cc-empty-row\"><td colspan=\"6\" style=\"padding:20px; text-align:center;\">No promotions found in Merchant Center.</td></tr>');
-                                return;
-                            }
-                            function ccEscapeHtml(str) {
-                                return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;').replace(/'/g, '&#039;');
-                            }
-                            $.each(res.data, function(i, p){
-                                var statusColor = '#777';
-                                if(p.status === 'active') statusColor = '#008a20';
-                                if(p.status === 'rejected') statusColor = '#d63638';
-                                if(p.status === 'expired') statusColor = '#999';
-                                var displayStatus = p.status.toUpperCase();
-                                if(p.status.indexOf('(') > 0) statusColor = '#dba617';
-                                var row = '<tr>' +
-                                    '<td><strong>' + ccEscapeHtml(p.id) + '</strong></td>' +
-                                    '<td>' + ccEscapeHtml(p.title) + '</td>' +
-                                    '<td>' + ccEscapeHtml(p.dates) + '</td>' +
-                                    '<td><span class=\"gmc-badge\" style=\"background:'+statusColor+';color:#fff;\">'+ccEscapeHtml(displayStatus)+'</span></td>' +
-                                    '<td>' + ccEscapeHtml(p.type) + (p.code ? ': <code>'+ccEscapeHtml(p.code)+'</code>' : '') + '</td>' +
-                                    '<td><button type=\"button\" class=\"button button-small cc-edit-promo\" ' +
-                                    'data-id=\"'+ccEscapeHtml(p.id)+'\" data-title=\"'+ccEscapeHtml(p.title)+'\" data-dates=\"'+ccEscapeHtml(p.dates)+'\" data-app=\"'+ccEscapeHtml(p.app)+'\" data-type=\"'+ccEscapeHtml(p.type)+'\" data-code=\"'+ccEscapeHtml(p.code || '')+'\">Edit</button></td>' +
-                                    '</tr>';
-                                \$table.append(row);
-                            });
-                        } else {
-                            if(forceRefresh) alert('Error: ' + (res.data || 'Failed to fetch data.'));
-                            \$table.html('<tr class=\"cc-empty-row\"><td colspan=\"6\" style=\"padding:20px; text-align:center; color:#d63638;\">Error loading data.</td></tr>');
-                        }
-                    });
-                };
-
-                if( $('#cc-gmc-promos-table').length > 0 ) {
-                    loadPromotions(false);
-                }
-                $('#cc_load_promos').click(function(){ loadPromotions(true); });
-
-                $(document).on('click', '.cc-edit-promo', function(e){
-                    e.preventDefault();
-                    var d = $(this).data();
-                    $('#pg_id').val(d.id); 
-                    $('#pg_title').val(d.title);
-                    $('#pg_dates').val(d.dates);
-                    $('#pg_app').val(d.app).trigger('change');
-                    $('#pg_type').val(d.type).trigger('change');
-                    $('#pg_code').val(d.code);
-                    $('html, body').animate({ scrollTop: $(\"#cc_promo_form_container\").offset().top - 50 }, 500);
-                    $('#cc_promo_form_container').css('border', '2px solid #2271b1').animate({borderWidth: 0}, 1500, function(){ $(this).css('border',''); });
-                    $('#cc_form_title').text('Edit Promotion: ' + d.id);
-                });
-
-                $('#pg_api_submit').click(function(){
-                    var \$btn = $(this);
-                    var originalText = \$btn.html();
-                    if( !$('#pg_id').val() || !$('#pg_title').val() ) {
-                        alert('Please fill in Promotion ID and Title first.');
-                        return;
-                    }
-                    \$btn.prop('disabled', true).text('Sending...');
-                    $.post(ajaxurl, {
-                        action: 'cc_submit_promo_to_gmc',
-                        security: '{$nonce_submit}',
-                        data: {
-                            id: $('#pg_id').val(),
-                            title: $('#pg_title').val(),
-                            dates: $('#pg_dates').val(),
-                            app: $('#pg_app').val(),
-                            type: $('#pg_type').val(),
-                            code: $('#pg_code').val()
-                        }
-                    }, function(response) {
-                        if(response.success) {
-                            alert('Success! Promotion pushed to Google Merchant Center.');
-                            loadPromotions(true);
-                        } else {
-                            alert('Error: ' + (response.data || 'Could not connect to API.'));
-                        }
-                        \$btn.prop('disabled', false).html(originalText);
-                    });
-                });
-                
-                // Bulk action checkbox logic
-                $('#cb-all-promo').change(function(){
-                    $('input[name=\'gmc_promo_products[]\']').prop('checked',this.checked);
-                });
-            });";
-            
-            wp_add_inline_script( 'cirrusly-admin-base-js', $script );
+            wp_localize_script( 'cc-admin-promotions', 'cirrusly_promo_data', array(
+                'ajaxurl'      => admin_url( 'admin-ajax.php' ),
+                'nonce_list'   => $nonce_list,
+                'nonce_submit' => $nonce_submit,
+            ) );
         }
     }
 
@@ -188,20 +85,13 @@ class Cirrusly_Commerce_GMC_UI {
         <?php
     }
 
-    /**
-     * Render the Health Check UI for Google Merchant Center and present scan results and automation rules.
-     *
-     * Renders a diagnostic scan form, displays saved scan results from the `cirrusly_gmc_scan_data` option,
-     * and shows the Automation & Workflow Rules panel which stores settings in the `cirrusly_scan_config`
-     * option (via WordPress options API). When the scan form is submitted with a valid nonce, the method
-     * runs the scan logic, updates `cirrusly_gmc_scan_data` with a timestamp and results, and outputs a success notice.
-     */
-    private /**
+
+   /**
      * Renders the Health Check admin UI for scanning the product catalog and managing scan-related automation rules.
      *
      * Displays a manual scan control, runs and persists a scan when the scan form is submitted, migrates legacy scan data if present, and shows scan results with per-product actions. Also renders the Automation & Workflow Rules panel (PRO-gated) that exposes settings for blocking saves on critical issues and auto-stripping banned words.
      */
-    function render_scan_view() {
+    private function render_scan_view() {
         $is_pro = Cirrusly_Commerce_Core::cirrusly_is_pro();
         $pro_class = $is_pro ? '' : 'cc-pro-feature';
         $disabled_attr = $is_pro ? '' : 'disabled';
@@ -283,7 +173,7 @@ class Cirrusly_Commerce_GMC_UI {
         echo '</div>';
     }
 
-    private /**
+     /**
      * Render the promotions management UI and handle local promotion assignment actions.
      *
      * Outputs the Live Google Promotions admin interface (promotions table, promotion generator,
@@ -293,14 +183,14 @@ class Cirrusly_Commerce_GMC_UI {
      *
      * Additional behaviors:
      * - Loads cached promotion statistics from the `cirrusly_active_promos_stats` transient and
-     *   regenerates it from postmeta when absent.
+     * regenerates it from postmeta when absent.
      * - Supports filtering by a single promotion ID via the `view_promo` query parameter and
-     *   displays a paginated product list when filtered.
+     * displays a paginated product list when filtered.
      * - Outputs markup that is PRO-gated for certain actions (UI elements may be disabled when not PRO).
      *
      * @return void
      */
-    function render_promotions_view() {
+    private function render_promotions_view() {
         // [Existing HTML generation code remains]
         $is_pro = Cirrusly_Commerce_Core::cirrusly_is_pro();
         $pro_class = $is_pro ? '' : 'cc-pro-feature';
@@ -597,7 +487,7 @@ class Cirrusly_Commerce_GMC_UI {
         return $columns;
     }
 
-        /**
+    /**
      * Renders the "GMC Data" cell for a product in the posts list when the column is `gmc_status`.
      *
      * Outputs visible badges and a hidden data element that expose per-product Google Merchant Center
@@ -630,14 +520,7 @@ class Cirrusly_Commerce_GMC_UI {
      * entering a Promotion ID, and setting Custom Label 0. The "Custom Product" checkbox
      * reflects the product's `_gla_identifier_exists` post meta.
      */
-    public /**
-     * Renders the Google Merchant Center attributes metabox fields on the product edit screen.
-     *
-     * Outputs a field group containing a "Custom Product?" checkbox (driven by post meta `_gla_identifier_exists`),
-     * a "Promotion ID" text input (meta `_gmc_promotion_id`), and a "Custom Label 0" text input (meta `_gmc_custom_label_0`).
-     * Uses WooCommerce helper functions to render the inputs.
-     */
-    function render_gmc_product_settings() {
+    public function render_gmc_product_settings() {
         global $post;
         echo '<div class="options_group">';
         echo '<p class="form-field"><strong>' . esc_html__( 'Google Merchant Center Attributes', 'cirrusly-commerce' ) . '</strong></p>';
@@ -782,15 +665,7 @@ class Cirrusly_Commerce_GMC_UI {
      * Fetches account-level issues from Google Merchant Center via the Pro client.
      * * @return Google_Service_ShoppingContent_AccountStatus|WP_Error|null
      */
-    private /**
-     * Fetches Google Merchant Center account-level issues when Pro features are available.
-     *
-     * If Pro functionality is enabled and the Pro GMC integration is present, returns the account issues
-     * retrieved from the Pro client; otherwise returns an error indicating Pro is required.
-     *
-     * @return array|WP_Error An array of account issues on success; a `WP_Error` with code `not_pro` if Pro features are not available.
-     */
-    function fetch_google_account_issues() {
+    private function fetch_google_account_issues() {
         if ( Cirrusly_Commerce_Core::cirrusly_is_pro() && class_exists( 'Cirrusly_Commerce_GMC_Pro' ) ) {
             return Cirrusly_Commerce_GMC_Pro::fetch_google_account_issues();
         }

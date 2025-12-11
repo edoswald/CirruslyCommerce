@@ -63,13 +63,13 @@ class Cirrusly_Commerce_Setup_Wizard {
      * Trigger 1: Plan Upgrade (Free -> Pro -> Pro Plus)
      */
     public function detect_plan_change() {
-        if ( ! function_exists( 'cc_fs' ) || ! current_user_can( 'manage_options' ) ) {
+        if ( ! function_exists( 'cirrusly_fs' ) || ! current_user_can( 'manage_options' ) ) {
             return;
         }
         $current_plan = 'free';
-        if ( cc_fs()->is_plan( 'proplus' ) ) {
+        if ( cirrusly_fs()->is_plan( 'proplus' ) ) {
             $current_plan = 'proplus';
-        } elseif ( cc_fs()->can_use_premium_code() ) {
+        } elseif ( cirrusly_fs()->can_use_premium_code() ) {
             $current_plan = 'pro';
         }
 
@@ -246,8 +246,8 @@ class Cirrusly_Commerce_Setup_Wizard {
      * edition options with feature summaries and actions to start trials or continue with the free plan.
      */
     private function render_step_license() {
-        $is_pro = function_exists('cc_fs') && cc_fs()->can_use_premium_code();
-        $is_plus = function_exists('cc_fs') && cc_fs()->is_plan('proplus');
+        $is_pro = function_exists('cirrusly_fs') && cirrusly_fs()->can_use_premium_code();
+        $is_plus = function_exists('cirrusly_fs') && cirrusly_fs()->is_plan('proplus');
         
         // If already Pro/Plus, show success and move on
         if ( $is_pro ) {
@@ -266,7 +266,7 @@ class Cirrusly_Commerce_Setup_Wizard {
         }
 
         // Logic for Free Users: Offer Trials
-        $upgrade_url = function_exists('cc_fs') ? cc_fs()->get_upgrade_url() : '#';
+        $upgrade_url = function_exists('cirrusly_fs') ? cirrusly_fs()->get_upgrade_url() : '#';
         ?>
         <h3><?php esc_html_e( 'Choose your Edition', 'cirrusly-commerce' ); ?></h3>
         <p><?php esc_html_e( 'The free version offers essential features to get you started. However, upgrading unlocks automation and advanced tools. Take advantage of a risk-free trial to explore these benefits, or continue with your current plan.', 'cirrusly-commerce' ); ?></p>

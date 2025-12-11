@@ -56,7 +56,9 @@ class Cirrusly_Commerce_Countdown {
      *                    Returns `false` if no active countdown configuration exists.
      */
     public static function get_smart_countdown_config( $product ) {
-        if ( ! is_object( $product ) ) return false;
+        if ( ! is_object( $product ) || ! method_exists( $product, 'get_id' ) ) {
+            return false;
+        }
         $pid = $product->get_id();
 
         // --- PRIORITY 1: Manual Product Meta (Free Feature) ---    
@@ -91,8 +93,9 @@ class Cirrusly_Commerce_Countdown {
         global $product;
         $config = self::get_smart_countdown_config( $product );
         if ( $config && is_array( $config ) ) {
-            echo wp_kses_post( self::generate_timer_html( $config['end'], $config['label'], $config['align'] ) );
-            echo '<div style="margin-bottom: 15px;"></div>';
+            echo wp_kses_post(
+                self::generate_timer_html( $config['end'], $config['label'], $config['align'] )
+            );
         }
     }
 
@@ -168,7 +171,7 @@ class Cirrusly_Commerce_Countdown {
         if ( ! is_product() ) return;
         
         $css = "
-        .cw-countdown-wrapper { display: flex; align-items: center; font-family: inherit; font-weight: 700; color: #000; gap: 8px; line-height: 1.2; flex-wrap: wrap; min-height: 42px; box-sizing: border-box; }
+        .cw-countdown-wrapper { display: flex; align-items: center; font-family: inherit; font-weight: 700; color: #000; gap: 8px; line-height: 1.2; flex-wrap: wrap; min-height: 42px; box-sizing: border-box; margin-bottom: 15px; }
         .cw-timer-label { font-size: 16px; margin-right: 5px; white-space: nowrap; }
         .cw-timer-digits { display: flex; align-items: baseline; gap: 4px; }
         .cw-val { font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1; min-width: 28px; text-align: center; display: inline-block; }
