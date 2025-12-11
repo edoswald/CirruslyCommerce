@@ -175,7 +175,7 @@ class Cirrusly_Commerce_Help {
      * subject, message, and system information. Responses are returned to the AJAX caller as JSON success or error messages.
      */
     public static function handle_bug_submission() {
-        if ( ! isset( $_POST['security'] ) || ! wp_verify_nonce(sanitize_text_field( wp_unslash( $_POST['security'] ) ), 'cc_bug_report_nonce' ) ) {
+        if ( ! isset( $_POST['security'] ) || ! wp_verify_nonce( wp_unslash( $_POST['security'] ), 'cc_bug_report_nonce' ) ) {
             wp_send_json_error( 'Security check failed. Please refresh the page.' );
         }
         if ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'edit_products' ) ) {
