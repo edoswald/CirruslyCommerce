@@ -5,6 +5,9 @@ jQuery(document).ready(function($){
     // Badge Image Upload (Updated Class)
     $(document).on("click", ".cirrusly-upload-btn", function(e) {
         e.preventDefault();
+        if ( typeof wp === "undefined" || typeof wp.media === "undefined" ) {
+            return;
+        }
         $currentBtn = $(this);
         if ( frame ) { frame.open(); return; }
         
