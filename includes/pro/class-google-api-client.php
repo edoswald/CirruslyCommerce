@@ -92,9 +92,12 @@ class Cirrusly_Commerce_Google_API_Client {
     public static function execute_scheduled_scan() {
         $result = self::request( 'gmc_scan' );
     
-        if ( ! is_wp_error( $result ) && isset( $result['results'] ) ) {
+        if ( is_wp_error( $result ) ) {
             error_log( 'Cirrusly Commerce GMC Scan failed: ' . $result->get_error_message() );
             return;
+        }
+    
+        if ( isset( $result['results'] ) ) {
             update_option( 'cirrusly_gmc_scan_data', array( 'timestamp' => time(), 'results' => $result['results'] ), false );
         }
     }
