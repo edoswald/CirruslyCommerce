@@ -14,7 +14,7 @@ class Cirrusly_Commerce_Google_API_Client {
         // 1. Get Creds
         $json_key    = get_option( 'cirrusly_service_account_json' );
         $scan_config = get_option( 'cirrusly_scan_config', array() );
-        $merchant_id = isset( $scan_config['merchant_id_pro'] ) ? $scan_config['merchant_id_pro'] : '';
+        $merchant_id = isset( $scan_config['merchant_id_pro'] ) ? sanitize_text_field( $scan_config['merchant_id_pro'] ) : '';
 
         if ( empty( $json_key ) ) return new WP_Error( 'missing_creds', 'Service Account JSON missing' );
 
@@ -23,6 +23,13 @@ class Cirrusly_Commerce_Google_API_Client {
         if ( ! $json_raw ) {
             $test = json_decode( $json_key, true );
             $json_raw = ( isset($test['private_key']) ) ? $json_key : false;
+            if ( isset( $test['private_key'] ) ) {
+                $json_raw = $json_key;
+                // Log notice that credentials are stored unencrypted
+                error_log( 'Cirrusly Commerce: Service account credentials are not encrypted. Consider re-saving to encrypt.' );
+            } else {
+                $json_raw = false;
+            }
         }
         if ( ! $json_raw ) return new WP_Error( 'decrypt_fail', 'Could not decrypt keys' );
 
@@ -64,7 +71,7 @@ class Cirrusly_Commerce_Google_API_Client {
         
         if ( ! is_wp_error( $result ) && isset( $result['results'] ) ) {
             // Save Data
-            update_option( 'woo_gmc_scan_data', array( 'timestamp' => time(), 'results' => $result['results'] ), false );
+            update_option( 'cirrusly_gmc_scan_data', array( 'timestamp' => time(), 'results' => $result['results'] ), false );
             
             // Trigger Email (You can keep your email logic here)
             // self::send_email_report($result['results']);
