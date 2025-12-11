@@ -82,7 +82,7 @@ class Cirrusly_Commerce_Help {
         });' );
     }
 
-    / **
+    /**
      * Outputs the Help Center button into the admin interface.
      *
      * The button is rendered as an anchor element with id "cc-open-help-center",
