@@ -113,6 +113,7 @@ Yes. The Pro version allows you to set a "Split Profile" (e.g., 70% Stripe / 30%
 * **Refactor:** Migrated option/transient naming for consistency and future extensibility.
 * **Enhancement:** Centralized admin inline JavaScript for improved maintainability.
 * **Enhancement (Pro):** Refactored analytics data preparation and chart rendering.
+* **Enhancement (Pro):** Moved to service worker for API calls.
 
 = 1.3.3 =
 * **New Feature:** Admin Setup Wizard - Automated onboarding runs on activation with milestone-based prompts.
