@@ -1,0 +1,26 @@
+name: Deploy to Freemius
+on:
+  release:
+    types: [published]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      # Example step to build your project if necessary (e.g. running 'npm install' or 'composer install')
+      # - name: Build project
+      #   run: |
+      #     npm install
+      #     npm run build
+
+      # This action handles zipping and deployment
+      - name: Deploy on Freemius
+        uses: CodeAtCode/freemius-deploy@v1.0.0
+        with:
+          file_name: cirrusly-commerce.zip # Replace with your product's file name
+          public_key: ${{ secrets.FREEMIUS_PUBLIC_KEY }}
+          secret_key: ${{ secrets.FREEMIUS_SECRET_KEY }}
+          # Optional: set release_mode to 'beta' for beta releases or 'released' for general availability
+          release_mode: 'pending' 
