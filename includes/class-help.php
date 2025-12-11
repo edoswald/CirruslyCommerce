@@ -101,7 +101,7 @@ class Cirrusly_Commerce_Help {
      * admin page query parameter `page` contains `cirrusly-`.
      */
     public static function render_modal() {
-        if ( ! isset( $_GET['page'] ) || strpos( $_GET['page'], 'cirrusly-' ) === false ) {
+        if ( ! isset( $_GET['page'] ) || strpos( sanitize_text_field( wp_unslash( $_GET['page'] ) ), 'cirrusly-' ) === false ) {
             return;
         }
         $mailto = 'mailto:help@cirruslyweather.com?subject=Support%20Request';
