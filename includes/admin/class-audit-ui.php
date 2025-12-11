@@ -31,7 +31,9 @@ class Cirrusly_Commerce_Audit_UI {
 
         // 1. Handle Cache & Refresh
         $refresh = isset( $_GET['refresh_audit'] ) && isset( $_GET['_wpnonce'] ) && wp_verify_nonce( sanitize_text_field( wp_unslash( $_GET['_wpnonce'] ) ), 'cc_refresh_audit' );
-        if ( $refresh ) delete_transient( 'cw_audit_data' );
+        if ( $refresh ) {
+            delete_transient( 'cirrusly_audit_data' );
+        }
 
         // 2. Get Data via Core Logic
         $cached_data = Cirrusly_Commerce_Audit::get_compiled_data( $refresh );
@@ -153,9 +155,9 @@ class Cirrusly_Commerce_Audit_UI {
                     <span class="dashicons dashicons-download"></span> Export
                 </a>
                 <?php else: ?>
-                     <label class="button button-secondary" style="cursor:<?php echo $is_pro ? 'pointer' : 'not-allowed'; ?>; <?php echo $is_pro ? '' : 'opacity:0.6;'; ?>" title="Import Cost CSV">
-                    <span class="dashicons dashicons-download"></span> Export
-                </span>
+                    <label class="button button-secondary" style="cursor:not-allowed; opacity:0.6;" title="Export CSV is available in Pro.">
+                        <span class="dashicons dashicons-download"></span> Export
+                    </label>
                 <?php endif; ?>
 
                 <form method="post" enctype="multipart/form-data" style="margin:0;">

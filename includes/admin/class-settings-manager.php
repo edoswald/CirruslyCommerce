@@ -119,13 +119,13 @@ class Cirrusly_Commerce_Settings_Manager {
                         require_once $pro_class;
                         
                         // Construct a sanitized array of file data to pass to the handler
-                        $file_data = $_FILES['cirrusly_service_account'];
+                        // Directly access and sanitize fields to avoid assigning raw $_FILES to a variable
                         $safe_file = array(
-                            'name'     => sanitize_file_name( $file_data['name'] ),
-                            'type'     => sanitize_mime_type( $file_data['type'] ),
-                            'tmp_name' => $original_tmp_name,
-                            'error'    => intval( $file_data['error'] ),
-                            'size'     => intval( $file_data['size'] ),
+                            'name'     => sanitize_file_name( $_FILES['cirrusly_service_account']['name'] ),
+                            'type'     => sanitize_mime_type( $_FILES['cirrusly_service_account']['type'] ),
+                            'tmp_name' => $original_tmp_name, // System path validated by is_uploaded_file
+                            'error'    => intval( $_FILES['cirrusly_service_account']['error'] ),
+                            'size'     => intval( $_FILES['cirrusly_service_account']['size'] ),
                         );
 
                         // The Pro method returns the modified $input array

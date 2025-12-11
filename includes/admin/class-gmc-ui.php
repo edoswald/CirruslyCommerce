@@ -265,7 +265,7 @@ class Cirrusly_Commerce_GMC_UI {
         <?php
         global $wpdb;
         
-        if ( isset( $_POST['gmc_promo_bulk_action'] ) && ! empty( $_POST['gmc_promo_products'] ) && check_admin_referer( 'cirrusly_promo_bulk', 'cc_promo_nonce' ) ) {
+        if ( isset( $_POST['gmc_promo_bulk_action'] ) && isset( $_POST['gmc_promo_products'] ) && check_admin_referer( 'cirrusly_promo_bulk', 'cc_promo_nonce' ) ) {
             $new_promo_id = isset($_POST['gmc_new_promo_id']) ? sanitize_text_field( wp_unslash( $_POST['gmc_new_promo_id'] ) ) : '';
             $action = sanitize_text_field( wp_unslash( $_POST['gmc_promo_bulk_action'] ) );
             
@@ -273,14 +273,16 @@ class Cirrusly_Commerce_GMC_UI {
             $promo_products_raw = wp_unslash( $_POST['gmc_promo_products'] );
             $promo_products = is_array($promo_products_raw) ? array_map('intval', $promo_products_raw) : array();
 
-            $count = 0;
-            foreach ( $promo_products as $pid ) {
-                if ( 'update' === $action ) update_post_meta( $pid, '_gmc_promotion_id', $new_promo_id );
-                elseif ( 'remove' === $action ) delete_post_meta( $pid, '_gmc_promotion_id' );
-                $count++;
+            if ( ! empty( $promo_products ) ) {
+                $count = 0;
+                foreach ( $promo_products as $pid ) {
+                    if ( 'update' === $action ) update_post_meta( $pid, '_gmc_promotion_id', $new_promo_id );
+                    elseif ( 'remove' === $action ) delete_post_meta( $pid, '_gmc_promotion_id' );
+                    $count++;
+                }
+                delete_transient( 'cirrusly_active_promos_stats' );
+                echo '<div class="notice notice-success inline"><p>Success! Updated ' . esc_html($count) . ' products.</p></div>';
             }
-            delete_transient( 'cirrusly_active_promos_stats' );
-            echo '<div class="notice notice-success inline"><p>Success! Updated ' . esc_html($count) . ' products.</p></div>';
         }
 
         $promo_stats = get_transient( 'cirrusly_active_promos_stats' );

@@ -67,6 +67,10 @@ class Cirrusly_Commerce_GMC {
      * Persist GMC-related product meta and clear related promo statistics.
      */
     public function save_product_meta( $post_id ) {
+        if ( ! current_user_can( 'edit_products' ) ) {
+            return;
+        }
+
         // Use our own custom nonce instead of the generic WooCommerce one
         if ( ! isset( $_POST['cirrusly_gmc_nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['cirrusly_gmc_nonce'] ) ), 'cirrusly_save_gmc_data' ) ) {
             return;
