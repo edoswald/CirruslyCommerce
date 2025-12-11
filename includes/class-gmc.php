@@ -67,7 +67,8 @@ class Cirrusly_Commerce_GMC {
      * Persist GMC-related product meta and clear related promo statistics.
      */
     public function save_product_meta( $post_id ) {
-        if ( ! isset( $_POST['woocommerce_meta_nonce'] ) || ! wp_verify_nonce( $_POST['woocommerce_meta_nonce'], 'woocommerce_save_data' ) ) {
+        // Use our own custom nonce instead of the generic WooCommerce one
+        if ( ! isset( $_POST['cirrusly_gmc_nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['cirrusly_gmc_nonce'] ) ), 'cirrusly_save_gmc_data' ) ) {
             return;
         }       
         $val = isset( $_POST['gmc_is_custom_product'] ) ? 'no' : 'yes';
@@ -96,7 +97,8 @@ class Cirrusly_Commerce_GMC {
     public function save_quick_bulk_edit( $product ) {
         // [Security] Verify correct nonce for Quick vs Bulk Edit
         $nonce_verified = false;
-        if ( isset( $_POST['woocommerce_quick_edit_nonce'] ) && wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['woocommerce_quick_edit_nonce'] ) ), 'woocommerce_quick_edit' ) ) {            $nonce_verified = true;
+        if ( isset( $_POST['woocommerce_quick_edit_nonce'] ) && wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['woocommerce_quick_edit_nonce'] ) ), 'woocommerce_quick_edit' ) ) {            
+            $nonce_verified = true;
         } elseif ( isset( $_POST['_wpnonce'] ) && wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['_wpnonce'] ) ), 'bulk-posts' ) ) {
             $nonce_verified = true;
         }
@@ -124,7 +126,10 @@ class Cirrusly_Commerce_GMC {
      */
     public function handle_mark_custom() {
         if ( ! current_user_can( 'edit_products' ) ) wp_die('No permission');
-        $pid = intval( $_GET['pid'] );
+        
+        // Fix: Use isset() and sanitize properly
+        $pid = isset( $_GET['pid'] ) ? intval( $_GET['pid'] ) : 0;
+        
         if ( $pid <= 0 ) {
             wp_die( 'Invalid product ID' );
         }
@@ -265,18 +270,17 @@ class Cirrusly_Commerce_GMC {
                 );
             }
 
-$title_raw   = $p->get_name();
-$desc_raw    = $p->get_description() . ' ' . $p->get_short_description();
-// FIX: Removed strtolower() to preserve case for case-sensitive checks (e.g. "WHO")
-$title_clean = wp_strip_all_tags( $title_raw );
-$desc_clean  = wp_strip_all_tags( $desc_raw );
+            $title_raw   = $p->get_name();
+            $desc_raw    = $p->get_description() . ' ' . $p->get_short_description();
+            
+            $title_clean = wp_strip_all_tags( $title_raw );
+            $desc_clean  = wp_strip_all_tags( $desc_raw );
 
-foreach ( $monitored_terms as $category => $terms ) {
-    foreach ( $terms as $word => $rule ) {
-        // FIX: Check for case sensitivity. 'u' is UTF-8, 'i' is case-insensitive.
-        $modifiers = ( isset( $rule['case_sensitive'] ) && $rule['case_sensitive'] ) ? 'u' : 'iu';
-        $pattern   = '/\b' . preg_quote( $word, '/' ) . '\b/' . $modifiers;
-        $found     = false;
+            foreach ( $monitored_terms as $category => $terms ) {
+                foreach ( $terms as $word => $rule ) {
+                    $modifiers = ( isset( $rule['case_sensitive'] ) && $rule['case_sensitive'] ) ? 'u' : 'iu';
+                    $pattern   = '/\b' . preg_quote( $word, '/' ) . '\b/' . $modifiers;
+                    $found     = false;
 
                     if ( preg_match( $pattern, $title_clean ) ) {
                         $found = true;

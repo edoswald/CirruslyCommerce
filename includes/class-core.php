@@ -103,9 +103,10 @@ class Cirrusly_Commerce_Core {
         }
         if ( ! self::cirrusly_is_pro() ) wp_send_json_error( __( 'Pro feature required', 'cirrusly-commerce' ) );
 
-        $pid = intval( $_POST['pid'] );
-        $val = floatval( $_POST['value'] );
-        $field = sanitize_text_field( $_POST['field'] );
+        // Updated validation with isset check, unslash, and sanitization
+        $pid   = isset( $_POST['pid'] ) ? intval( $_POST['pid'] ) : 0;
+        $val   = isset( $_POST['value'] ) ? floatval( $_POST['value'] ) : 0.0;
+        $field = isset( $_POST['field'] ) ? sanitize_text_field( wp_unslash( $_POST['field'] ) ) : '';
 
         if ( $pid > 0 && in_array($field, array('_cogs_total_value', '_cw_est_shipping')) ) {
             update_post_meta( $pid, $field, $val );

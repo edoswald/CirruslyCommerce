@@ -91,7 +91,8 @@ jQuery(document).ready(function($){
         $.post(cirrusly_promo_data.ajaxurl, {
             action: 'cc_submit_promo_to_gmc',
             security: cirrusly_promo_data.nonce_submit,
-            data: {
+            // Prefix custom data key
+            cirrusly_promo_data: {
                 id: $('#pg_id').val(),
                 title: $('#pg_title').val(),
                 dates: $('#pg_dates').val(),

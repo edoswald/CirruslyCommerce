@@ -26,7 +26,7 @@ class Cirrusly_Commerce_Help {
      * view switching between main and bug-report form, system-info copying, and AJAX submission for the bug report form.
      *
      * @param string $hook The current admin page hook suffix; the inline script is added only when the `page` query
-     *                     parameter contains the substring 'cirrusly-'.
+     * parameter contains the substring 'cirrusly-'.
      */
     public static function enqueue_script( $hook ) {
         if ( ! isset( $_GET['page'] ) || strpos( sanitize_text_field( wp_unslash( $_GET['page'] ) ), 'cirrusly-' ) === false ) {
@@ -175,16 +175,18 @@ class Cirrusly_Commerce_Help {
      * subject, message, and system information. Responses are returned to the AJAX caller as JSON success or error messages.
      */
     public static function handle_bug_submission() {
-        if ( ! isset( $_POST['security'] ) || ! wp_verify_nonce( wp_unslash( $_POST['security'] ), 'cc_bug_report_nonce' ) ) {
+        if ( ! isset( $_POST['security'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['security'] ) ), 'cc_bug_report_nonce' ) ) {
             wp_send_json_error( 'Security check failed. Please refresh the page.' );
         }
         if ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'edit_products' ) ) {
             wp_send_json_error( 'Unauthorized.' );
         }
-        $user_email = sanitize_email( $_POST['user_email'] );
-        $subject    = sanitize_text_field( $_POST['subject'] );
-        $message    = sanitize_textarea_field( $_POST['message'] );
-        $sys_info   = isset($_POST['system_info']) ? sanitize_textarea_field( $_POST['system_info'] ) : 'Not provided';
+        
+        $user_email = isset( $_POST['user_email'] ) ? sanitize_email( wp_unslash( $_POST['user_email'] ) ) : '';
+        $subject    = isset( $_POST['subject'] ) ? sanitize_text_field( wp_unslash( $_POST['subject'] ) ) : '';
+        $message    = isset( $_POST['message'] ) ? sanitize_textarea_field( wp_unslash( $_POST['message'] ) ) : '';
+        $sys_info   = isset($_POST['system_info']) ? sanitize_textarea_field( wp_unslash( $_POST['system_info'] ) ) : 'Not provided';
+
         if ( ! is_email( $user_email ) ) {
             wp_send_json_error( 'Please provide a valid email address.' );
         }
@@ -227,7 +229,11 @@ class Cirrusly_Commerce_Help {
         $out .= "WooCommerce: " . (class_exists('WooCommerce') ? WC()->version : 'Not Installed') . "\n";
         $out .= "Cirrusly Commerce: " . ( defined('CIRRUSLY_COMMERCE_VERSION') ? CIRRUSLY_COMMERCE_VERSION : 'Unknown' ) . "\n";
         $out .= "PHP Version: " . phpversion() . "\n";
-        $out .= "Server Software: " . esc_html( sanitize_text_field( $_SERVER['SERVER_SOFTWARE'] ) ) . "\n";        $out .= "Active Plugins:\n";
+        
+        $server_software = isset( $_SERVER['SERVER_SOFTWARE'] ) ? sanitize_text_field( wp_unslash( $_SERVER['SERVER_SOFTWARE'] ) ) : 'Unknown';
+        $out .= "Server Software: " . esc_html( $server_software ) . "\n";
+        
+        $out .= "Active Plugins:\n";
         $plugins = get_option('active_plugins');
         if ( is_array( $plugins ) ) {
             foreach( $plugins as $p ) { $out .= "- " . esc_html( $p ) . "\n"; }

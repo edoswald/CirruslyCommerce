@@ -23,7 +23,7 @@ class Cirrusly_Commerce_Audit_UI {
         settings_errors('cirrusly_audit');
 
         // 1. Handle Cache & Refresh
-        $refresh = isset( $_GET['refresh_audit'] ) && isset( $_GET['_wpnonce'] ) && wp_verify_nonce( $_GET['_wpnonce'], 'cc_refresh_audit' );
+        $refresh = isset( $_GET['refresh_audit'] ) && isset( $_GET['_wpnonce'] ) && wp_verify_nonce( sanitize_text_field( wp_unslash( $_GET['_wpnonce'] ) ), 'cc_refresh_audit' );
         if ( $refresh ) delete_transient( 'cw_audit_data' );
 
         // 2. Get Data via Core Logic

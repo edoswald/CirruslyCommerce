@@ -53,6 +53,7 @@ class Cirrusly_Commerce_Audit_Pro {
             };
 
             // Output Header Row
+            // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
             echo implode( ',', array_map( $csv_escape, $headers ) ) . "\n";
             
             // Output Data Rows
@@ -71,6 +72,7 @@ class Cirrusly_Commerce_Audit_Pro {
                     $row['msrp'] > 0 ? $row['msrp'] : ''
                 );
                 
+                // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
                 echo implode( ',', array_map( $csv_escape, $fields ) ) . "\n";
             }
             
@@ -108,10 +110,16 @@ class Cirrusly_Commerce_Audit_Pro {
                 WP_Filesystem();
             }
 
-            $file = $_FILES['csv_import']['tmp_name'];
+            // Validate and sanitize the uploaded file path
+            if ( empty( $_FILES['csv_import']['tmp_name'] ) ) {
+                add_settings_error( 'cirrusly_audit', 'import_fail', 'No file uploaded.', 'error' );
+                return;
+            }
+
+            $file = sanitize_text_field( $_FILES['csv_import']['tmp_name'] );
 
             // Check if file exists and is readable using WP_Filesystem
-            if ( ! $file || ! $wp_filesystem->exists( $file ) || ! $wp_filesystem->is_readable( $file ) ) {
+            if ( ! $wp_filesystem->exists( $file ) || ! $wp_filesystem->is_readable( $file ) ) {
                 add_settings_error( 'cirrusly_audit', 'import_fail', 'Could not read uploaded CSV file.', 'error' );
                 return;
             }

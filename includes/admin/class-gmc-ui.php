@@ -268,7 +268,10 @@ class Cirrusly_Commerce_GMC_UI {
         if ( isset( $_POST['gmc_promo_bulk_action'] ) && ! empty( $_POST['gmc_promo_products'] ) && check_admin_referer( 'cirrusly_promo_bulk', 'cc_promo_nonce' ) ) {
             $new_promo_id = isset($_POST['gmc_new_promo_id']) ? sanitize_text_field( wp_unslash( $_POST['gmc_new_promo_id'] ) ) : '';
             $action = sanitize_text_field( wp_unslash( $_POST['gmc_promo_bulk_action'] ) );
-            $promo_products = isset($_POST['gmc_promo_products']) && is_array($_POST['gmc_promo_products']) ? array_map('intval', $_POST['gmc_promo_products']) : array();
+            
+            // Fix: Unslash and map for safety
+            $promo_products_raw = wp_unslash( $_POST['gmc_promo_products'] );
+            $promo_products = is_array($promo_products_raw) ? array_map('intval', $promo_products_raw) : array();
 
             $count = 0;
             foreach ( $promo_products as $pid ) {
@@ -518,9 +521,15 @@ class Cirrusly_Commerce_GMC_UI {
      * Outputs controls for marking a product as "Custom Product? (No GTIN/Barcode)",
      * entering a Promotion ID, and setting Custom Label 0. The "Custom Product" checkbox
      * reflects the product's `_gla_identifier_exists` post meta.
+     *
+     * Includes a custom nonce field to secure the data save.
      */
     public function render_gmc_product_settings() {
         global $post;
+        
+        // Output custom nonce for saving
+        wp_nonce_field( 'cirrusly_save_gmc_data', 'cirrusly_gmc_nonce' );
+
         echo '<div class="options_group">';
         echo '<p class="form-field"><strong>' . esc_html__( 'Google Merchant Center Attributes', 'cirrusly-commerce' ) . '</strong></p>';
         $current_val = get_post_meta( $post->ID, '_gla_identifier_exists', true );
