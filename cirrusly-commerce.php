@@ -60,7 +60,7 @@ if ( ! function_exists( 'cirrusly_fs' ) ) {
                     'is_require_payment' => false,
                 ),
                 'menu'                => array(
-                    'slug'           => 'cirrusly-settings',
+                    'slug'           => 'cirrusly-commerce',
                     'contact'        => false,
                     'support'        => false,
                 ),
