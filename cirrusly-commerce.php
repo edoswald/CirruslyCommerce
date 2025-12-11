@@ -195,8 +195,8 @@ class Cirrusly_Commerce_Main {
         $settings_link = '<a href="' . esc_url( admin_url( 'admin.php?page=cirrusly-settings' ) ) . '">Settings</a>';
         array_unshift( $links, $settings_link );
         
-        if ( function_exists('cc_fs') && cc_fs() && cc_fs()->is_not_paying() ) {
-            $links['go_pro'] = '<a href="' . cc_fs()->get_upgrade_url() . '" style="color:#d63638;font-weight:bold;">Go Pro</a>';
+        if ( function_exists('cirrusly_fs') && cirrusly_fs() && cirrusly_fs()->is_not_paying() ) {
+            $links['go_pro'] = '<a href="' . cirrusly_fs()->get_upgrade_url() . '" style="color:#d63638;font-weight:bold;">Go Pro</a>';
         }
         return $links;
     }
