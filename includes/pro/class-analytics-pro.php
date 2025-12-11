@@ -69,67 +69,6 @@ class Cirrusly_Commerce_Analytics_Pro {
             @media (max-width: 960px) { .cc-analytics-grid { grid-template-columns: repeat(2, 1fr); } }
             @media (max-width: 600px) { .cc-analytics-grid { grid-template-columns: 1fr; } .cc-toolbar { flex-direction: column; align-items: flex-start; gap: 10px; } .cc-status-dropdown { right: auto; left: 0; width: 100%; box-sizing: border-box; } }
         " );
-
-        // 2. Prepare Data for Inline Script
-        // We need to fetch data here to pass it to the script
-        $params = self::get_filter_params();
-        $days = $params['days'];
-        $selected_statuses = $params['statuses'];
-
-        $data = self::get_pnl_data( $days, $selected_statuses );
-        $gmc_history = get_option( 'cirrusly_gmc_history', array() );
-
-        $perf_history_json = wp_json_encode( $data['history'], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT );
-        $gmc_history_json  = wp_json_encode( $gmc_history, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT );
-
-        // 3. Inline Script
-        $script = "
-        document.addEventListener('DOMContentLoaded', function() {
-            const trigger = document.getElementById('ccStatusTrigger');
-            const dropdown = document.getElementById('ccStatusDropdown');
-            if(trigger && dropdown){
-                trigger.addEventListener('click', function(e){ e.stopPropagation(); dropdown.classList.toggle('is-open'); });
-                document.addEventListener('click', function(e){ if(!dropdown.contains(e.target) && e.target !== trigger){ dropdown.classList.remove('is-open'); } });
-            }
-            const perfCtx = document.getElementById('performanceChart');
-            if (perfCtx) {
-                const perfData = {$perf_history_json};
-                const dates = Object.keys(perfData);
-                const sales = dates.map(d => perfData[d].revenue);
-                const costs = dates.map(d => perfData[d].costs);
-                const profit = dates.map(d => perfData[d].profit);
-                new Chart(perfCtx, {
-                    type: 'bar',
-                    data: {
-                        labels: dates,
-                        datasets: [
-                            { label: 'Net Profit', data: profit, type: 'line', borderColor: '#00a32a', borderWidth: 2, fill: false, tension: 0.3, order: 1 },
-                            { label: 'Net Sales', data: sales, backgroundColor: '#2271b1', order: 2 },
-                            { label: 'Total Costs', data: costs, backgroundColor: '#d63638', order: 3 }
-                        ]
-                    },
-                    options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, plugins: { legend: { position: 'bottom' } }, scales: { y: { beginAtZero: true, grid: { borderDash: [2, 2] } }, x: { grid: { display: false } } } }
-                });
-            }
-            const ctx = document.getElementById('gmcTrendChart');
-            if (ctx) {
-                const history = {$gmc_history_json};
-                const labels = Object.keys(history).slice(-30);
-                const criticalData = labels.map(d => history[d].critical || 0);
-                const warningData = labels.map(d => history[d].warnings || 0);
-                new Chart(ctx, {
-                    type: 'line',
-                    data: {
-                        labels: labels,
-                        datasets: [{ label: 'Disapproved', data: criticalData, borderColor: '#d63638', backgroundColor: 'rgba(214, 54, 56, 0.1)', fill: true, tension: 0.3 }, { label: 'Warnings', data: warningData, borderColor: '#dba617', borderDash: [5, 5], fill: false, tension: 0.3 }]
-                    },
-                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } }, scales: { y: { beginAtZero: true } } }
-                });
-            }
-        });";
-
-        // Attach to Chart.js handle
-        wp_add_inline_script( 'cc-chartjs', $script );
     }
 
     /**
@@ -178,6 +117,60 @@ class Cirrusly_Commerce_Analytics_Pro {
             }
         }
         $status_text = implode( ', ', $readable_labels );
+
+        // ---------------------------------------------------------
+        // Script Generation (Moved from enqueue_assets for Architecture/Performance)
+        // ---------------------------------------------------------
+        $gmc_history = get_option( 'cirrusly_gmc_history', array() );
+        $perf_history_json = wp_json_encode( $data['history'], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT );
+        $gmc_history_json  = wp_json_encode( $gmc_history, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT );
+
+        $script = "
+        document.addEventListener('DOMContentLoaded', function() {
+            const trigger = document.getElementById('ccStatusTrigger');
+            const dropdown = document.getElementById('ccStatusDropdown');
+            if(trigger && dropdown){
+                trigger.addEventListener('click', function(e){ e.stopPropagation(); dropdown.classList.toggle('is-open'); });
+                document.addEventListener('click', function(e){ if(!dropdown.contains(e.target) && e.target !== trigger){ dropdown.classList.remove('is-open'); } });
+            }
+            const perfCtx = document.getElementById('performanceChart');
+            if (perfCtx) {
+                const perfData = {$perf_history_json};
+                const dates = Object.keys(perfData);
+                const sales = dates.map(d => perfData[d].revenue);
+                const costs = dates.map(d => perfData[d].costs);
+                const profit = dates.map(d => perfData[d].profit);
+                new Chart(perfCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: dates,
+                        datasets: [
+                            { label: 'Net Profit', data: profit, type: 'line', borderColor: '#00a32a', borderWidth: 2, fill: false, tension: 0.3, order: 1 },
+                            { label: 'Net Sales', data: sales, backgroundColor: '#2271b1', order: 2 },
+                            { label: 'Total Costs', data: costs, backgroundColor: '#d63638', order: 3 }
+                        ]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, plugins: { legend: { position: 'bottom' } }, scales: { y: { beginAtZero: true, grid: { borderDash: [2, 2] } }, x: { grid: { display: false } } } }
+                });
+            }
+            const ctx = document.getElementById('gmcTrendChart');
+            if (ctx) {
+                const history = {$gmc_history_json};
+                const labels = Object.keys(history).slice(-30);
+                const criticalData = labels.map(d => history[d].critical || 0);
+                const warningData = labels.map(d => history[d].warnings || 0);
+                new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [{ label: 'Disapproved', data: criticalData, borderColor: '#d63638', backgroundColor: 'rgba(214, 54, 56, 0.1)', fill: true, tension: 0.3 }, { label: 'Warnings', data: warningData, borderColor: '#dba617', borderDash: [5, 5], fill: false, tension: 0.3 }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } }, scales: { y: { beginAtZero: true } } }
+                });
+            }
+        });";
+
+        wp_add_inline_script( 'cc-chartjs', $script );
 
         ?>
         <div class="wrap cc-analytics-wrapper">
@@ -606,7 +599,19 @@ class Cirrusly_Commerce_Analytics_Pro {
      * @return void
      */
     public function capture_daily_gmc_snapshot() {
-        $scan_data = get_option( 'cirrusly_gmc_scan_data', array() );
+        $scan_data = get_option( 'cirrusly_gmc_scan_data' );
+
+        // Runtime Fallback: Migration from 'woo_gmc_scan_data' if new key is missing
+        if ( false === $scan_data ) {
+            $old_scan_data = get_option( 'woo_gmc_scan_data' );
+            if ( false !== $old_scan_data ) {
+                $scan_data = $old_scan_data;
+                update_option( 'cirrusly_gmc_scan_data', $old_scan_data );
+                delete_option( 'woo_gmc_scan_data' );
+            } else {
+                $scan_data = array();
+            }
+        }
         
         if ( empty( $scan_data['results'] ) ) return;
 

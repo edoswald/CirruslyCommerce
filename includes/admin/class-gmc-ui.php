@@ -191,7 +191,6 @@ class Cirrusly_Commerce_GMC_UI {
      * @return void
      */
     private function render_promotions_view() {
-        // [Existing HTML generation code remains]
         $is_pro = Cirrusly_Commerce_Core::cirrusly_is_pro();
         $pro_class = $is_pro ? '' : 'cc-pro-feature';
         $disabled_attr = $is_pro ? '' : 'disabled';

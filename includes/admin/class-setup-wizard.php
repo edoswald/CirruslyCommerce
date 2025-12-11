@@ -316,7 +316,7 @@ class Cirrusly_Commerce_Setup_Wizard {
     }
 
     /**
-    * Render the "Connect Google Merchant Center" wizard step HTML.
+     * Render the "Connect Google Merchant Center" wizard step HTML.
      *
      * Outputs the step 2 form for entering a Merchant ID, shows a success notice if a
      * service-account upload was completed, and — for Pro users — renders a file input
@@ -510,7 +510,7 @@ class Cirrusly_Commerce_Setup_Wizard {
                  && Cirrusly_Commerce_Core::cirrusly_is_pro() ) {
                 if ( class_exists( 'Cirrusly_Commerce_Settings_Pro' ) ) {
                      $input = get_option( 'cirrusly_scan_config', array() );
-                     $input = Cirrusly_Commerce_Settings_Pro::process_service_account_upload( $input, $_FILES['cirrusly_service_account'] );
+                     $input = Cirrusly_Commerce_Settings_Pro::cirrusly_process_service_account_upload( $input, $_FILES['cirrusly_service_account'] );
                      update_option( 'cirrusly_scan_config', $input );
                     // Store success flag for wizard feedback
                     if ( isset( $input['service_account_uploaded'] ) && $input['service_account_uploaded'] === 'yes' ) {

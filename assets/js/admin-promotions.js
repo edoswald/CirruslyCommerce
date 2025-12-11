@@ -21,7 +21,6 @@ jQuery(document).ready(function($){
             force_refresh: forceRefresh ? 1 : 0
         }, function(res) {
             $btn.prop('disabled', false).html('<span class="dashicons dashicons-update"></span> Sync from Google');
-             if(res.success) {
             if(res.success) {
                 $table.empty();
                 if(res.data.length === 0) {
@@ -56,7 +55,7 @@ jQuery(document).ready(function($){
         }).fail(function() {
             $btn.prop('disabled', false).html('<span class="dashicons dashicons-update"></span> Sync from Google');
             $table.html('<tr class="cc-empty-row"><td colspan="6" style="padding:20px; text-align:center; color:#d63638;">Error loading data.</td></tr>');
-                        if ( forceRefresh ) {
+                    if ( forceRefresh ) {
                 alert('Error: Could not reach the server.');
             }
         });
