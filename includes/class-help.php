@@ -29,7 +29,7 @@ class Cirrusly_Commerce_Help {
      *                     parameter contains the substring 'cirrusly-'.
      */
     public static function enqueue_script( $hook ) {
-        if ( ! isset( $_GET['page'] ) || strpos( $_GET['page'], 'cirrusly-' ) === false ) {
+        if ( ! isset( $_GET['page'] ) || strpos( sanitize_text_field( wp_unslash( $_GET['page'] ) ), 'cirrusly-' ) === false ) {
             return;
         }
 
