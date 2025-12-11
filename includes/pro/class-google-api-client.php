@@ -30,7 +30,7 @@ class Cirrusly_Commerce_Google_API_Client {
                 if ( is_object( $site ) && ! empty( $site->install_api_token ) ) {
                     $install_token = $site->install_api_token;
                     // Persist for future use
-                    update_option( 'cirrusly_install_api_token', $install_token );
+                   update_option( 'cirrusly_install_api_token', $install_token, false );
                 }
             }
         }
