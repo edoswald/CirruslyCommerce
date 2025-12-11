@@ -154,7 +154,7 @@ class Cirrusly_Commerce_GMC_UI {
 
         // PRO 3: Automation & Workflow Rules (Corrected Title)
         echo '<div class="'.esc_attr($pro_class).'" style="background:#f0f6fc; padding:15px; border:1px solid #c3c4c7; margin-top:20px; position:relative;">';
-            if(!$is_pro) echo '<div class="cc-pro-overlay"><a href="'.esc_url( function_exists('cc_fs') ? cc_fs()->get_upgrade_url() : '#' ).'" class="cc-upgrade-btn">Upgrade to Automate</a></div>';
+            if(!$is_pro) echo '<div class="cc-pro-overlay"><a href="'.esc_url( function_exists('cirrusly_fs') ? cirrusly_fs()->get_upgrade_url() : '#' ).'" class="cc-upgrade-btn">Upgrade to Automate</a></div>';
             
             echo '<form method="post" action="options.php">';
             settings_fields('cirrusly_general_group'); 
@@ -197,7 +197,7 @@ class Cirrusly_Commerce_GMC_UI {
         $disabled_attr = $is_pro ? '' : 'disabled';
         
         echo '<div class="cc-settings-card '.esc_attr($pro_class).'" style="margin-bottom:20px;">';
-        if(!$is_pro) echo '<div class="cc-pro-overlay"><a href="'.esc_url( function_exists('cc_fs') ? cc_fs()->get_upgrade_url() : '#' ).'" class="cc-upgrade-btn"><span class="dashicons dashicons-lock cc-lock-icon"></span> Unlock Live Feed</a></div>';
+        if(!$is_pro) echo '<div class="cc-pro-overlay"><a href="'.esc_url( function_exists('cirrusly_fs') ? cirrusly_fs()->get_upgrade_url() : '#' ).'" class="cc-upgrade-btn"><span class="dashicons dashicons-lock cc-lock-icon"></span> Unlock Live Feed</a></div>';
         
         echo '<div class="cc-card-header" style="background:#f8f9fa; border-bottom:1px solid #ddd; padding:15px; display:flex; justify-content:space-between; align-items:center;">
                 <h3 style="margin:0;">Live Google Promotions <span class="cc-pro-badge">PRO</span></h3>
@@ -245,7 +245,7 @@ class Cirrusly_Commerce_GMC_UI {
                     <div style="position:relative;">
                         <?php if(!$is_pro): ?>
                         <div class="cc-pro-overlay">
-                            <a href="<?php echo esc_url( function_exists('cc_fs') ? cc_fs()->get_upgrade_url() : '#' ); ?>" class="cc-upgrade-btn">
+                            <a href="<?php echo esc_url( function_exists('cirrusly_fs') ? cirrusly_fs()->get_upgrade_url() : '#' ); ?>" class="cc-upgrade-btn">
                                <span class="dashicons dashicons-lock cc-lock-icon"></span> Upgrade
                             </a>
                         </div>
@@ -441,7 +441,7 @@ class Cirrusly_Commerce_GMC_UI {
         echo '<div class="cc-settings-card ' . ( $is_pro ? '' : 'cc-pro-feature' ) . '" style="margin-bottom:20px; border:1px solid #c3c4c7; padding:0;">';
         
         if ( ! $is_pro ) {
-            echo '<div class="cc-pro-overlay"><a href="' . esc_url( function_exists('cc_fs') ? cc_fs()->get_upgrade_url() : '#' ) . '" class="cc-upgrade-btn"><span class="dashicons dashicons-lock cc-lock-icon"></span> Check Account Bans</a></div>';
+            echo '<div class="cc-pro-overlay"><a href="' . esc_url( function_exists('cirrusly_fs') ? cirrusly_fs()->get_upgrade_url() : '#' ) . '" class="cc-upgrade-btn"><span class="dashicons dashicons-lock cc-lock-icon"></span> Check Account Bans</a></div>';
         }
 
         echo '<div class="cc-card-header" style="background:#f8f9fa; border-bottom:1px solid #ddd; padding:15px;">

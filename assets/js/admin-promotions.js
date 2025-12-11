@@ -21,6 +21,7 @@ jQuery(document).ready(function($){
             force_refresh: forceRefresh ? 1 : 0
         }, function(res) {
             $btn.prop('disabled', false).html('<span class="dashicons dashicons-update"></span> Sync from Google');
+             if(res.success) {
             if(res.success) {
                 $table.empty();
                 if(res.data.length === 0) {
@@ -51,6 +52,12 @@ jQuery(document).ready(function($){
             } else {
                 if(forceRefresh) alert('Error: ' + (res.data || 'Failed to fetch data.'));
                 $table.html('<tr class="cc-empty-row"><td colspan="6" style="padding:20px; text-align:center; color:#d63638;">Error loading data.</td></tr>');
+            }
+        }).fail(function() {
+            $btn.prop('disabled', false).html('<span class="dashicons dashicons-update"></span> Sync from Google');
+            $table.html('<tr class="cc-empty-row"><td colspan="6" style="padding:20px; text-align:center; color:#d63638;">Error loading data.</td></tr>');
+                        if ( forceRefresh ) {
+                alert('Error: Could not reach the server.');
             }
         });
     };
@@ -93,13 +100,16 @@ jQuery(document).ready(function($){
                 type: $('#pg_type').val(),
                 code: $('#pg_code').val()
             }
-        }, function(response) {
-            if(response.success) {
+        }).done(function(response) {
+            if (response && response.success) {
                 alert('Success! Promotion pushed to Google Merchant Center.');
                 loadPromotions(true);
             } else {
-                alert('Error: ' + (response.data || 'Could not connect to API.'));
+                alert('Error: ' + ((response && response.data) || 'Could not connect to API.'));
             }
+        }).fail(function() {
+            alert('Error: Could not reach the server.');
+        }).always(function() {
             $btn.prop('disabled', false).html(originalText);
         });
     });

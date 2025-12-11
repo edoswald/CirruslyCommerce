@@ -315,17 +315,17 @@ class Cirrusly_Commerce_Setup_Wizard {
         <?php
     }
 
-    / **
-         * Render the "Connect Google Merchant Center" wizard step HTML.
-         *
-         * Outputs the step 2 form for entering a Merchant ID, shows a success notice if a
-         * service-account upload was completed, and — for Pro users — renders a file input
-         * for uploading a Service Account JSON. If an upload-success transient is present
-         * it will be cleared.
-         *
-         * The method reads and echoes stored option values and transient state; it does not
-         * return a value.
-         */
+    /**
+    * Render the "Connect Google Merchant Center" wizard step HTML.
+     *
+     * Outputs the step 2 form for entering a Merchant ID, shows a success notice if a
+     * service-account upload was completed, and — for Pro users — renders a file input
+     * for uploading a Service Account JSON. If an upload-success transient is present
+     * it will be cleared.
+     *
+     * The method reads and echoes stored option values and transient state; it does not
+     * return a value.
+     */
     private function render_step_connect() {
         $gcr = get_option( 'cirrusly_google_reviews_config', array() );
         $val = isset( $gcr['merchant_id'] ) ? $gcr['merchant_id'] : '';

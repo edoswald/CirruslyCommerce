@@ -359,7 +359,7 @@ class Cirrusly_Commerce_Settings_Manager {
 
         // API Connection (Pro)
         echo '<div class="cc-settings-card '.esc_attr($pro_class).'">';
-        if(!$is_pro) echo '<div class="cc-pro-overlay"><a href="'.esc_url( function_exists('irrusly') ? irrusly()->get_upgrade_url() : '#' ).'" class="cc-upgrade-btn"><span class="dashicons dashicons-lock cc-lock-icon"></span> Upgrade</a></div>';
+        if(!$is_pro) echo '<div class="cc-pro-overlay"><a href="'.esc_url( function_exists('cirrusly_fs') ? cirrusly_fs()->get_upgrade_url() : '#' ).'" class="cc-upgrade-btn"><span class="dashicons dashicons-lock cc-lock-icon"></span> Upgrade</a></div>';
         echo '<div class="cc-card-header"><h3>Content API <span class="cc-pro-badge">PRO</span></h3><span class="dashicons dashicons-cloud"></span></div>
             <div class="cc-card-body">
                 <p class="description">Upload your Google Service Account JSON to enable real-time API scanning. This allows the plugin to fetch live disapproval statuses directly from Google Merchant Center.</p>
@@ -372,7 +372,7 @@ class Cirrusly_Commerce_Settings_Manager {
 
         // Advanced Alerts (Pro)
         echo '<div class="cc-settings-card '.esc_attr($pro_class).'">';
-        if(!$is_pro) echo '<div class="cc-pro-overlay"><a href="'.esc_url( function_exists('irrusly') ? irrusly()->get_upgrade_url() : '#' ).'" class="cc-upgrade-btn"><span class="dashicons dashicons-lock cc-lock-icon"></span> Unlock</a></div>';
+        if(!$is_pro) echo '<div class="cc-pro-overlay"><a href="'.esc_url( function_exists('cirrusly_fs') ? cirrusly_fs()->get_upgrade_url() : '#' ).'" class="cc-upgrade-btn"><span class="dashicons dashicons-lock cc-lock-icon"></span> Unlock</a></div>';
         echo '<div class="cc-card-header"><h3>Alerts <span class="cc-pro-badge">PRO</span></h3><span class="dashicons dashicons-email-alt"></span></div>
             <div class="cc-card-body">
                 <p class="description">Configure proactive notifications for your store health. Receive weekly profit summaries and instant alerts if products are disapproved by Google.</p>
@@ -425,7 +425,7 @@ class Cirrusly_Commerce_Settings_Manager {
 
         // Smart Badges (Pro)
         echo '<div class="cc-settings-card '.esc_attr($pro_class).'">';
-        if(!$is_pro) echo '<div class="cc-pro-overlay"><a href="'.esc_url( function_exists('irrusly') ? irrusly()->get_upgrade_url() : '#' ).'" class="cc-upgrade-btn"><span class="dashicons dashicons-lock cc-lock-icon"></span> Unlock Smart Badges</a></div>';
+        if(!$is_pro) echo '<div class="cc-pro-overlay"><a href="'.esc_url( function_exists('cirrusly_fs') ? cirrusly_fs()->get_upgrade_url() : '#' ).'" class="cc-upgrade-btn"><span class="dashicons dashicons-lock cc-lock-icon"></span> Unlock Smart Badges</a></div>';
         echo '<div class="cc-card-header"><h3>Smart Badges <span class="cc-pro-badge">PRO</span></h3><span class="dashicons dashicons-awards"></span></div>
             <div class="cc-card-body">
                 <p class="description">Enable intelligent badges based on live store data. Highlight low stock items, best sellers, or schedule specific event badges for a date range.</p>

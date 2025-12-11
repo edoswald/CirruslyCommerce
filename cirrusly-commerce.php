@@ -15,7 +15,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-// ... [Keep existing Composer Autoloader and Constants] ...
+// Load Composer autoloader if available.
+er and Constants] ...
 if ( file_exists( plugin_dir_path( __FILE__ ) . 'vendor/autoload.php' ) ) {
     require_once plugin_dir_path( __FILE__ ) . 'vendor/autoload.php';
 }
@@ -216,6 +217,8 @@ class Cirrusly_Commerce_Main {
         if ( ! empty( $legacy_id ) && empty( $scan_config['merchant_id_pro'] ) ) {
             $scan_config['merchant_id_pro'] = $legacy_id;
             update_option( 'cirrusly_scan_config', $scan_config );
+            delete_option( 'cirrusly_gmc_merchant_id' );
+
         }
         set_transient( 'cirrusly_activation_redirect', true, 60 );
     }
