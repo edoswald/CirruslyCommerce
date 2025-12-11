@@ -9,7 +9,7 @@ class Cirrusly_Commerce_Setup_Wizard {
      * Define versions that introduced major features requiring setup.
      * Add to this array when you release significant updates to prompt a re-run.
      */
-    const MILESTONES = array( '1.5', '2.0' );
+    const MILESTONES = array( '1.7', '2.0' );
 
     /**
      * Initialize hooks.

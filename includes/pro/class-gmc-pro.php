@@ -400,7 +400,10 @@ class Cirrusly_Commerce_GMC_Pro {
             $type_val = isset( $data['type'] ) ? $data['type'] : 'NO_CODE';
             $promo->setOfferType( $type_val );
             
-            if ( 'GENERIC_CODE' === $type_val && ! empty( $data['code'] ) ) {
+            if ( 'GENERIC_CODE' === $type_val ) {
+                if ( empty( $data['code'] ) ) {
+                    wp_send_json_error( 'Redemption code is required for GENERIC_CODE promotions.' );
+                }
                 $promo->setGenericRedemptionCode( $data['code'] );
             }
 

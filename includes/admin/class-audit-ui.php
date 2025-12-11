@@ -12,9 +12,16 @@ class Cirrusly_Commerce_Audit_UI {
         if ( ! current_user_can( 'edit_products' ) ) wp_die( 'No permission' );
         
         // Handle Import Submission (Delegated to Pro)
-        if ( isset($_POST['cc_import_nonce']) && wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['cc_import_nonce'] ) ), 'cc_import_action' ) ) {            if ( Cirrusly_Commerce_Core::cirrusly_is_pro() && class_exists( 'Cirrusly_Commerce_Audit_Pro' ) ) {
-                Cirrusly_Commerce_Audit_Pro::handle_import();
-            }
+        if (
+            isset( $_POST['cc_import_nonce'] )
+            && wp_verify_nonce(
+                sanitize_text_field( wp_unslash( $_POST['cc_import_nonce'] ) ),
+                'cc_import_action'
+            )
+            && Cirrusly_Commerce_Core::cirrusly_is_pro()
+            && class_exists( 'Cirrusly_Commerce_Audit_Pro' )
+        ) {
+            Cirrusly_Commerce_Audit_Pro::handle_import();
         }
 
         echo '<div class="wrap">'; 

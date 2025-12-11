@@ -105,13 +105,12 @@ class Cirrusly_Commerce_Settings_Manager {
         }
         
         // 2. File Upload Logic (Pro Feature)
-        // Check if file exists and has a temporary name
         if ( isset( $_FILES['cirrusly_service_account'] ) && ! empty( $_FILES['cirrusly_service_account']['tmp_name'] ) ) {
             
-            // Sanitize tmp_name before use
-            $tmp_name = sanitize_text_field( $_FILES['cirrusly_service_account']['tmp_name'] );
+        // Use original tmp_name for security check (Not sanitized as it is a system path)
+        $original_tmp_name = $_FILES['cirrusly_service_account']['tmp_name'];
 
-            if ( is_uploaded_file( $tmp_name ) ) {
+        if ( is_uploaded_file( $original_tmp_name ) ) {
                 // Check Pro and Load Delegate
                 if ( class_exists( 'Cirrusly_Commerce_Core' ) && Cirrusly_Commerce_Core::cirrusly_is_pro() ) {
                     $pro_class = dirname( plugin_dir_path( __FILE__ ) ) . '/pro/class-settings-pro.php';
@@ -124,7 +123,7 @@ class Cirrusly_Commerce_Settings_Manager {
                         $safe_file = array(
                             'name'     => sanitize_file_name( $file_data['name'] ),
                             'type'     => sanitize_mime_type( $file_data['type'] ),
-                            'tmp_name' => $tmp_name,
+                            'tmp_name' => $original_tmp_name,
                             'error'    => intval( $file_data['error'] ),
                             'size'     => intval( $file_data['size'] ),
                         );
