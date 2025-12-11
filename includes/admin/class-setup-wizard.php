@@ -1,4 +1,4 @@
-<?php
+=<?php
 if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
@@ -23,6 +23,9 @@ class Cirrusly_Commerce_Setup_Wizard {
         add_action( 'admin_init', array( $this, 'detect_feature_update' ) );
         
         add_action( 'admin_notices', array( $this, 'render_upgrade_notice' ) );
+
+        // Enqueue wizard-specific styles on the hook (Priority 20 to ensure base CSS is registered first)
+        add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_wizard_styles' ), 20 );
     }
 
     /**
@@ -161,6 +164,32 @@ class Cirrusly_Commerce_Setup_Wizard {
     }
 
     /**
+     * Enqueue wizard styles inline attached to the base admin CSS.
+     */
+    public function enqueue_wizard_styles() {
+        if ( isset( $_GET['page'] ) && 'cirrusly-setup' === $_GET['page'] ) {
+            $wizard_styles = '
+                .cc-wizard-container { max-width: 700px; margin: 50px auto; background: #fff; padding: 40px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border-radius: 4px; }
+                .cc-wizard-header { text-align: center; margin-bottom: 30px; }
+                .cc-wizard-progress { display: flex; justify-content: space-between; margin-bottom: 30px; border-bottom: 1px solid #eee; padding-bottom: 20px; }
+                .cc-step { font-weight: bold; color: #ccc; font-size: 14px; }
+                .cc-step.active { color: #2271b1; }
+                .cc-wizard-footer { margin-top: 30px; display: flex; justify-content: flex-end; align-items: center; gap: 15px; border-top: 1px solid #eee; padding-top: 20px; }
+                
+                /* Pricing Columns */
+                .cc-pricing-grid { display: flex; gap: 15px; margin-top: 20px; }
+                .cc-pricing-col { flex: 1; border: 1px solid #ddd; padding: 20px; border-radius: 5px; text-align: center; background: #f9f9f9; }
+                .cc-pricing-col.featured { border-color: #2271b1; background: #f0f6fc; transform: scale(1.02); box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+                .cc-pricing-col h4 { margin: 0 0 10px; font-size: 1.2em; }
+                .cc-tag { display: inline-block; background: #2271b1; color: #fff; padding: 2px 6px; border-radius: 3px; font-size: 10px; text-transform: uppercase; margin-bottom: 10px; }
+                .cc-feature-list { text-align: left; font-size: 12px; margin: 15px 0; color: #555; list-style: none; padding: 0; }
+                .cc-feature-list li { margin-bottom: 5px; }
+            ';
+            wp_add_inline_style( 'cirrusly-admin-css', $wizard_styles );
+        }
+    }
+
+    /**
      * Main Renderer: Handles saving and step navigation.
      */
     public function render_wizard() {
@@ -187,24 +216,6 @@ class Cirrusly_Commerce_Setup_Wizard {
 
         ?>
         <div class="wrap">
-            <style>
-                .cc-wizard-container { max-width: 700px; margin: 50px auto; background: #fff; padding: 40px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border-radius: 4px; }
-                .cc-wizard-header { text-align: center; margin-bottom: 30px; }
-                .cc-wizard-progress { display: flex; justify-content: space-between; margin-bottom: 30px; border-bottom: 1px solid #eee; padding-bottom: 20px; }
-                .cc-step { font-weight: bold; color: #ccc; font-size: 14px; }
-                .cc-step.active { color: #2271b1; }
-                .cc-wizard-footer { margin-top: 30px; display: flex; justify-content: flex-end; align-items: center; gap: 15px; border-top: 1px solid #eee; padding-top: 20px; }
-                
-                /* Pricing Columns */
-                .cc-pricing-grid { display: flex; gap: 15px; margin-top: 20px; }
-                .cc-pricing-col { flex: 1; border: 1px solid #ddd; padding: 20px; border-radius: 5px; text-align: center; background: #f9f9f9; }
-                .cc-pricing-col.featured { border-color: #2271b1; background: #f0f6fc; transform: scale(1.02); box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-                .cc-pricing-col h4 { margin: 0 0 10px; font-size: 1.2em; }
-                .cc-tag { display: inline-block; background: #2271b1; color: #fff; padding: 2px 6px; border-radius: 3px; font-size: 10px; text-transform: uppercase; margin-bottom: 10px; }
-                .cc-feature-list { text-align: left; font-size: 12px; margin: 15px 0; color: #555; list-style: none; padding: 0; }
-                .cc-feature-list li { margin-bottom: 5px; }
-            </style>
-
             <div class="cc-wizard-container">
                 <div class="cc-wizard-header">
                      <img src="<?php echo esc_url( CIRRUSLY_COMMERCE_URL . 'assets/images/logo.svg' ); ?>" style="height: 40px; width: auto;" alt="Cirrusly Commerce">

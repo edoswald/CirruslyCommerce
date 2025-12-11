@@ -1,45 +1,33 @@
 jQuery(document).ready(function($) {
-    var cw_ship_config = cw_vars.ship_config;
-    var cw_id_map = cw_vars.id_map;
+    // UPDATED VAR NAMES
+    var cirrusly_ship_config = cirrusly_pricing_vars.ship_config;
+    var cirrusly_id_map = cirrusly_pricing_vars.id_map;
 
     function getClassData(id) {
-        if (typeof cw_id_map !== 'undefined' && cw_id_map[id]) {
-            var slug = cw_id_map[id];
-            if (cw_ship_config['classes'][slug]) return cw_ship_config['classes'][slug];
+        if (typeof cirrusly_id_map !== 'undefined' && cirrusly_id_map[id]) {
+            var slug = cirrusly_id_map[id];
+            if (cirrusly_ship_config['classes'][slug]) return cirrusly_ship_config['classes'][slug];
         }
-        return cw_ship_config['classes']['default'] || {cost:10.00};
+        return cirrusly_ship_config['classes']['default'] || {cost:10.00};
     }
     
-    /**
-     * Determine the shipping revenue charge for a given price using configured tiers.
-     *
-     * @returns {number} The matching tier's charge, or 0 if no tier applies.
-     */
     function getShippingRevenue(price) {
-        var tiers = cw_ship_config['revenue_tiers']; if (!tiers) return 0;
+        var tiers = cirrusly_ship_config['revenue_tiers']; if (!tiers) return 0;
         for (var i=0; i<tiers.length; i++) { if (price >= tiers[i].min && price <= tiers[i].max) return tiers[i].charge; }
         return 0;
     }
     
-    /**
-     * Compute the payment processing fee for a given total incoming amount using the configured fee profile.
-     * 
-     * Reads fee settings from `cw_ship_config`. In `single` mode the fee is computed from the primary percentage and flat fee. 
-     * In `multi` mode the fee is a blend of two percentage+flat schedules combined according to `profile_split`.
-     * 
-     * @param {number} total_inc - The total incoming amount (for example, price plus shipping revenue) to base the fee on.
-     * @returns {number} The calculated fee amount. */
     function getFee(total_inc) {
-        var mode = cw_ship_config.profile_mode || 'single';
-        var pct = cw_ship_config.payment_pct ? (cw_ship_config.payment_pct/100) : 0.029;
-        var flat = cw_ship_config.payment_flat ? cw_ship_config.payment_flat : 0.30;
+        var mode = cirrusly_ship_config.profile_mode || 'single';
+        var pct = cirrusly_ship_config.payment_pct ? (cirrusly_ship_config.payment_pct/100) : 0.029;
+        var flat = cirrusly_ship_config.payment_flat ? cirrusly_ship_config.payment_flat : 0.30;
         
         var fee1 = (total_inc * pct) + flat;
         
         if ( mode === 'multi' ) {
-            var pct2 = cw_ship_config.payment_pct_2 ? (cw_ship_config.payment_pct_2/100) : 0.0349;
-            var flat2 = cw_ship_config.payment_flat_2 ? cw_ship_config.payment_flat_2 : 0.49;
-            var split = cw_ship_config.profile_split ? (cw_ship_config.profile_split/100) : 1.0;
+            var pct2 = cirrusly_ship_config.payment_pct_2 ? (cirrusly_ship_config.payment_pct_2/100) : 0.0349;
+            var flat2 = cirrusly_ship_config.payment_flat_2 ? cirrusly_ship_config.payment_flat_2 : 0.49;
+            var split = cirrusly_ship_config.profile_split ? (cirrusly_ship_config.profile_split/100) : 1.0;
             
             var fee2 = (total_inc * pct2) + flat2;
             return (fee1 * split) + (fee2 * (1 - split));
@@ -48,21 +36,6 @@ jQuery(document).ready(function($) {
         return fee1;
     }
     
-    /**
-     * Build a lookup of relevant form elements for the product or variation containing the given element.
-     * @param {$} $el - A jQuery element inside the target form or .woocommerce_variation container.
-     * @returns {Object} An object with jQuery references:
-     *  - reg: regular price input,
-     *  - sale: sale price input,
-     *  - cost: cost input,
-     *  - min: minimum-price input,
-     *  - msrp: MSRP input,
-     *  - ship: estimated shipping input,
-     *  - shipClass: shipping class select,
-     *  - display: profit display element,
-     *  - matrix: shipping matrix container,
-     *  - rounding: rounding strategy control.
-     */
     function getContext($el) {
         var $c = $el.closest('form, .woocommerce_variation');
         
@@ -74,9 +47,10 @@ jQuery(document).ready(function($) {
             msrp: $c.find('input[name^="_alg_msrp"]'),
             ship: $c.find('input[name^="_cw_est_shipping"]'), 
             shipClass: $c.find('select[name^="variable_shipping_class"]'), 
-            display: $c.find('.cw-profit-display'), 
-            matrix: $c.find('.cw-shipping-matrix'),
-            rounding: $c.find('.cw-sale-rounding')
+            // Updated Selectors
+            display: $c.find('.cirrusly-profit-display'), 
+            matrix: $c.find('.cirrusly-shipping-matrix'),
+            rounding: $c.find('.cirrusly-sale-rounding')
         };
         else return { 
             reg: $c.find('#_regular_price').length ? $c.find('#_regular_price') : $c.find('#_subscription_price'),
@@ -86,18 +60,12 @@ jQuery(document).ready(function($) {
             msrp: $c.find('#_alg_msrp'),
             ship: $c.find('#_cw_est_shipping'), 
             shipClass: $c.find('#product_shipping_class'), 
-            display: $('.cw-profit-display'), 
-            matrix: $('.cw-shipping-matrix'),
-            rounding: $('.cw-sale-rounding')
+            display: $('.cirrusly-profit-display'), 
+            matrix: $('.cirrusly-shipping-matrix'),
+            rounding: $('.cirrusly-sale-rounding')
         };
     }
     
-    /**
-     * Round a numeric price according to a chosen rounding strategy.
-     * @param {number|string} price - The input price to round; non-numeric or falsy values yield 0.
-     * @param {string} strategy - Rounding strategy: `'99'` (floor to integer then +0.99), `'50'` (round to .00, .50, or next integer based on decimal thresholds), `'nearest_5'` (round to nearest multiple of 5), or any other value for standard two-decimal rounding.
-     * @returns {number} The rounded price.
-     */
     function applyRounding(price, strategy) {
         if (!price || isNaN(price)) return 0;
         price = parseFloat(price);
@@ -114,13 +82,6 @@ jQuery(document).ready(function($) {
         return parseFloat(price.toFixed(2));
     }
 
-    /**
-     * Compute and render profit, margin, and an optional shipping matrix for the product/variation associated with the provided element.
-     *
-     * Reads price (regular/sale), cost, shipping, minimum price, and shipping class from the element's context; computes shipping revenue, payment fees, net profit, margin, and a floor margin when a minimum price is present. Updates the UI by writing the profit and margin into the display (.cw-profit-val and .cw-margin-val), adjusting the minimum-price input border color when floor margin is negative, and showing, hiding, and populating the shipping matrix section when configured.
-     *
-     * @param {$} $el - A jQuery element inside a product form or variation used to locate related inputs and display containers.
-     */
     function updateMetrics($el) {
         var ctx = getContext($el);
         if (!ctx.reg || !ctx.reg.length) return;
@@ -137,7 +98,6 @@ jQuery(document).ready(function($) {
             var total_inc = price + shipRev;
             var gross = total_inc - total_cost;
             
-            // Use blended fee function
             var fee = getFee(total_inc);
             var net = gross - fee;
             var margin = (net/price)*100;
@@ -152,12 +112,12 @@ jQuery(document).ready(function($) {
                 if ( floor_margin < 0 ) ctx.min.css('border-color', 'red'); else ctx.min.css('border-color', '');
             }
 
-            ctx.display.find('.cw-profit-val').text('$'+net.toFixed(2));
-            ctx.display.find('.cw-margin-val').html(margin.toFixed(1)+'%' + floor_html);
+            ctx.display.find('.cirrusly-profit-val').text('$'+net.toFixed(2));
+            ctx.display.find('.cirrusly-margin-val').html(margin.toFixed(1)+'%' + floor_html);
             
             if(ctx.matrix.length && classData && classData.matrix === true) {
                 ctx.matrix.show();
-                var html = '', rules = cw_ship_config['matrix_rules'];
+                var html = '', rules = cirrusly_ship_config['matrix_rules'];
                 var rulesObj = Array.isArray(rules) ? rules : Object.values(rules);
                 if(rulesObj.length) {
                     $.each(rulesObj, function(k,v){
@@ -165,7 +125,7 @@ jQuery(document).ready(function($) {
                         var netScenario = (price - cost - feeScenario + shipRev) - (ship * v.cost_mult);
                         var marginScenario = (netScenario / price) * 100;
                         var cls = netScenario > 0 ? 'prof-green' : 'prof-red';
-                        html += '<div class="cw-matrix-item '+cls+'"><span style="display:block;font-weight:bold;">'+v.label+'</span>$'+netScenario.toFixed(2)+' <small style="display:block;font-size:9px;">('+marginScenario.toFixed(0)+'%)</small></div>';
+                        html += '<div class="cirrusly-matrix-item '+cls+'"><span style="display:block;font-weight:bold;">'+v.label+'</span>$'+netScenario.toFixed(2)+' <small style="display:block;font-size:9px;">('+marginScenario.toFixed(0)+'%)</small></div>';
                     });
                     ctx.matrix.html(html);
                 }
@@ -175,7 +135,7 @@ jQuery(document).ready(function($) {
         }
     }
 
-    $(document).on('change', '.cw-tool-reg', function() {
+    $(document).on('change', '.cirrusly-tool-reg', function() {
         var strategy = $(this).val();
         if(!strategy) return;
         var ctx = getContext($(this));
@@ -204,7 +164,7 @@ jQuery(document).ready(function($) {
         $(this).val('');
     });
 
-    $(document).on('change', '.cw-tool-sale', function() {
+    $(document).on('change', '.cirrusly-tool-sale', function() {
         var strategy = $(this).val();
         var ctx = getContext($(this));
         if (!ctx.reg || !ctx.reg.length) return;

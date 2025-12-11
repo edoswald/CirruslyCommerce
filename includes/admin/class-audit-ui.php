@@ -249,51 +249,9 @@ class Cirrusly_Commerce_Audit_UI {
              echo '<div class="tablenav bottom">' . wp_kses_post( $pagination_html ) . '</div>';
         }
 
-        if($is_pro) {
-            $nonce = wp_create_nonce("cc_audit_save");
-            $script = "
-            jQuery(document).ready(function($){
-                $('.cc-inline-edit').on('blur', function(){
-                    var \$el = $(this);
-                    var \$row = \$el.closest('tr');
-                    var pid = \$el.data('pid');
-                    var field = \$el.data('field');
-                    var val = \$el.text();
-                    \$el.css('opacity', '0.5');
-
-                    $.post(ajaxurl, {
-                        action: 'cc_audit_save',
-                        pid: pid,
-                        field: field,
-                        value: val,
-                        _nonce: '" . esc_js( $nonce ) . "'
-                    }, function(res){
-                        \$el.css('opacity', '1');
-                        if(res.success) {
-                            \$el.css('background-color', '#e7f6e7');
-                            setTimeout(function(){ \$el.css('background-color', 'transparent'); }, 1500);
-                            if(res.data) {
-                                if(res.data.net_html) \$row.find('.col-net').html(res.data.net_html);
-                                if(res.data.net_style) \$row.find('.col-net').attr('style', res.data.net_style);
-                                if(res.data.margin) \$row.find('.col-margin').text(res.data.margin + '%');
-                            }
-                        } else {
-                            \$el.css('background-color', '#f8d7da');
-                            alert('Save Failed: ' + (res.data || 'Unknown error'));
-                        }
-                    });
-                });
-                $('.cc-inline-edit').on('focus', function() {
-                    var range = document.createRange();
-                    range.selectNodeContents(this);
-                    var sel = window.getSelection();
-                    sel.removeAllRanges();
-                    sel.addRange(range);
-                });
-            });";
-            
-            wp_add_inline_script( 'cirrusly-audit-js', $script );
-        }
+        // Inline script block removed.
+        // It is now handled by assets/js/audit.js which is enqueued in Cirrusly_Commerce_Admin_Assets
+        
         echo '</div>'; 
     }
 }
