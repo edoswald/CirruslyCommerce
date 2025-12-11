@@ -30,7 +30,7 @@ class Cirrusly_Commerce_Google_API_Client {
                 if ( is_object( $site ) && ! empty( $site->install_api_token ) ) {
                     $install_token = $site->install_api_token;
                     // Persist for future use
-                   update_option( 'cirrusly_install_api_token', $install_token, false );
+                    update_option( 'cirrusly_install_api_token', $install_token, false );
                 }
             }
         }
@@ -91,13 +91,10 @@ class Cirrusly_Commerce_Google_API_Client {
      */
     public static function execute_scheduled_scan() {
         $result = self::request( 'gmc_scan' );
-
-        if ( is_wp_error( $result ) ) {
-            error_log( 'Cirrusly Commerce GMC Scan failed: ' . $result->get_error_message() );
-            return;
-        }
     
         if ( ! is_wp_error( $result ) && isset( $result['results'] ) ) {
+            error_log( 'Cirrusly Commerce GMC Scan failed: ' . $result->get_error_message() );
+            return;
             update_option( 'cirrusly_gmc_scan_data', array( 'timestamp' => time(), 'results' => $result['results'] ), false );
         }
     }
