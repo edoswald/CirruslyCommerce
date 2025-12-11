@@ -55,6 +55,10 @@ class Cirrusly_Commerce_Google_API_Client {
         
         $code = wp_remote_retrieve_response_code( $response );
         $res_body = json_decode( wp_remote_retrieve_body( $response ), true );
+    
+        if ( ! is_array( $res_body ) ) {
+            return new WP_Error( 'invalid_response', 'API returned invalid JSON' );
+        }
 
         if ( $code !== 200 ) {
             return new WP_Error( 'api_error', 'Cloud Error: ' . (isset($res_body['error']) ? $res_body['error'] : 'Unknown') );
@@ -68,13 +72,17 @@ class Cirrusly_Commerce_Google_API_Client {
      */
     public static function execute_scheduled_scan() {
         $result = self::request( 'gmc_scan' );
+
+        if ( is_wp_error( $result ) ) {
+            error_log( 'Cirrusly Commerce GMC Scan failed: ' . $result->get_error_message() );
+            return;
+        }
+    
         
         if ( ! is_wp_error( $result ) && isset( $result['results'] ) ) {
             // Save Data
             update_option( 'cirrusly_gmc_scan_data', array( 'timestamp' => time(), 'results' => $result['results'] ), false );
             
-            // Trigger Email (You can keep your email logic here)
-            // self::send_email_report($result['results']);
         }
     }
 }
