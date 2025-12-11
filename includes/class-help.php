@@ -148,9 +148,25 @@ class Cirrusly_Commerce_Help {
     }
 
     public static function handle_bug_submission() {
-        if ( ! isset( $_POST['security'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['security'] ) ), 'cirrusly_bug_report_nonce' ) ) {
+        $nonce = isset( $_POST['security'] ) ? sanitize_text_field( wp_unslash( $_POST['security'] ) ) : '';
+        $verified = false;
+
+        // Check new standard nonce
+        if ( wp_verify_nonce( $nonce, 'cirrusly_bug_report_nonce' ) ) {
+            $verified = true;
+        }
+        // Check legacy nonce (deprecated)
+        elseif ( wp_verify_nonce( $nonce, 'cc_bug_report_nonce' ) ) {
+            $verified = true;
+            if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+                error_log( 'Legacy nonce cc_bug_report_nonce used in handle_bug_submission. Use cirrusly_bug_report_nonce.' );
+            }
+        }
+
+        if ( ! $verified ) {
             wp_send_json_error( 'Security check failed. Please refresh the page.' );
         }
+
         if ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'edit_products' ) ) {
             wp_send_json_error( 'Unauthorized.' );
         }

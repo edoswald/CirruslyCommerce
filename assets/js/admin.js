@@ -30,10 +30,37 @@ jQuery(document).ready(function($){
         e.preventDefault();
         $(this).siblings("input").val("");
     });
+
+    // Helper to calculate monotonic index
+    function getNextIndex( $container, regex ) {
+        var idx = $container.data('next-index');
+        // Initialize if not present
+        if ( typeof idx === 'undefined' ) {
+            idx = 0;
+            // Scan existing rows to find max index
+            $container.find('tr').each(function(){
+                $(this).find('input, select').each(function(){
+                    var name = $(this).attr('name');
+                    if ( name ) {
+                        var match = name.match(regex);
+                        if ( match && match[1] ) {
+                            var current = parseInt( match[1], 10 );
+                            if ( current >= idx ) {
+                                idx = current + 1;
+                            }
+                        }
+                    }
+                });
+            });
+        }
+        // Store next index for subsequent adds
+        $container.data('next-index', idx + 1);
+        return idx;
+    }
     
     // Add Badge Row (Updated ID and Class)
     $("#cirrusly-add-badge-row").click(function(){
-        var idx = $("#cirrusly-badge-rows tr").length + 1000;
+        var idx = getNextIndex( $("#cirrusly-badge-rows"), /cirrusly_badge_config\[custom_badges\]\[(\d+)\]/ );
         var row = "<tr>" +
             "<td><input type='text' name='cirrusly_badge_config[custom_badges]["+idx+"][tag]'></td>" +
             "<td><input type='text' name='cirrusly_badge_config[custom_badges]["+idx+"][url]' class='regular-text'> <button type='button' class='button cirrusly-upload-btn'>Upload</button></td>" +
@@ -46,7 +73,7 @@ jQuery(document).ready(function($){
 
     // Add Revenue Tier Row (Updated ID)
     $("#cirrusly-add-revenue-row").click(function(){
-        var idx = $("#cirrusly-revenue-rows tr").length + 1000;
+        var idx = getNextIndex( $("#cirrusly-revenue-rows"), /cirrusly_shipping_config\[revenue_tiers\]\[(\d+)\]/ );
         var row = "<tr>" +
             "<td><input type='number' step='0.01' name='cirrusly_shipping_config[revenue_tiers]["+idx+"][min]'></td>" +
             "<td><input type='number' step='0.01' name='cirrusly_shipping_config[revenue_tiers]["+idx+"][max]'></td>" +
@@ -58,7 +85,7 @@ jQuery(document).ready(function($){
 
     // Add Matrix Row (Updated ID)
     $("#cirrusly-add-matrix-row").click(function(){
-        var idx = $("#cirrusly-matrix-rows tr").length + 1000;
+        var idx = getNextIndex( $("#cirrusly-matrix-rows"), /cirrusly_shipping_config\[matrix_rules\]\[(\d+)\]/ );
         var row = "<tr>" +
             "<td><input type='text' name='cirrusly_shipping_config[matrix_rules]["+idx+"][key]'></td>" +
             "<td><input type='text' name='cirrusly_shipping_config[matrix_rules]["+idx+"][label]'></td>" +
@@ -70,7 +97,7 @@ jQuery(document).ready(function($){
 
     // Add Countdown Rule Row (Updated ID)
     $("#cirrusly-add-countdown-row").click(function(){
-        var idx = $("#cirrusly-countdown-rows tr").length + 1000;
+        var idx = getNextIndex( $("#cirrusly-countdown-rows"), /cirrusly_countdown_rules\[(\d+)\]/ );
         var row = "<tr>" +
             "<td><input type='text' name='cirrusly_countdown_rules["+idx+"][taxonomy]'></td>" +
             "<td><input type='text' name='cirrusly_countdown_rules["+idx+"][term]'></td>" +

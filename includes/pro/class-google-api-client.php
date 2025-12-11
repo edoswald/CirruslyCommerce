@@ -17,21 +17,26 @@ class Cirrusly_Commerce_Google_API_Client {
 
         if ( empty( $json_key ) ) return new WP_Error( 'missing_creds', 'Service Account JSON missing' );
 
-        // 2. Get Freemius License Key
-        $license_key = '';
-        if ( function_exists( 'cirrusly_fs' ) ) {
+        // 2. Get Freemius Install Token
+        // Try to get locally persisted token first
+        $install_token = get_option( 'cirrusly_install_api_token' );
+
+        // If missing, try to retrieve from SDK (e.g. immediately after activation)
+        if ( empty( $install_token ) && function_exists( 'cirrusly_fs' ) ) {
             $fs = cirrusly_fs();
-            // Check if user is paying or in trial
-            if ( $fs->can_use_premium_code() ) {
-                $license = $fs->get_license();
-                if ( is_object( $license ) && isset( $license->secret_key ) ) {
-                    $license_key = $license->secret_key;
+            if ( $fs->is_registered() ) {
+                $site = $fs->get_site();
+                // Check if the install_api_token is available on the site object
+                if ( is_object( $site ) && ! empty( $site->install_api_token ) ) {
+                    $install_token = $site->install_api_token;
+                    // Persist for future use
+                    update_option( 'cirrusly_install_api_token', $install_token );
                 }
             }
         }
 
-        if ( empty( $license_key ) ) {
-            return new WP_Error( 'no_license', 'Active Pro License required to use Cloud Features.' );
+        if ( empty( $install_token ) ) {
+            return new WP_Error( 'no_token', 'Active Pro License required (Token missing). Please re-activate your license.' );
         }
 
         // 3. Decrypt Google JSON
@@ -58,8 +63,8 @@ class Cirrusly_Commerce_Google_API_Client {
             'body'    => json_encode( $body ),
             'headers' => array( 
                 'Content-Type'  => 'application/json',
-                // Send Freemius License Key as Bearer Token
-                'Authorization' => 'Bearer ' . $license_key
+                // Send Install API Token as Bearer Token
+                'Authorization' => 'Bearer ' . $install_token
             ),
             'timeout' => 45
         ) );
