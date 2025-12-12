@@ -85,6 +85,8 @@ if ( ! function_exists( 'cirrusly_fs' ) ) {
                 }
             }, 10, 2 );
 
+        }
+
         return $cirrusly_fs;
     }
 
