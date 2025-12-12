@@ -214,7 +214,7 @@ class Cirrusly_Commerce_GMC_UI {
         echo '<div class="cirrusly-manual-helper"><h4>Promotion Feed Generator</h4><p>Create or update a promotion entry for Google Merchant Center. Fill in the details, generate the code, and paste it into your Google Sheet feed.</p></div>';
         ?>
         <div class="cirrusly-promo-generator" id="cc_promo_form_container">
-            <h3 style="margin-top:0;" id="cc_form_title">Create Promotion Entry</h3>
+            <h3 style="margin-top:0;" id="cirrusly_form_title">Create Promotion Entry</h3>
             <div class="cirrusly-promo-grid">
                 <div>
                     <label for="pg_id">Promotion ID <span class="dashicons dashicons-info" title="Unique ID"></span></label>
