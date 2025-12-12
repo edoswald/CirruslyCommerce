@@ -108,7 +108,8 @@ Yes. The Pro version allows you to set a "Split Profile" (e.g., 70% Stripe / 30%
 
 = 1.4.3 =
 * **Refactor:** Changes help areas to reflect support forum location of plugin following WP Plugin Directory approval. A thank you to the Plugin Review team for their work!
-* **Fix:** API functionality that was broken following migration to SaaS model for Premium features has been restored. (Pro/Pro Plus)
+* **Fix:** API functionality that was broken following migration to SaaS model for Premium features has been restored. Subscribers must request an API key for access. (Pro/Pro Plus)
+* **Enhancement:** Ensured all advanced functionality is correctly passing through the service worker in encypted form for privacy.
 
 = 1.4.2 =
 * **Enhancement:** All scripts and styles are now dedicated external assets.
