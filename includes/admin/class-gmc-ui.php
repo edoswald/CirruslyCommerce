@@ -54,7 +54,7 @@ class Cirrusly_Commerce_GMC_UI {
     }
 
     /**
-     * Render the Google Merchant Center admin hub page with tabbed navigation.
+     * Render the Google Merchant Center hub page with tabbed navigation.
      *
      * Displays the hub header, a three-tab navigation (Health Check, Promotion Manager, Site Content),
      * and delegates rendering to the corresponding view for the currently selected tab.
@@ -287,6 +287,8 @@ class Cirrusly_Commerce_GMC_UI {
 
         $promo_stats = get_transient( 'cirrusly_active_promos_stats' );
         if ( false === $promo_stats ) {
+            // Note: This direct query is used for aggregation which is not supported by WP_Query. 
+            // It is strictly wrapped in get_transient to ensure caching compliance.
             $promo_stats = $wpdb->get_results( "SELECT meta_value as promo_id, count(post_id) as count FROM {$wpdb->postmeta} WHERE meta_key = '_gmc_promotion_id' AND meta_value != '' GROUP BY meta_value ORDER BY count DESC" );
             set_transient( 'cirrusly_active_promos_stats', $promo_stats, 1 * HOUR_IN_SECONDS );
         }

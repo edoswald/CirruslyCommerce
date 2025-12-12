@@ -123,12 +123,11 @@ class Cirrusly_Commerce_Core {
 
     public function clear_metrics_cache() {
         delete_transient( 'cirrusly_dashboard_metrics' );
-        // Clear all analytics P&L transients by pattern
-        global $wpdb;
-        $pattern = $wpdb->esc_like( '_transient_cirrusly_analytics_pnl_' ) . '%';
-        $timeout_pattern = $wpdb->esc_like( '_transient_timeout_cirrusly_analytics_pnl_' ) . '%';
-        // FIX: Replaced invalid $wpdb->options with {$wpdb->prefix}options
-        $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}options WHERE option_name LIKE %s OR option_name LIKE %s", $pattern, $timeout_pattern ) );    
+        
+        // Invalidate all analytics P&L transients by updating the version key.
+        // This avoids direct DB DELETE queries on the options table, which are incompatible
+        // with object caching (Redis/Memcached) and flagged as "Direct database call without caching".
+        update_option( 'cirrusly_analytics_cache_version', time(), false );
     }
 
     public static function cirrusly_is_pro() {

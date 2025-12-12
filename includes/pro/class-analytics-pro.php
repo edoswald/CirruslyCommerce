@@ -90,8 +90,8 @@ class Cirrusly_Commerce_Analytics_Pro {
         $all_statuses = wc_get_order_statuses();
 
         if ( isset( $_GET['cirrusly_refresh'] ) && check_admin_referer( 'cirrusly_refresh_analytics' ) ) {
-            global $wpdb;
-            $wpdb->query( "DELETE FROM {$wpdb->prefix}options WHERE option_name LIKE '_transient_cirrusly_analytics_pnl_v4_%' OR option_name LIKE '_transient_timeout_cirrusly_analytics_pnl_v4_%'" );
+            // Update the cache version timestamp to invalidate all existing keys
+            update_option( 'cirrusly_analytics_cache_version', time(), false );
             wp_safe_redirect( remove_query_arg( array( 'cirrusly_refresh', '_wpnonce' ) ) );
             exit;
         }
@@ -369,9 +369,10 @@ class Cirrusly_Commerce_Analytics_Pro {
             if ( empty( $target_statuses ) ) $target_statuses = array('wc-completed', 'wc-processing', 'wc-on-hold'); 
         }
 
-        // Generate Cache Key based on days + status fingerprint
+        // Generate Cache Key based on days + status fingerprint + current version
         $status_hash = md5( json_encode( $target_statuses ) );
-        $cache_key   = 'cirrusly_analytics_pnl_v4_' . $days . '_' . $status_hash; 
+        $version     = get_option( 'cirrusly_analytics_cache_version', '1' );
+        $cache_key   = 'cirrusly_analytics_pnl_v5_' . $days . '_' . $status_hash . '_' . $version;
         
         $cached = get_transient( $cache_key );
         if ( false !== $cached ) { return $cached; }

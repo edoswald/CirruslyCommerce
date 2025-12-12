@@ -43,7 +43,11 @@ class Cirrusly_Commerce_Dashboard_UI {
             }
 
             // 3. Catalog & Cost Stats
-            $missing_cost = $wpdb->get_var("SELECT count(p.ID) FROM {$wpdb->posts} p LEFT JOIN {$wpdb->postmeta} pm ON (p.ID = pm.post_id AND pm.meta_key = '_cogs_total_value') WHERE p.post_type IN ('product', 'product_variation') AND p.post_status = 'publish' AND (pm.meta_value IS NULL OR pm.meta_value = '' OR pm.meta_value = 0)");
+            $missing_cost = wp_cache_get( 'cirrusly_missing_cost_count', 'cirrusly_dashboard' );
+            if ( false === $missing_cost ) {
+                $missing_cost = $wpdb->get_var("SELECT count(p.ID) FROM {$wpdb->posts} p LEFT JOIN {$wpdb->postmeta} pm ON (p.ID = pm.post_id AND pm.meta_key = '_cogs_total_value') WHERE p.post_type IN ('product', 'product_variation') AND p.post_status = 'publish' AND (pm.meta_value IS NULL OR pm.meta_value = '' OR pm.meta_value = 0)");
+                wp_cache_set( 'cirrusly_missing_cost_count', $missing_cost, 'cirrusly_dashboard', HOUR_IN_SECONDS );
+            }
             
             $count_posts = wp_count_posts('product');
             $count_vars  = wp_count_posts('product_variation');
@@ -69,8 +73,12 @@ class Cirrusly_Commerce_Dashboard_UI {
                     }
                 }
             } else {
-                // Fallback lightweight query
-                $margin_query = $wpdb->get_results("SELECT pm.meta_value as cost, p.ID FROM {$wpdb->postmeta} pm JOIN {$wpdb->posts} p ON p.ID = pm.post_id WHERE pm.meta_key = '_cogs_total_value' AND p.post_type = 'product' AND p.post_status = 'publish' LIMIT 200");
+                // Fallback lightweight query with caching
+                $margin_query = wp_cache_get( 'cirrusly_margin_fallback_query', 'cirrusly_dashboard' );
+                if ( false === $margin_query ) {
+                    $margin_query = $wpdb->get_results("SELECT pm.meta_value as cost, p.ID FROM {$wpdb->postmeta} pm JOIN {$wpdb->posts} p ON p.ID = pm.post_id WHERE pm.meta_key = '_cogs_total_value' AND p.post_type = 'product' AND p.post_status = 'publish' LIMIT 200");
+                    wp_cache_set( 'cirrusly_margin_fallback_query', $margin_query, 'cirrusly_dashboard', HOUR_IN_SECONDS );
+                }
                 
                 foreach($margin_query as $row) {
                     $product = wc_get_product($row->ID);
@@ -105,17 +113,23 @@ class Cirrusly_Commerce_Dashboard_UI {
 
             // 6. Low Stock
             $low_stock_threshold = get_option( 'woocommerce_notify_low_stock_amount', 2 );
-            $low_stock_count = $wpdb->get_var( $wpdb->prepare( "
-                SELECT count(p.ID) 
-                FROM {$wpdb->posts} p 
-                INNER JOIN {$wpdb->postmeta} pm_stock ON p.ID = pm_stock.post_id AND pm_stock.meta_key = '_stock'
-                INNER JOIN {$wpdb->postmeta} pm_manage ON p.ID = pm_manage.post_id AND pm_manage.meta_key = '_manage_stock' AND pm_manage.meta_value = 'yes'
-                LEFT JOIN {$wpdb->postmeta} pm_low ON p.ID = pm_low.post_id AND pm_low.meta_key = '_low_stock_amount'
-                WHERE p.post_type IN ('product', 'product_variation') 
-                AND p.post_status = 'publish' 
-                AND CAST(pm_stock.meta_value AS SIGNED) > 0
-                AND CAST(pm_stock.meta_value AS SIGNED) <= COALESCE( NULLIF(pm_low.meta_value, ''), %d )
-            ", $low_stock_threshold ) );
+            $cache_key_low_stock = 'cirrusly_low_stock_count_' . $low_stock_threshold;
+            
+            $low_stock_count = wp_cache_get( $cache_key_low_stock, 'cirrusly_dashboard' );
+            if ( false === $low_stock_count ) {
+                $low_stock_count = $wpdb->get_var( $wpdb->prepare( "
+                    SELECT count(p.ID) 
+                    FROM {$wpdb->posts} p 
+                    INNER JOIN {$wpdb->postmeta} pm_stock ON p.ID = pm_stock.post_id AND pm_stock.meta_key = '_stock'
+                    INNER JOIN {$wpdb->postmeta} pm_manage ON p.ID = pm_manage.post_id AND pm_manage.meta_key = '_manage_stock' AND pm_manage.meta_value = 'yes'
+                    LEFT JOIN {$wpdb->postmeta} pm_low ON p.ID = pm_low.post_id AND pm_low.meta_key = '_low_stock_amount'
+                    WHERE p.post_type IN ('product', 'product_variation') 
+                    AND p.post_status = 'publish' 
+                    AND CAST(pm_stock.meta_value AS SIGNED) > 0
+                    AND CAST(pm_stock.meta_value AS SIGNED) <= COALESCE( NULLIF(pm_low.meta_value, ''), %d )
+                ", $low_stock_threshold ) );
+                wp_cache_set( $cache_key_low_stock, $low_stock_count, 'cirrusly_dashboard', HOUR_IN_SECONDS );
+            }
 
             $metrics = array(
                 'gmc_critical'   => $gmc_critical,
