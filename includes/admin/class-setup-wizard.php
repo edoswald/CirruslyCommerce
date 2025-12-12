@@ -38,6 +38,9 @@ class Cirrusly_Commerce_Setup_Wizard {
         if ( isset( $_POST['save_step'], $_POST['cirrusly_wizard_nonce_field'] ) ) {
             // Retrieve step from POST to ensure we verify the correct nonce
             $step = isset( $_POST['current_step'] ) ? absint( $_POST['current_step'] ) : 1;
+            if ( $step < 1 || $step > 5 ) {
+                $step = 1;
+            }
             
             // Verify Nonce
             if ( ! check_admin_referer( 'cirrusly_wizard_step_' . $step, 'cirrusly_wizard_nonce_field' ) ) {
@@ -58,7 +61,7 @@ class Cirrusly_Commerce_Setup_Wizard {
                 exit;
             }
 
-            $next_step = $step + 1;
+            $next_step = min( 5, $step + 1 );
             wp_safe_redirect( admin_url( 'admin.php?page=cirrusly-setup&step=' . $next_step ) );
             exit;
         }
