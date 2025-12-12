@@ -17,9 +17,16 @@
     padding-bottom: 15px;
 }
 
+/* Apply to parent .cirrusly-header-title-row or wrapper */
+.cirrusly-header-title-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+
 .cirrusly-settings-header-actions {
-    float: right;
-    margin-top: -40px;
+    /* positioning now handled by parent flex container */
 }
 
 .cirrusly-ver-badge {
