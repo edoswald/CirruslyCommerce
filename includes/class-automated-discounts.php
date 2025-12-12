@@ -79,7 +79,8 @@ class Cirrusly_Commerce_Automated_Discounts {
         if ( empty($cfg['enable_automated_discounts']) || $cfg['enable_automated_discounts'] !== 'yes' ) return;
 
         // Unwrap raw request with wp_unslash before sanitizing
-        $token = sanitize_text_field( wp_unslash( $_GET[ self::TOKEN_PARAM ] ) );
+        // JWTs contain base64url chars and dots - sanitize while preserving structure
+        $token = preg_replace( '/[^A-Za-z0-9_.\-]/', '', wp_unslash( $_GET[ self::TOKEN_PARAM ] ) );
         
         if ( $payload = $this->verify_jwt( $token ) ) {
             $this->store_discount_session( $payload );
