@@ -152,7 +152,10 @@ class Cirrusly_Commerce_Core {
     public static function cirrusly_is_pro_plus() {
         // 1. Dev Mode Override (useful for testing)
         if ( defined('WP_DEBUG') && WP_DEBUG && function_exists('wp_get_current_user') && current_user_can('manage_options') ) {
-            if ( isset( $_GET['cirrusly_dev_mode'] ) && $_GET['cirrusly_dev_mode'] === 'pro_plus' ) return true;
+            if ( isset( $_GET['cirrusly_dev_mode'] ) ) {
+                $mode = sanitize_key( wp_unslash( $_GET['cirrusly_dev_mode'] ) );
+                if ( $mode === 'pro_plus' ) return true;
+            }
         }
 
         // 2. Freemius Check

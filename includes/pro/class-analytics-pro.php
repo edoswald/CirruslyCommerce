@@ -127,7 +127,14 @@ class Cirrusly_Commerce_Analytics_Pro {
                 color: #fff;
                 box-shadow: 0 2px 4px rgba(34, 113, 177, 0.2);
             }
-            .cirrusly-status-pill input { display: none; }
+            .cirrusly-status-pill input {
+                position: absolute;
+                opacity: 0;
+                width: 1px;
+                height: 1px;
+                margin: 0;
+                pointer-events: none;
+            }
 
             /* KPI Grid - Strict Layout */
             .cirrusly-dash-grid { 
@@ -323,13 +330,12 @@ class Cirrusly_Commerce_Analytics_Pro {
             }
 
             // Status Pill Logic
-            const pills = document.querySelectorAll('.cirrusly-status-pill');
-            pills.forEach(pill => {
-                pill.addEventListener('click', function() {
-                    const checkbox = this.querySelector('input[type=\"checkbox\"]');
-                    checkbox.checked = !checkbox.checked;
-                    this.classList.toggle('is-active');
-                    document.getElementById('cirrusly-analytics-form').submit(); // Auto-submit
+            const formEl = document.getElementById('cirrusly-analytics-form');
+            document.querySelectorAll('.cirrusly-status-pill input[type=\"checkbox\"]').forEach(cb => {
+                cb.addEventListener('change', function() {
+                    const pill = this.closest('.cirrusly-status-pill');
+                    if (pill) pill.classList.toggle('is-active', this.checked);
+                    if (formEl) formEl.submit();
                 });
             });
         });";

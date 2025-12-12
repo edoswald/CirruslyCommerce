@@ -42,10 +42,8 @@ class Cirrusly_Commerce_Setup_Wizard {
                 $step = 1;
             }
             
-            // Verify Nonce
-            if ( ! check_admin_referer( 'cirrusly_wizard_step_' . $step, 'cirrusly_wizard_nonce_field' ) ) {
-                wp_die( esc_html__( 'Security check failed. Please try again.', 'cirrusly-commerce' ) );
-            }
+            check_admin_referer( 'cirrusly_wizard_step_' . $step, 'cirrusly_wizard_nonce_field' );
+
 
             // Check Permissions
             if ( ! current_user_can( 'manage_options' ) ) {
@@ -69,9 +67,7 @@ class Cirrusly_Commerce_Setup_Wizard {
         // 2. Handle Upgrade Notice Dismissal
         if ( isset( $_GET['cirrusly_dismiss_wizard'] ) ) {
             // Verify Nonce
-            if ( ! check_admin_referer( 'cirrusly_dismiss_wizard_nonce' ) ) {
-                 wp_die( esc_html__( 'Security check failed.', 'cirrusly-commerce' ) );
-            }
+            check_admin_referer( 'cirrusly_dismiss_wizard_nonce' );
             
             if ( ! current_user_can( 'manage_options' ) ) {
                 return;
@@ -246,11 +242,11 @@ class Cirrusly_Commerce_Setup_Wizard {
                 </div>
 
                 <div class="cirrusly-wizard-progress">
-                    <span class="cirrusly-step <?php echo $step >= 1 ? 'active' : ''; ?>"><?php esc_html_e( '1. License', 'cirrusly-commerce' ); ?></span>
-                    <span class="cirrusly-step <?php echo $step >= 2 ? 'active' : ''; ?>"><?php esc_html_e( '2. Connect', 'cirrusly-commerce' ); ?></span>
-                    <span class="cirrusly-step <?php echo $step >= 3 ? 'active' : ''; ?>"><?php esc_html_e( '3. Finance', 'cirrusly-commerce' ); ?></span>
-                    <span class="cirrusly-step <?php echo $step >= 4 ? 'active' : ''; ?>"><?php esc_html_e( '4. Visuals', 'cirrusly-commerce' ); ?></span>
-                    <span class="cirrusly-step <?php echo $step >= 5 ? 'active' : ''; ?>"><?php esc_html_e( '5. Finish', 'cirrusly-commerce' ); ?></span>
+                    <span class="cirrusly-step <?php echo esc_attr( $step >= 1 ? 'active' : '' ); ?>"><?php esc_html_e( '1. License', 'cirrusly-commerce' ); ?></span>
+                    <span class="cirrusly-step <?php echo esc_attr( $step >= 2 ? 'active' : '' ); ?>"><?php esc_html_e( '2. Connect', 'cirrusly-commerce' ); ?></span>
+                    <span class="cirrusly-step <?php echo esc_attr( $step >= 3 ? 'active' : '' ); ?>"><?php esc_html_e( '3. Finance', 'cirrusly-commerce' ); ?></span>
+                    <span class="cirrusly-step <?php echo esc_attr( $step >= 4 ? 'active' : '' ); ?>"><?php esc_html_e( '4. Visuals', 'cirrusly-commerce' ); ?></span>
+                    <span class="cirrusly-step <?php echo esc_attr( $step >= 5 ? 'active' : '' ); ?>"><?php esc_html_e( '5. Finish', 'cirrusly-commerce' ); ?></span>
                 </div>
 
                 <form method="post" enctype="multipart/form-data">
@@ -276,10 +272,6 @@ class Cirrusly_Commerce_Setup_Wizard {
         <?php
     }
 
-    // ... (render_step_license, render_step_connect, render_step_finance, render_step_visuals, render_step_finish methods remain unchanged) ...
-    // Note: Copy them exactly as they were in the original file, they are purely presentation.
-    
-    // Placeholder to keep the example concise. You should paste the render_step_* methods here.
     private function render_step_license() {
         $is_pro = function_exists('cirrusly_fs') && cirrusly_fs()->can_use_premium_code();
         $is_plus = function_exists('cirrusly_fs') && cirrusly_fs()->is_plan('proplus');

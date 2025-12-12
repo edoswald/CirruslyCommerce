@@ -67,18 +67,23 @@ if ( ! function_exists( 'cirrusly_fs' ) ) {
             ) );
 
             // Hooks to persist Install API Token from response
-            $cirrusly_fs->add_action( 'after_account_connection', function( $user, $account, $install ) {
-                if ( ! empty( $install->install_api_token ) ) {
-                    update_option( 'cirrusly_install_api_token', $install->install_api_token, false );
+            $cirrusly_fs->add_action( 'after_account_connection', function( $_user, $_account, $install ) {
+                $token = ( is_object( $install ) && ! empty( $install->install_api_token ) )
+                    ? sanitize_text_field( (string) $install->install_api_token )
+                    : '';
+                if ( '' !== $token ) {
+                    update_option( 'cirrusly_install_api_token', $token, false );
                 }
-            } );
+            }, 10, 3 );
 
-            $cirrusly_fs->add_action( 'after_license_activation', function( $license, $install ) {
-                if ( ! empty( $install->install_api_token ) ) {
-                    update_option( 'cirrusly_install_api_token', $install->install_api_token, false );
+            $cirrusly_fs->add_action( 'after_license_activation', function( $_license, $install ) {
+                $token = ( is_object( $install ) && ! empty( $install->install_api_token ) )
+                    ? sanitize_text_field( (string) $install->install_api_token )
+                    : '';
+                if ( '' !== $token ) {
+                    update_option( 'cirrusly_install_api_token', $token, false );
                 }
-            } );
-        }
+            }, 10, 2 );
 
         return $cirrusly_fs;
     }
