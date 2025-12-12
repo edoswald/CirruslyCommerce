@@ -24088,7 +24088,7 @@
                     $this->get_text_x_inline( 'Start free trial', 'call to action', 'start-free-trial' )
                 );
 
-            $message_text = $this->apply_filters( 'trial_promotion_message', "{$message} {$cirrusly_string}" );
+            $message_text = $this->apply_filters( 'trial_promotion_message', "{$message} {$cc_string}" );
 
             $this->_admin_notices->add_sticky(
                 "<div class=\"fs-trial-message-container\"><div>{$message_text}</div> {$button}</div>",
