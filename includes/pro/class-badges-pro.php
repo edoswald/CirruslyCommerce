@@ -99,43 +99,56 @@ class Cirrusly_Commerce_Badges_Pro {
         try {
             // Combine text from recent reviews
             $combined_text = implode( "\n\n", array_map( function( $c ) {
-                return wp_strip_all_tags( $c->comment_content );
+                return $c->comment_content;
             }, $comments ) );
 
             // Allow sites to redact/transform user content before external analysis.
             $combined_text = apply_filters( 'cirrusly_commerce_nlp_review_text', $combined_text, $product, $comments );
 
+            // Sanitize: Handle array or non-string returns from filters and strip tags
+            if ( is_array( $combined_text ) ) {
+                $combined_text = implode( "\n\n", array_map( 'wp_strip_all_tags', $combined_text ) );
+            } else {
+                $combined_text = wp_strip_all_tags( (string) $combined_text );
+            }
+
+           // Defensive: filters can return non-strings; also re-strip tags post-filter.
+            if ( ! is_string( $combined_text ) ) {
+                $combined_text = '';
+            }
+            $combined_text = trim( wp_strip_all_tags( $combined_text ) );
+            if ( $combined_text === '' ) {
+                set_transient( $cache_key, '', DAY_IN_SECONDS );
+                return '';
+            }
 
             // Prevent oversized payloads
             $combined_text = function_exists( 'mb_substr' )
                 ? mb_substr( $combined_text, 0, 8000 )
                 : substr( $combined_text, 0, 8000 );
 
-            // Send to Worker via Proxy
-            // Note: Worker must be updated to return 'sentiment' key (documentSentiment score) for this to work.
-            $response = Cirrusly_Commerce_Google_API_Client::request( 'nlp_analyze', array( 'text' => $combined_text ) );
+            // Send to Worker via Proxy with SHORT TIMEOUT (2s)
+            // Note: Cirrusly_Commerce_Google_API_Client must support the $options argument.
+            $response = Cirrusly_Commerce_Google_API_Client::request( 
+                'nlp_analyze', 
+                array( 'text' => $combined_text ),
+                array( 'timeout' => 2 ) 
+            );
 
             if ( is_wp_error( $response ) ) {
-                set_transient( $cache_key, '', DAY_IN_SECONDS );
+                // On timeout or error, schedule background refresh if not already locked
+                $lock_key = 'cirrusly_sentiment_lock_' . $product->get_id();
+                
+                if ( ! get_transient( $lock_key ) ) {
+                    set_transient( $lock_key, 'locked', 5 * MINUTE_IN_SECONDS );
+                    wp_schedule_single_event( time(), 'cirrusly_analyze_sentiment_cron', array( $product->get_id() ) );
+                }
+                
+                // Return safe fallback (empty) to avoid blocking render
                 return '';
             }
 
-            // Check if sentiment score exists in response (Worker compatibility check)
-            $score = 0.0;
-            if ( isset( $response['sentiment']['score'] ) ) {
-                $score = (float) $response['sentiment']['score'];
-            } elseif ( isset( $response['documentSentiment']['score'] ) ) {
-                $score = (float) $response['documentSentiment']['score'];
-            } elseif ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
-                error_log( 'Cirrusly Sentiment: Unexpected response structure - no sentiment score key found.' );
-            }
-
-            // Threshold: > 0.6 indicates clear positive sentiment
-            if ( $score > 0.6 ) {
-                $html = '<span class="cirrusly-badge-pill" style="background-color:#e0115f;">Customer Fave ❤️</span>';
-                set_transient( $cache_key, $html, 7 * DAY_IN_SECONDS );
-                return $html;
-            }
+            return self::process_sentiment_response( $response, $cache_key );
 
         } catch ( Exception $e ) {
             if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
@@ -143,7 +156,83 @@ class Cirrusly_Commerce_Badges_Pro {
             }
         }
         
+        return '';
+    }
+
+    /**
+     * Async handler for background sentiment analysis.
+     * * @param int $product_id
+     */
+    public static function analyze_sentiment_async( $product_id ) {
+        if ( ! class_exists( 'Cirrusly_Commerce_Google_API_Client' ) ) return;
+
+        $product = wc_get_product( $product_id );
+        if ( ! $product ) return;
+
+        // Re-fetch comments
+        $comments = get_comments( array(
+            'post_id' => $product_id,
+            'number'  => 5,
+            'status'  => 'approve',
+            'type'    => 'review',
+            'orderby' => 'comment_date',
+            'order'   => 'DESC',
+        ) );
+
+        if ( empty( $comments ) ) {
+            delete_transient( 'cirrusly_sentiment_lock_' . $product_id );
+            return;
+        }
+
+        $combined_text = implode( "\n\n", array_map( function( $c ) { return $c->comment_content; }, $comments ) );
+        $combined_text = apply_filters( 'cirrusly_commerce_nlp_review_text', $combined_text, $product, $comments );
+        
+        // Re-sanitize
+        if ( is_array( $combined_text ) ) {
+            $combined_text = implode( "\n\n", array_map( 'wp_strip_all_tags', $combined_text ) );
+        } else {
+            $combined_text = wp_strip_all_tags( (string) $combined_text );
+        }
+        $combined_text = function_exists( 'mb_substr' ) ? mb_substr( $combined_text, 0, 8000 ) : substr( $combined_text, 0, 8000 );
+
+        // Long timeout for background process (20s)
+        $response = Cirrusly_Commerce_Google_API_Client::request( 
+            'nlp_analyze', 
+            array( 'text' => $combined_text ),
+            array( 'timeout' => 20 )
+        );
+
+        if ( ! is_wp_error( $response ) ) {
+            self::process_sentiment_response( $response, 'cirrusly_sentiment_' . $product_id );
+        }
+
+        // Release Lock
+        delete_transient( 'cirrusly_sentiment_lock_' . $product_id );
+    }
+
+    /**
+     * Helper: Process API response and update cache.
+     */
+    private static function process_sentiment_response( $response, $cache_key ) {
+        // Check if sentiment score exists in response (Worker compatibility check)
+        $score = 0.0;
+        if ( isset( $response['sentiment']['score'] ) ) {
+            $score = (float) $response['sentiment']['score'];
+        } elseif ( isset( $response['documentSentiment']['score'] ) ) {
+            $score = (float) $response['documentSentiment']['score'];
+        }
+
+        // Threshold: > 0.6 indicates clear positive sentiment
+        if ( $score > 0.6 ) {
+            $html = '<span class="cirrusly-badge-pill" style="background-color:#e0115f;">Customer Fave ❤️</span>';
+            set_transient( $cache_key, $html, 7 * DAY_IN_SECONDS );
+            return $html;
+        }
+
         set_transient( $cache_key, '', DAY_IN_SECONDS );
         return '';
     }
 }
+
+// Register Cron Hook
+add_action( 'cirrusly_analyze_sentiment_cron', array( 'Cirrusly_Commerce_Badges_Pro', 'analyze_sentiment_async' ) );

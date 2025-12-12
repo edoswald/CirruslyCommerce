@@ -7,9 +7,12 @@ class Cirrusly_Commerce_Google_API_Client {
 
     /**
      * GENERIC REQUEST METHOD
-     * call this like: self::request('nlp_analyze', ['text' => '...'])
+     * call this like: self::request('nlp_analyze', ['text' => '...'], ['timeout' => 5])
+     * * @param string $action  The API action code.
+     * @param array  $payload Data to send.
+     * @param array  $args    Optional. Overrides for wp_remote_post args (e.g. timeout).
      */
-    public static function request( $action, $payload = array() ) {
+    public static function request( $action, $payload = array(), $args = array() ) {
         // 1. Get Google Credentials
         $json_key    = get_option( 'cirrusly_service_account_json' );
         $scan_config = get_option( 'cirrusly_scan_config', array() );
@@ -44,15 +47,18 @@ class Cirrusly_Commerce_Google_API_Client {
         );
 
         // 5. Send Request
-        $response = wp_remote_post( self::API_ENDPOINT, array(
+        // Merge defaults with passed args (e.g. allow override of timeout)
+        $request_args = array_merge( array(
             'body'    => json_encode( $body ),
             'headers' => array( 
                 'Content-Type'  => 'application/json',
                 // Send API Key as Bearer Token
                 'Authorization' => 'Bearer ' . $api_key
             ),
-            'timeout' => 45
-        ) );
+            'timeout' => 45 // Default timeout
+        ), $args );
+
+        $response = wp_remote_post( self::API_ENDPOINT, $request_args );
 
         if ( is_wp_error( $response ) ) return $response;
         
