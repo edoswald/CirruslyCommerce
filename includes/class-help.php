@@ -18,7 +18,7 @@ class Cirrusly_Commerce_Help {
 
     public static function handle_legacy_submission() {
         if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
-            error_log( 'AJAX action cirrusly_submit_bug_report is deprecated. Use cirrusly_submit_bug_report.' );
+            error_log( 'AJAX action cc_submit_bug_report is deprecated. Use cirrusly_submit_bug_report.' );
         }
         self::handle_bug_submission();
     }
