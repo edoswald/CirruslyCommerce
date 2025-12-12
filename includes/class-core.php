@@ -75,7 +75,10 @@ class Cirrusly_Commerce_Core {
         add_action( 'cirrusly_gmc_daily_scan', array( $this, 'execute_scheduled_scan_router' ) );
         add_action( 'save_post_product', array( $this, 'clear_metrics_cache' ) );
         // FIX: Renamed option filter to avoid using 'woocommerce' prefix
-        add_filter( 'pre_option_cirrusly_enable_cost_of_goods_sold', function() { return 'yes'; } );    }
+        add_filter( 'pre_option_cirrusly_enable_cost_of_goods_sold', function() {
+            return 'yes';
+        } );
+    }
 
     /**
      * Triggers a scheduled Google Merchant Center scan when the Google API client is available.
@@ -105,11 +108,12 @@ class Cirrusly_Commerce_Core {
         if ( ! self::cirrusly_is_pro() ) wp_send_json_error( __( 'Pro feature required', 'cirrusly-commerce' ) );
 
         // Updated validation with isset check, unslash, and sanitization
-        $pid   = isset( $_POST['pid'] ) ? intval( $_POST['pid'] ) : 0;
-        $val   = isset( $_POST['value'] ) ? floatval( $_POST['value'] ) : 0.0;
+        $pid   = isset( $_POST['pid'] ) ? intval( wp_unslash( $_POST['pid'] ) ) : 0;
+        $val   = isset( $_POST['value'] ) ? floatval( wp_unslash( $_POST['value'] ) ) : 0.0;
         $field = isset( $_POST['field'] ) ? sanitize_text_field( wp_unslash( $_POST['field'] ) ) : '';
 
-        if ( $pid > 0 && in_array($field, array('_cogs_total_value', '_cw_est_shipping')) ) {
+        if ( $pid > 0 && current_user_can( 'edit_post', $pid )
+            && in_array( $field, array( '_cogs_total_value', '_cw_est_shipping' ), true ) ) {
             update_post_meta( $pid, $field, $val );
             delete_transient( 'cirrusly_audit_data' );
             wp_send_json_success();
@@ -132,8 +136,9 @@ class Cirrusly_Commerce_Core {
         // FIX: Check if wp_get_current_user exists before calling current_user_can to prevent early load crash
         if ( defined('WP_DEBUG') && WP_DEBUG && function_exists('wp_get_current_user') && current_user_can('manage_options') ) {
             if ( isset( $_GET['cirrusly_dev_mode'] ) ) {
-                if ( $_GET['cirrusly_dev_mode'] === 'pro' ) return true;
-                if ( $_GET['cirrusly_dev_mode'] === 'free' ) return false;
+                $mode = sanitize_key( wp_unslash( $_GET['cirrusly_dev_mode'] ) );
+                if ( $mode === 'pro' ) return true;
+                if ( $mode === 'free' ) return false;
             }
         }
 

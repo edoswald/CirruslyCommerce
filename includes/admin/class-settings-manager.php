@@ -106,11 +106,20 @@ class Cirrusly_Commerce_Settings_Manager {
         
         // 2. File Upload Logic (Pro Feature)
         if ( isset( $_FILES['cirrusly_service_account'] ) && ! empty( $_FILES['cirrusly_service_account']['tmp_name'] ) ) {
-            
+            if ( ! isset( $_FILES['cirrusly_service_account']['error'] ) || $_FILES['cirrusly_service_account']['error'] !== UPLOAD_ERR_OK ) {
+                add_settings_error( 'cirrusly_scan_config', 'upload_failed', __( 'Upload failed. Please try again.', 'cirrusly-commerce' ) );
+                return $this->sanitize_options_array( $input );
+            }
+
         // Use original tmp_name for security check (Not sanitized as it is a system path)
         $original_tmp_name = $_FILES['cirrusly_service_account']['tmp_name'];
 
         if ( is_uploaded_file( $original_tmp_name ) ) {
+                $ft = wp_check_filetype_and_ext( $original_tmp_name, $_FILES['cirrusly_service_account']['name'] );
+                if ( empty( $ft['ext'] ) || $ft['ext'] !== 'json' ) {
+                    add_settings_error( 'cirrusly_scan_config', 'invalid_type', __( 'Please upload a valid .json file.', 'cirrusly-commerce' ) );
+                    return $this->sanitize_options_array( $input );
+                }
                 // Check Pro and Load Delegate
                 if ( class_exists( 'Cirrusly_Commerce_Core' ) && Cirrusly_Commerce_Core::cirrusly_is_pro() ) {
                     $pro_class = dirname( plugin_dir_path( __FILE__ ) ) . '/pro/class-settings-pro.php';
@@ -242,9 +251,9 @@ class Cirrusly_Commerce_Settings_Manager {
         }
 
     // --- NEW: Rerun Wizard Button Here ---
-            echo '<div style="float: right; margin-top: -40px;">
+            echo '<div class="cirrusly-settings-header-actions">
                     <a href="' . esc_url( admin_url( 'admin.php?page=cirrusly-setup' ) ) . '" class="button button-secondary">
-                    <span class="dashicons dashicons-admin-tools" style="vertical-align:text-top;"></span>Setup Wizard
+                    <span class="dashicons dashicons-admin-tools" style="vertical-align:text-top;"></span>' . esc_html__( 'Setup Wizard', 'cirrusly-commerce' ) . '
                     </a>
                 </div>';
         

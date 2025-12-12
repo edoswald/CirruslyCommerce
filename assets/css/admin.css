@@ -17,6 +17,11 @@
     padding-bottom: 15px;
 }
 
+.cirrusly-settings-header-actions {
+    float: right;
+    margin-top: -40px;
+}
+
 .cirrusly-ver-badge {
     background: #f0f0f1;
     color: #646970;

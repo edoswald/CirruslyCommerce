@@ -53,7 +53,7 @@ class Cirrusly_Commerce_Dashboard_UI {
             $on_sale_count = count( $on_sale_ids );
             
             // 4. Margin & Loss Makers
-            $audit_data = get_transient( 'cw_audit_data' );
+            $audit_data = get_transient( 'cirrusly_audit_data' );
             $loss_makers = 0;
             $total_margin = 0; 
             $margin_count = 0;
