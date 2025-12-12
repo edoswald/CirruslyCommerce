@@ -102,9 +102,15 @@ class Cirrusly_Commerce_Badges_Pro {
                 return wp_strip_all_tags( $c->comment_content );
             }, $comments ) );
 
+            // Allow sites to redact/transform user content before external analysis.
+            $combined_text = apply_filters( 'cirrusly_commerce_nlp_review_text', $combined_text, $product, $comments );
+
+
             // Prevent oversized payloads
-            $combined_text = mb_substr( $combined_text, 0, 8000 );
-            
+            $combined_text = function_exists( 'mb_substr' )
+                ? mb_substr( $combined_text, 0, 8000 )
+                : substr( $combined_text, 0, 8000 );
+
             // Send to Worker via Proxy
             // Note: Worker must be updated to return 'sentiment' key (documentSentiment score) for this to work.
             $response = Cirrusly_Commerce_Google_API_Client::request( 'nlp_analyze', array( 'text' => $combined_text ) );
