@@ -71,7 +71,7 @@ class Cirrusly_Commerce_Core {
             add_action( 'admin_notices', array( $settings, 'render_onboarding_notice' ) );
         }
 
-        add_action( 'wp_ajax_cc_audit_save', array( $this, 'handle_audit_inline_save' ) );
+        add_action( 'wp_ajax_cirrusly_audit_save', array( $this, 'handle_audit_inline_save' ) );
         add_action( 'cirrusly_gmc_daily_scan', array( $this, 'execute_scheduled_scan_router' ) );
         add_action( 'save_post_product', array( $this, 'clear_metrics_cache' ) );
         // FIX: Renamed option filter to avoid using 'woocommerce' prefix
@@ -98,7 +98,8 @@ class Cirrusly_Commerce_Core {
      * invalid input, returns a JSON error with an explanatory message.
      */
     public function handle_audit_inline_save() {
-        if ( ! current_user_can( 'edit_products' ) || ! check_ajax_referer( 'cc_audit_save', '_nonce', false ) ) {
+        // Updated to use 'cirrusly_audit_save' to match class-admin-assets.php creation
+        if ( ! current_user_can( 'edit_products' ) || ! check_ajax_referer( 'cirrusly_audit_save', '_nonce', false ) ) {
             wp_send_json_error( __( 'Permission denied', 'cirrusly-commerce' ) );
         }
         if ( ! self::cirrusly_is_pro() ) wp_send_json_error( __( 'Pro feature required', 'cirrusly-commerce' ) );
@@ -120,8 +121,8 @@ class Cirrusly_Commerce_Core {
         delete_transient( 'cirrusly_dashboard_metrics' );
         // Clear all analytics P&L transients by pattern
         global $wpdb;
-        $pattern = $wpdb->esc_like( '_transient_cc_analytics_pnl_' ) . '%';
-        $timeout_pattern = $wpdb->esc_like( '_transient_timeout_cc_analytics_pnl_' ) . '%';
+        $pattern = $wpdb->esc_like( '_transient_cirrusly_analytics_pnl_' ) . '%';
+        $timeout_pattern = $wpdb->esc_like( '_transient_timeout_cirrusly_analytics_pnl_' ) . '%';
         // FIX: Replaced invalid $wpdb->options with {$wpdb->prefix}options
         $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}options WHERE option_name LIKE %s OR option_name LIKE %s", $pattern, $timeout_pattern ) );    
     }
@@ -130,9 +131,9 @@ class Cirrusly_Commerce_Core {
         // 1. Secure Developer Override
         // FIX: Check if wp_get_current_user exists before calling current_user_can to prevent early load crash
         if ( defined('WP_DEBUG') && WP_DEBUG && function_exists('wp_get_current_user') && current_user_can('manage_options') ) {
-            if ( isset( $_GET['cc_dev_mode'] ) ) {
-                if ( $_GET['cc_dev_mode'] === 'pro' ) return true;
-                if ( $_GET['cc_dev_mode'] === 'free' ) return false;
+            if ( isset( $_GET['cirrusly_dev_mode'] ) ) {
+                if ( $_GET['cirrusly_dev_mode'] === 'pro' ) return true;
+                if ( $_GET['cirrusly_dev_mode'] === 'free' ) return false;
             }
         }
 
@@ -147,7 +148,7 @@ class Cirrusly_Commerce_Core {
     public static function cirrusly_is_pro_plus() {
         // 1. Dev Mode Override (useful for testing)
         if ( defined('WP_DEBUG') && WP_DEBUG && function_exists('wp_get_current_user') && current_user_can('manage_options') ) {
-            if ( isset( $_GET['cc_dev_mode'] ) && $_GET['cc_dev_mode'] === 'pro_plus' ) return true;
+            if ( isset( $_GET['cirrusly_dev_mode'] ) && $_GET['cirrusly_dev_mode'] === 'pro_plus' ) return true;
         }
 
         // 2. Freemius Check
@@ -197,20 +198,20 @@ class Cirrusly_Commerce_Core {
     public static function render_page_header( $title ) {
         $is_pro = self::cirrusly_is_pro();
 
-        echo '<h1 class="cc-page-title" style="margin-bottom:20px; display:flex; align-items:center;">';
+        echo '<h1 class="cirrusly-page-title" style="margin-bottom:20px; display:flex; align-items:center;">';
         echo '<img src="' . esc_url( CIRRUSLY_COMMERCE_URL . 'assets/images/logo.svg' ) . '" style="height:50px; width:auto; margin-right:15px;" alt="Cirrusly Commerce">';
         echo esc_html( $title );
         echo '<div style="margin-left:auto; display:flex; align-items:center; gap:10px;">';
         
         if ( $is_pro ) {
-            echo '<span class="cc-pro-version-badge">PRO</span>';
+            echo '<span class="cirrusly-pro-version-badge">PRO</span>';
         }
         
         if ( class_exists( 'Cirrusly_Commerce_Help' ) ) {
             Cirrusly_Commerce_Help::render_button();
         }
 
-        echo '<span class="cc-ver-badge" style="background:#f0f0f1;color:#646970;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;">v' . esc_html( CIRRUSLY_COMMERCE_VERSION ) . '</span>';
+        echo '<span class="cirrusly-ver-badge" style="background:#f0f0f1;color:#646970;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;">v' . esc_html( CIRRUSLY_COMMERCE_VERSION ) . '</span>';
         echo '</div></h1>';
         
         $current_page = isset( $_GET['page'] ) ? sanitize_text_field( wp_unslash( $_GET['page'] ) ) : '';
@@ -230,9 +231,9 @@ class Cirrusly_Commerce_Core {
         $nav_items['cirrusly-audit'] = __( 'Financial Audit', 'cirrusly-commerce' );
         $nav_items['cirrusly-settings'] = __( 'Settings', 'cirrusly-commerce' );
 
-        echo '<div class="cc-global-nav">';
+        echo '<div class="cirrusly-global-nav">';
         foreach ( $nav_items as $slug => $label ) {
-            $active_class = ( $current_page === $slug ) ? 'cc-nav-active' : '';
+            $active_class = ( $current_page === $slug ) ? 'cirrusly-nav-active' : '';
             echo '<a href="' . esc_url( admin_url( 'admin.php?page=' . $slug ) ) . '" class="' . esc_attr( $active_class ) . '">' . esc_html( $label ) . '</a>';
         }
         echo '</div>';

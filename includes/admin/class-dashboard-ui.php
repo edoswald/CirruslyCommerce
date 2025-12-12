@@ -149,7 +149,7 @@ class Cirrusly_Commerce_Dashboard_UI {
         $is_pro = Cirrusly_Commerce_Core::cirrusly_is_pro();
         ?>
         
-        <div class="cc-intro-text" style="background:#fff; padding:15px; border:1px solid #ccd0d4; margin-bottom:20px; border-left:4px solid #2271b1;">
+        <div class="cirrusly-intro-text" style="background:#fff; padding:15px; border:1px solid #ccd0d4; margin-bottom:20px; border-left:4px solid #2271b1;">
             <div style="display:flex; justify-content:space-between; align-items:center;">
                 <div>
                     <h3 style="margin:0 0 5px 0;"><?php esc_html_e( 'Store Pulse (Last 7 Days)', 'cirrusly-commerce' ); ?></h3>
@@ -162,50 +162,50 @@ class Cirrusly_Commerce_Dashboard_UI {
             </div>
         </div>
         
-        <div class="cc-dash-grid" style="grid-template-columns: repeat(2, 1fr);">
+        <div class="cirrusly-dash-grid" style="grid-template-columns: repeat(2, 1fr);">
             
-            <div class="cc-dash-card" style="border-top-color: #2271b1;">
-                <div class="cc-card-head"><span>Catalog Snapshot</span> <span class="dashicons dashicons-products"></span></div>
-                <div class="cc-stat-block" style="border:none; text-align:left; display:flex; gap:20px;">
-                    <div><span class="cc-big-num"><?php echo esc_html( $m['total_products'] ); ?></span><span class="cc-label">Products</span></div>
-                    <div><span class="cc-big-num" style="color: #d63638;"><?php echo esc_html( $m['on_sale_count'] ); ?></span><span class="cc-label">On Sale</span></div>
-                    <div><span class="cc-big-num" style="color: #dba617;"><?php echo esc_html( $m['low_stock_count'] ); ?></span><span class="cc-label">Low Stock</span></div>
+            <div class="cirrusly-dash-card" style="border-top-color: #2271b1;">
+                <div class="cirrusly-card-head"><span>Catalog Snapshot</span> <span class="dashicons dashicons-products"></span></div>
+                <div class="cirrusly-stat-block" style="border:none; text-align:left; display:flex; gap:20px;">
+                    <div><span class="cirrusly-big-num"><?php echo esc_html( $m['total_products'] ); ?></span><span class="cirrusly-label">Products</span></div>
+                    <div><span class="cirrusly-big-num" style="color: #d63638;"><?php echo esc_html( $m['on_sale_count'] ); ?></span><span class="cirrusly-label">On Sale</span></div>
+                    <div><span class="cirrusly-big-num" style="color: #dba617;"><?php echo esc_html( $m['low_stock_count'] ); ?></span><span class="cirrusly-label">Low Stock</span></div>
                 </div>
             </div>
             
-            <div class="cc-dash-card" style="border-top-color: #00a32a;">
-                <div class="cc-card-head"><span>Profit Engine</span> <span class="dashicons dashicons-money"></span></div>
-                <div class="cc-stat-row"><span>Avg Margin (Est.)</span><span class="cc-stat-val" style="color:#00a32a;"><?php echo esc_html( $m['avg_margin'] ); ?>%</span></div>
-                <div class="cc-stat-row">
+            <div class="cirrusly-dash-card" style="border-top-color: #00a32a;">
+                <div class="cirrusly-card-head"><span>Profit Engine</span> <span class="dashicons dashicons-money"></span></div>
+                <div class="cirrusly-stat-row"><span>Avg Margin (Est.)</span><span class="cirrusly-stat-val" style="color:#00a32a;"><?php echo esc_html( $m['avg_margin'] ); ?>%</span></div>
+                <div class="cirrusly-stat-row">
                     <span>Unprofitable Products</span>
-                    <span class="cc-stat-val <?php echo $m['loss_makers'] > 0 ? 'cc-val-bad' : 'cc-val-good'; ?>">
+                    <span class="cirrusly-stat-val <?php echo $m['loss_makers'] > 0 ? 'cirrusly-val-bad' : 'cirrusly-val-good'; ?>">
                         <?php echo esc_html( $m['loss_makers'] ); ?>
                     </span>
                 </div>
-                <div class="cc-stat-row" style="border-bottom:none;">
+                <div class="cirrusly-stat-row" style="border-bottom:none;">
                     <span>Missing Cost Data</span>
-                    <span class="cc-stat-val <?php echo $m['missing_cost'] > 0 ? 'cc-val-bad' : 'cc-val-good'; ?>"><?php echo esc_html( $m['missing_cost'] ); ?></span>
+                    <span class="cirrusly-stat-val <?php echo $m['missing_cost'] > 0 ? 'cirrusly-val-bad' : 'cirrusly-val-good'; ?>"><?php echo esc_html( $m['missing_cost'] ); ?></span>
                 </div>
-                <div class="cc-actions"><a href="admin.php?page=cirrusly-audit" class="button button-secondary">Audit Financials</a></div>
+                <div class="cirrusly-actions"><a href="admin.php?page=cirrusly-audit" class="button button-secondary">Audit Financials</a></div>
             </div>
 
-            <div class="cc-dash-card" style="border-top-color: #d63638;">
-                <div class="cc-card-head"><span>GMC Health</span> <span class="dashicons dashicons-google"></span></div>
-                <div class="cc-stat-row"><span>Critical Issues</span><span class="cc-stat-val <?php echo $m['gmc_critical'] > 0 ? 'cc-val-bad' : 'cc-val-good'; ?>"><?php echo esc_html( $m['gmc_critical'] ); ?></span></div>
-                <div class="cc-stat-row"><span>Warnings</span><span class="cc-stat-val" style="<?php echo $m['gmc_warnings'] > 0 ? 'color:#dba617;' : 'color:#008a20;'; ?>"><?php echo esc_html( $m['gmc_warnings'] ); ?></span></div>
-                <div class="cc-stat-row"><span>Content Policy</span><?php echo wp_kses_post( ( $m['content_issues'] > 0 ) ? '<span class="cc-stat-val cc-val-bad">' . esc_html( $m['content_issues'] ) . ' Issues</span>' : '<span class="cc-stat-val cc-val-good">Pass</span>' ); ?></div>
-                <div class="cc-stat-row" style="margin-top:15px; padding-top:10px; border-top:1px solid #f0f0f1; border-bottom:none;">
+            <div class="cirrusly-dash-card" style="border-top-color: #d63638;">
+                <div class="cirrusly-card-head"><span>GMC Health</span> <span class="dashicons dashicons-google"></span></div>
+                <div class="cirrusly-stat-row"><span>Critical Issues</span><span class="cirrusly-stat-val <?php echo $m['gmc_critical'] > 0 ? 'cirrusly-val-bad' : 'cirrusly-val-good'; ?>"><?php echo esc_html( $m['gmc_critical'] ); ?></span></div>
+                <div class="cirrusly-stat-row"><span>Warnings</span><span class="cirrusly-stat-val" style="<?php echo $m['gmc_warnings'] > 0 ? 'color:#dba617;' : 'color:#008a20;'; ?>"><?php echo esc_html( $m['gmc_warnings'] ); ?></span></div>
+                <div class="cirrusly-stat-row"><span>Content Policy</span><?php echo wp_kses_post( ( $m['content_issues'] > 0 ) ? '<span class="cirrusly-stat-val cirrusly-val-bad">' . esc_html( $m['content_issues'] ) . ' Issues</span>' : '<span class="cirrusly-stat-val cirrusly-val-good">Pass</span>' ); ?></div>
+                <div class="cirrusly-stat-row" style="margin-top:15px; padding-top:10px; border-top:1px solid #f0f0f1; border-bottom:none;">
                     <span>Sync Status</span>
                     <?php if($is_pro): ?><span class="gmc-badge" style="background:#008a20;color:#fff;">ACTIVE</span><?php else: ?><span class="gmc-badge" style="background:#ccc;color:#666;">INACTIVE (PRO)</span><?php endif; ?>
                 </div>
-                <div class="cc-actions"><a href="admin.php?page=cirrusly-gmc&tab=scan" class="button button-primary">Fix Issues</a></div>
+                <div class="cirrusly-actions"><a href="admin.php?page=cirrusly-gmc&tab=scan" class="button button-primary">Fix Issues</a></div>
             </div>
             
-            <div class="cc-dash-card" style="border-top-color: #646970;">
-                <div class="cc-card-head"><span>Quick Links</span> <span class="dashicons dashicons-admin-links"></span></div>
-                <div class="cc-stat-row"><a href="admin.php?page=cirrusly-gmc&tab=promotions">Promotions Manager</a></div>
-                <div class="cc-stat-row"><a href="admin.php?page=cirrusly-settings">Plugin Settings</a></div>
-                <div class="cc-stat-row" style="border-bottom:none;"><a href="admin.php?page=cirrusly-manual">User Manual</a></div>
+            <div class="cirrusly-dash-card" style="border-top-color: #646970;">
+                <div class="cirrusly-card-head"><span>Quick Links</span> <span class="dashicons dashicons-admin-links"></span></div>
+                <div class="cirrusly-stat-row"><a href="admin.php?page=cirrusly-gmc&tab=promotions">Promotions Manager</a></div>
+                <div class="cirrusly-stat-row"><a href="admin.php?page=cirrusly-settings">Plugin Settings</a></div>
+                <div class="cirrusly-stat-row" style="border-bottom:none;"><a href="admin.php?page=cirrusly-manual">User Manual</a></div>
             </div>
         </div>
         </div><?php
@@ -217,7 +217,7 @@ class Cirrusly_Commerce_Dashboard_UI {
     public function render_wp_dashboard_widget() {
         $m = self::get_dashboard_metrics();
         ?>
-        <div class="cc-widget-container" style="display:flex; flex-direction:column; gap:15px;">
+        <div class="cirrusly-widget-container" style="display:flex; flex-direction:column; gap:15px;">
             <div style="border-bottom:1px solid #eee; padding-bottom:10px; display:flex; justify-content:space-between; align-items:end;">
                 <div><span style="color:#777; font-size:11px; text-transform:uppercase;">Last 7 Days</span><br><span style="font-size:20px; font-weight:600; color:#008a20;"><?php echo wp_kses_post( wc_price($m['weekly_revenue']) ); ?></span></div>
                 <div style="text-align:right;"><span style="font-size:12px; color:#555;"><?php echo esc_html($m['weekly_orders']); ?> Orders</span><br><span style="font-size:12px; color:<?php echo esc_attr( ($m['avg_margin'] < 15 ? '#d63638' : '#008a20') ); ?>;"><?php echo esc_html($m['avg_margin']); ?>% Margin</span></div>

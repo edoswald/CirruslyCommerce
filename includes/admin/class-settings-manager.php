@@ -290,20 +290,20 @@ class Cirrusly_Commerce_Settings_Manager {
         $uploaded_file = isset($scan['service_account_name']) ? $scan['service_account_name'] : '';
 
         $is_pro = class_exists( 'Cirrusly_Commerce_Core' ) && method_exists( 'Cirrusly_Commerce_Core', 'cirrusly_is_pro' ) && Cirrusly_Commerce_Core::cirrusly_is_pro();
-        $pro_class = $is_pro ? '' : 'cc-pro-feature';
+        $pro_class = $is_pro ? '' : 'cirrusly-pro-feature';
         $disabled_attr = $is_pro ? '' : 'disabled';
         
         $countdown_rules = get_option( 'cirrusly_countdown_rules', array() );
         if ( ! is_array( $countdown_rules ) ) $countdown_rules = array();
 
-        echo '<div class="cc-settings-grid">';
+        echo '<div class="cirrusly-settings-grid">';
         
         // Integrations
-        echo '<div class="cc-settings-card">
-             <div class="cc-card-header"><h3>Integrations</h3><span class="dashicons dashicons-google"></span></div>
-            <div class="cc-card-body">
+        echo '<div class="cirrusly-settings-card">
+             <div class="cirrusly-card-header"><h3>Integrations</h3><span class="dashicons dashicons-google"></span></div>
+            <div class="cirrusly-card-body">
                 <p class="description">Connect your store to Google Customer Reviews to gather post-purchase feedback. Enter your Merchant ID to link reviews and enable the survey opt-in.</p>
-                <table class="form-table cc-settings-table">
+                <table class="form-table cirrusly-settings-table">
                     <tr><th scope="row">Google Customer Reviews</th><td><label><input type="checkbox" name="cirrusly_google_reviews_config[enable_reviews]" value="yes" '.checked('yes', $gcr_enable, false).'> Enable</label></td></tr>
                     <tr><th scope="row">Merchant ID</th><td><input type="text" name="cirrusly_google_reviews_config[merchant_id]" value="'.esc_attr($gcr_id).'" placeholder="123456789"></td></tr>
                 </table>
@@ -311,11 +311,11 @@ class Cirrusly_Commerce_Settings_Manager {
         </div>';
 
         // MSRP
-        echo '<div class="cc-settings-card">
-            <div class="cc-card-header"><h3>Frontend Display</h3><span class="dashicons dashicons-store"></span></div>
-            <div class="cc-card-body">
+        echo '<div class="cirrusly-settings-card">
+            <div class="cirrusly-card-header"><h3>Frontend Display</h3><span class="dashicons dashicons-store"></span></div>
+            <div class="cirrusly-card-body">
                 <p class="description">Display manufacturer suggested retail prices to highlight savings. Choose where the MSRP and strikethrough price appear on product pages and catalog loops.</p>
-                <table class="form-table cc-settings-table">
+                <table class="form-table cirrusly-settings-table">
                     <tr><th scope="row">MSRP Price</th><td><label><input type="checkbox" name="cirrusly_msrp_config[enable_display]" value="yes" '.checked('yes', $msrp_enable, false).'> Show Strikethrough</label></td></tr>
                     <tr><th scope="row">Product Page</th><td><select name="cirrusly_msrp_config[position_product]">
                         <option value="before_title" '.selected('before_title', $pos_prod, false).'>Before Title</option>
@@ -337,9 +337,9 @@ class Cirrusly_Commerce_Settings_Manager {
         </div>';
 
         // Automation
-        echo '<div class="cc-settings-card">
-            <div class="cc-card-header"><h3>Automation</h3><span class="dashicons dashicons-update"></span></div>
-            <div class="cc-card-body">
+        echo '<div class="cirrusly-settings-card">
+            <div class="cirrusly-card-header"><h3>Automation</h3><span class="dashicons dashicons-update"></span></div>
+            <div class="cirrusly-card-body">
                 <p class="description">Schedule automated daily health scans to detect compliance issues. Enable email reporting to receive summaries of any flagged products.</p>
                 <label><input type="checkbox" name="cirrusly_scan_config[enable_daily_scan]" value="yes" '.checked('yes', $daily, false).'> <strong>Daily Health Scan</strong></label>
                 <p class="description" style="margin-top:5px;">Checks for missing GTINs and prohibited terms.</p>
@@ -348,12 +348,12 @@ class Cirrusly_Commerce_Settings_Manager {
         </div>';
 
         // Countdown (Pro)
-        echo '<div class="cc-settings-card '.esc_attr($pro_class).'">';
-            if(!$is_pro) echo '<div class="cc-pro-overlay"><a href="'.esc_url( function_exists('cirrusly_fs') ? cirrusly_fs()->get_upgrade_url() : '#' ).'" class="cc-upgrade-btn"><span class="dashicons dashicons-lock cc-lock-icon"></span> Unlock Smart Rules</a></div>';
-        echo '<div class="cc-card-header"><h3>Smart Countdown <span class="cc-pro-badge">PRO</span></h3><span class="dashicons dashicons-clock"></span></div>
-            <div class="cc-card-body">
+        echo '<div class="cirrusly-settings-card '.esc_attr($pro_class).'">';
+            if(!$is_pro) echo '<div class="cirrusly-pro-overlay"><a href="'.esc_url( function_exists('cirrusly_fs') ? cirrusly_fs()->get_upgrade_url() : '#' ).'" class="cirrusly-upgrade-btn"><span class="dashicons dashicons-lock cirrusly-lock-icon"></span> Unlock Smart Rules</a></div>';
+        echo '<div class="cirrusly-card-header"><h3>Smart Countdown <span class="cirrusly-pro-badge">PRO</span></h3><span class="dashicons dashicons-clock"></span></div>
+            <div class="cirrusly-card-body">
             <p class="description">Create urgency by displaying countdown timers based on specific categories or tags. Define the taxonomy term and the expiration date to automatically show the timer.</p>
-            <table class="widefat striped cc-settings-table"><thead><tr><th>Taxonomy</th><th>Term</th><th>End Date</th><th>Label</th><th>Align</th><th></th></tr></thead><tbody id="cc-countdown-rows">';
+            <table class="widefat striped cirrusly-settings-table"><thead><tr><th>Taxonomy</th><th>Term</th><th>End Date</th><th>Label</th><th>Align</th><th></th></tr></thead><tbody id="cirrusly-countdown-rows">';
         if ( ! empty( $countdown_rules ) ) {
             foreach ( $countdown_rules as $idx => $rule ) {
                 $align = isset($rule['align']) ? $rule['align'] : 'left';
@@ -367,19 +367,19 @@ class Cirrusly_Commerce_Settings_Manager {
                         <option value="right" '.selected('right', $align, false).'>Right</option>
                         <option value="center" '.selected('center', $align, false).'>Center</option>
                     </select></td>
-                    <td><button type="button" class="button cc-remove-row" '.esc_attr($disabled_attr).'><span class="dashicons dashicons-trash"></span></button></td>
+                    <td><button type="button" class="button cirrusly-remove-row" '.esc_attr($disabled_attr).'><span class="dashicons dashicons-trash"></span></button></td>
                 </tr>';
             }
         }
-        echo '</tbody></table><button type="button" class="button" id="cc-add-countdown-row" style="margin-top:10px;" '.esc_attr($disabled_attr).'>+ Rule</button></div></div>';
+        echo '</tbody></table><button type="button" class="button" id="cirrusly-add-countdown-row" style="margin-top:10px;" '.esc_attr($disabled_attr).'>+ Rule</button></div></div>';
 
         // API Connection (Pro)
-        echo '<div class="cc-settings-card '.esc_attr($pro_class).'">';
-        if(!$is_pro) echo '<div class="cc-pro-overlay"><a href="'.esc_url( function_exists('cirrusly_fs') ? cirrusly_fs()->get_upgrade_url() : '#' ).'" class="cc-upgrade-btn"><span class="dashicons dashicons-lock cc-lock-icon"></span> Upgrade</a></div>';
-        echo '<div class="cc-card-header"><h3>Content API <span class="cc-pro-badge">PRO</span></h3><span class="dashicons dashicons-cloud"></span></div>
-            <div class="cc-card-body">
+        echo '<div class="cirrusly-settings-card '.esc_attr($pro_class).'">';
+        if(!$is_pro) echo '<div class="cirrusly-pro-overlay"><a href="'.esc_url( function_exists('cirrusly_fs') ? cirrusly_fs()->get_upgrade_url() : '#' ).'" class="cirrusly-upgrade-btn"><span class="dashicons dashicons-lock cirrusly-lock-icon"></span> Upgrade</a></div>';
+        echo '<div class="cirrusly-card-header"><h3>Content API <span class="cirrusly-pro-badge">PRO</span></h3><span class="dashicons dashicons-cloud"></span></div>
+            <div class="cirrusly-card-body">
                 <p class="description">Upload your Google Service Account JSON to enable real-time API scanning. This allows the plugin to fetch live disapproval statuses directly from Google Merchant Center.</p>
-                <table class="form-table cc-settings-table">
+                <table class="form-table cirrusly-settings-table">
                 <tr><th>Service Account JSON</th><td><input type="file" name="cirrusly_service_account" accept=".json" '.esc_attr($disabled_attr).'>'.($uploaded_file ? '<br><small>Uploaded: '.esc_html($uploaded_file).'</small>' : '').'</td></tr>
             
                 <tr><th>Merchant ID</th><td><input type="text" name="cirrusly_scan_config[merchant_id_pro]" value="'.esc_attr($merchant_id_pro).'" '.esc_attr($disabled_attr).'></td></tr>
@@ -387,10 +387,10 @@ class Cirrusly_Commerce_Settings_Manager {
         </div></div>';
 
         // Advanced Alerts (Pro)
-        echo '<div class="cc-settings-card '.esc_attr($pro_class).'">';
-        if(!$is_pro) echo '<div class="cc-pro-overlay"><a href="'.esc_url( function_exists('cirrusly_fs') ? cirrusly_fs()->get_upgrade_url() : '#' ).'" class="cc-upgrade-btn"><span class="dashicons dashicons-lock cc-lock-icon"></span> Unlock</a></div>';
-        echo '<div class="cc-card-header"><h3>Alerts <span class="cc-pro-badge">PRO</span></h3><span class="dashicons dashicons-email-alt"></span></div>
-            <div class="cc-card-body">
+        echo '<div class="cirrusly-settings-card '.esc_attr($pro_class).'">';
+        if(!$is_pro) echo '<div class="cirrusly-pro-overlay"><a href="'.esc_url( function_exists('cirrusly_fs') ? cirrusly_fs()->get_upgrade_url() : '#' ).'" class="cirrusly-upgrade-btn"><span class="dashicons dashicons-lock cirrusly-lock-icon"></span> Unlock</a></div>';
+        echo '<div class="cirrusly-card-header"><h3>Alerts <span class="cirrusly-pro-badge">PRO</span></h3><span class="dashicons dashicons-email-alt"></span></div>
+            <div class="cirrusly-card-body">
                 <p class="description">Configure proactive notifications for your store health. Receive weekly profit summaries and instant alerts if products are disapproved by Google.</p>
                 <label><input type="checkbox" name="cirrusly_scan_config[alert_weekly_report]" value="yes" '.checked('yes', $alert_reports, false).' '.esc_attr($disabled_attr).'> Weekly Profit Reports</label><br>
                 <label><input type="checkbox" name="cirrusly_scan_config[alert_gmc_disapproval]" value="yes" '.checked('yes', $alert_disapproval, false).' '.esc_attr($disabled_attr).'> Instant Disapproval Alerts</label>
@@ -416,14 +416,14 @@ class Cirrusly_Commerce_Settings_Manager {
         if(!is_array($custom_badges)) $custom_badges = array();
 
         $is_pro = class_exists( 'Cirrusly_Commerce_Core' ) && method_exists( 'Cirrusly_Commerce_Core', 'cirrusly_is_pro' ) && Cirrusly_Commerce_Core::cirrusly_is_pro();
-        $pro_class = $is_pro ? '' : 'cc-pro-feature';
+        $pro_class = $is_pro ? '' : 'cirrusly-pro-feature';
         $disabled_attr = $is_pro ? '' : 'disabled';
 
-        echo '<div class="cc-settings-card">
-            <div class="cc-card-header"><h3>Badge Manager</h3></div>
-            <div class="cc-card-body">
+        echo '<div class="cirrusly-settings-card">
+            <div class="cirrusly-card-header"><h3>Badge Manager</h3></div>
+            <div class="cirrusly-card-body">
             <p class="description">Configure global settings for product badges, including size and price basis. Define the "New" badge threshold to automatically highlight recently added products.</p>
-            <table class="form-table cc-settings-table">
+            <table class="form-table cirrusly-settings-table">
                 <tr><th>Enable Module</th><td><label><input type="checkbox" name="cirrusly_badge_config[enable_badges]" value="yes" '.checked('yes', $enabled, false).'> Activate</label></td></tr>
                 <tr><th>Badge Size</th><td><select name="cirrusly_badge_config[badge_size]"><option value="small" '.selected('small', $size, false).'>Small</option><option value="medium" '.selected('medium', $size, false).'>Medium</option><option value="large" '.selected('large', $size, false).'>Large</option></select></td></tr>
                 <tr><th>Discount Base</th><td><select name="cirrusly_badge_config[calc_from]"><option value="msrp" '.selected('msrp', $calc_from, false).'>MSRP</option><option value="regular" '.selected('regular', $calc_from, false).'>Regular Price</option></select></td></tr>
@@ -431,19 +431,19 @@ class Cirrusly_Commerce_Settings_Manager {
             </table>
             <hr><h4>Custom Tag Badges</h4>
             <p class="description">Map specific product tags to custom badge images. These badges will appear automatically on products containing the specified tag.</p>
-            <table class="widefat striped cc-settings-table"><thead><tr><th>Tag Slug</th><th>Image</th><th>Tooltip</th><th>Width</th><th></th></tr></thead><tbody id="cc-badge-rows">';
+            <table class="widefat striped cirrusly-settings-table"><thead><tr><th>Tag Slug</th><th>Image</th><th>Tooltip</th><th>Width</th><th></th></tr></thead><tbody id="cirrusly-badge-rows">';
             if(!empty($custom_badges)) {
                 foreach($custom_badges as $idx => $badge) {
-                    echo '<tr><td><input type="text" name="cirrusly_badge_config[custom_badges]['.esc_attr($idx).'][tag]" value="'.esc_attr($badge['tag']).'"></td><td><input type="text" name="cirrusly_badge_config[custom_badges]['.esc_attr($idx).'][url]" class="regular-text" value="'.esc_attr($badge['url']).'"> <button type="button" class="button cc-upload-btn">Upload</button></td><td><input type="text" name="cirrusly_badge_config[custom_badges]['.esc_attr($idx).'][tooltip]" value="'.esc_attr($badge['tooltip']).'"></td><td><input type="number" name="cirrusly_badge_config[custom_badges]['.esc_attr($idx).'][width]" value="'.esc_attr($badge['width']).'" style="width:60px"> px</td><td><button type="button" class="button cc-remove-row"><span class="dashicons dashicons-trash"></span></button></td></tr>';
+                    echo '<tr><td><input type="text" name="cirrusly_badge_config[custom_badges]['.esc_attr($idx).'][tag]" value="'.esc_attr($badge['tag']).'"></td><td><input type="text" name="cirrusly_badge_config[custom_badges]['.esc_attr($idx).'][url]" class="regular-text" value="'.esc_attr($badge['url']).'"> <button type="button" class="button cirrusly-upload-btn">Upload</button></td><td><input type="text" name="cirrusly_badge_config[custom_badges]['.esc_attr($idx).'][tooltip]" value="'.esc_attr($badge['tooltip']).'"></td><td><input type="number" name="cirrusly_badge_config[custom_badges]['.esc_attr($idx).'][width]" value="'.esc_attr($badge['width']).'" style="width:60px"> px</td><td><button type="button" class="button cirrusly-remove-row"><span class="dashicons dashicons-trash"></span></button></td></tr>';
                 }
             }
-            echo '</tbody></table><button type="button" class="button" id="cc-add-badge-row" style="margin-top:10px;">+ Add Badge Rule</button></div></div>';
+            echo '</tbody></table><button type="button" class="button" id="cirrusly-add-badge-row" style="margin-top:10px;">+ Add Badge Rule</button></div></div>';
 
         // Smart Badges (Pro)
-        echo '<div class="cc-settings-card '.esc_attr($pro_class).'">';
-        if(!$is_pro) echo '<div class="cc-pro-overlay"><a href="'.esc_url( function_exists('cirrusly_fs') ? cirrusly_fs()->get_upgrade_url() : '#' ).'" class="cc-upgrade-btn"><span class="dashicons dashicons-lock cc-lock-icon"></span> Unlock Smart Badges</a></div>';
-        echo '<div class="cc-card-header"><h3>Smart Badges <span class="cc-pro-badge">PRO</span></h3><span class="dashicons dashicons-awards"></span></div>
-            <div class="cc-card-body">
+        echo '<div class="cirrusly-settings-card '.esc_attr($pro_class).'">';
+        if(!$is_pro) echo '<div class="cirrusly-pro-overlay"><a href="'.esc_url( function_exists('cirrusly_fs') ? cirrusly_fs()->get_upgrade_url() : '#' ).'" class="cirrusly-upgrade-btn"><span class="dashicons dashicons-lock cirrusly-lock-icon"></span> Unlock Smart Badges</a></div>';
+        echo '<div class="cirrusly-card-header"><h3>Smart Badges <span class="cirrusly-pro-badge">PRO</span></h3><span class="dashicons dashicons-awards"></span></div>
+            <div class="cirrusly-card-body">
                 <p class="description">Enable intelligent badges based on live store data. Highlight low stock items, best sellers, or schedule specific event badges for a date range.</p>
                 <label><input type="checkbox" name="cirrusly_badge_config[smart_inventory]" value="yes" '.checked('yes', $smart_inv, false).' '.esc_attr($disabled_attr).'> <strong>Low Stock:</strong> Show when qty < 5</label><br>
                 <label><input type="checkbox" name="cirrusly_badge_config[smart_performance]" value="yes" '.checked('yes', $smart_perf, false).' '.esc_attr($disabled_attr).'> <strong>Best Seller:</strong> Show for top sellers</label><br>
@@ -474,23 +474,23 @@ class Cirrusly_Commerce_Settings_Manager {
         if( ! is_wp_error( $terms ) ) { foreach ( $terms as $term ) { $all_classes[ $term->slug ] = $term->name; } }
 
         $is_pro = class_exists( 'Cirrusly_Commerce_Core' ) && method_exists( 'Cirrusly_Commerce_Core', 'cirrusly_is_pro' ) && Cirrusly_Commerce_Core::cirrusly_is_pro();
-        $pro_class = $is_pro ? '' : 'cc-pro-feature';
+        $pro_class = $is_pro ? '' : 'cirrusly-pro-feature';
         $disabled_attr = $is_pro ? '' : 'disabled';
 
         // Revenue Tiers
-        echo '<div class="cc-settings-card"><div class="cc-card-header"><h3>1. Shipping Revenue</h3></div>';
-        echo '<div class="cc-card-body">
+        echo '<div class="cirrusly-settings-card"><div class="cirrusly-card-header"><h3>1. Shipping Revenue</h3></div>';
+        echo '<div class="cirrusly-card-body">
         <p class="description">Define the shipping revenue collected from customers based on cart total. Set price ranges (Min/Max) and the corresponding shipping charge for each tier.</p>
-        <table class="widefat striped cc-settings-table"><thead><tr><th>Min Price</th><th>Max Price</th><th>Charge</th><th></th></tr></thead><tbody id="cc-revenue-rows">';
+        <table class="widefat striped cirrusly-settings-table"><thead><tr><th>Min Price</th><th>Max Price</th><th>Charge</th><th></th></tr></thead><tbody id="cirrusly-revenue-rows">';
         foreach($revenue_tiers as $idx => $tier) {
-            echo '<tr><td><input type="number" step="0.01" name="cirrusly_shipping_config[revenue_tiers]['.esc_attr($idx).'][min]" value="'.esc_attr($tier['min']).'"></td><td><input type="number" step="0.01" name="cirrusly_shipping_config[revenue_tiers]['.esc_attr($idx).'][max]" value="'.esc_attr($tier['max']).'"></td><td><input type="number" step="0.01" name="cirrusly_shipping_config[revenue_tiers]['.esc_attr($idx).'][charge]" value="'.esc_attr($tier['charge']).'"></td><td><button type="button" class="button cc-remove-row"><span class="dashicons dashicons-trash"></span></button></td></tr>';
+            echo '<tr><td><input type="number" step="0.01" name="cirrusly_shipping_config[revenue_tiers]['.esc_attr($idx).'][min]" value="'.esc_attr($tier['min']).'"></td><td><input type="number" step="0.01" name="cirrusly_shipping_config[revenue_tiers]['.esc_attr($idx).'][max]" value="'.esc_attr($tier['max']).'"></td><td><input type="number" step="0.01" name="cirrusly_shipping_config[revenue_tiers]['.esc_attr($idx).'][charge]" value="'.esc_attr($tier['charge']).'"></td><td><button type="button" class="button cirrusly-remove-row"><span class="dashicons dashicons-trash"></span></button></td></tr>';
         }
-        echo '</tbody></table><button type="button" class="button" id="cc-add-revenue-row" style="margin-top:10px;">+ Add Tier</button></div></div>';
+        echo '</tbody></table><button type="button" class="button" id="cirrusly-add-revenue-row" style="margin-top:10px;">+ Add Tier</button></div></div>';
 
         // Class Costs
-        echo '<div class="cc-settings-card"><div class="cc-card-header"><h3>2. Internal Cost</h3></div><div class="cc-card-body">
+        echo '<div class="cirrusly-settings-card"><div class="cirrusly-card-header"><h3>2. Internal Cost</h3></div><div class="cirrusly-card-body">
         <p class="description">Estimate your actual shipping and fulfillment costs per shipping class. These values are used to calculate the net profit and margin for each order.</p>
-        <table class="widefat striped cc-settings-table"><thead><tr><th>Class</th><th>Cost ($)</th></tr></thead><tbody>';
+        <table class="widefat striped cirrusly-settings-table"><thead><tr><th>Class</th><th>Cost ($)</th></tr></thead><tbody>';
         foreach ( $all_classes as $slug => $name ) {
             $val = isset( $class_costs[$slug] ) ? $class_costs[$slug] : ( ($slug==='default')?10.00:0.00 );
             echo '<tr><td><strong>'.esc_html($name).'</strong><br><small>'.esc_html($slug).'</small></td><td><input type="number" step="0.01" name="cirrusly_shipping_config[class_costs]['.esc_attr($slug).']" value="'.esc_attr($val).'"></td></tr>';
@@ -498,11 +498,11 @@ class Cirrusly_Commerce_Settings_Manager {
         echo '</tbody></table></div></div>';
 
         // Payment
-        echo '<div class="cc-settings-card"><div class="cc-card-header"><h3>Payment Fees</h3></div><div class="cc-card-body">
+        echo '<div class="cirrusly-settings-card"><div class="cirrusly-card-header"><h3>Payment Fees</h3></div><div class="cirrusly-card-body">
             <p class="description">Enter your payment processor fees (e.g., Stripe, PayPal) to calculate true net revenue. For mixed profiles, define secondary rates and the split percentage.</p>
             <input type="number" step="0.1" name="cirrusly_shipping_config[payment_pct]" value="'.esc_attr($payment_pct).'"> % + <input type="number" step="0.01" name="cirrusly_shipping_config[payment_flat]" value="'.esc_attr($payment_flat).'"> $
             <div class="'.esc_attr($pro_class).'" style="margin-top:15px; border-top:1px dashed #ccc; padding-top:15px;">
-                <p><strong>Multi-Profile <span class="cc-pro-badge">PRO</span></strong></p>
+                <p><strong>Multi-Profile <span class="cirrusly-pro-badge">PRO</span></strong></p>
                 <label><input type="radio" name="cirrusly_shipping_config[profile_mode]" value="single" '.checked('single', $profile_mode, false).' '.esc_attr($disabled_attr).'> Single</label><br>
                 <label><input type="radio" name="cirrusly_shipping_config[profile_mode]" value="multi" '.checked('multi', $profile_mode, false).' '.esc_attr($disabled_attr).'> Mixed</label><br>
                 <div style="display:'.($profile_mode==='multi'?'block':'none').';">
@@ -512,16 +512,16 @@ class Cirrusly_Commerce_Settings_Manager {
             </div></div></div>';
 
         // Matrix
-        echo '<div class="cc-settings-card"><div class="cc-card-header"><h3>3. Scenario Matrix</h3></div><div class="cc-card-body">
+        echo '<div class="cirrusly-settings-card"><div class="cirrusly-card-header"><h3>3. Scenario Matrix</h3></div><div class="cirrusly-card-body">
         <p class="description">Create different cost scenarios (e.g., "High Gas Prices") by applying multipliers to your base costs. Use these in the Financial Audit tool to stress-test your margins.</p>
-        <table class="widefat striped cc-settings-table"><thead><tr><th>Key</th><th>Label</th><th>Multiplier</th><th></th></tr></thead><tbody id="cc-matrix-rows">';
+        <table class="widefat striped cirrusly-settings-table"><thead><tr><th>Key</th><th>Label</th><th>Multiplier</th><th></th></tr></thead><tbody id="cirrusly-matrix-rows">';
         $idx = 0;
         foreach ( $matrix_rules as $rule ) {
             $keyVal = isset( $rule['key'] ) ? $rule['key'] : 'rule_' . $idx;
-            echo '<tr><td><input type="text" name="cirrusly_shipping_config[matrix_rules][' . esc_attr( $idx ) . '][key]" value="' . esc_attr( $keyVal ) . '"></td><td><input type="text" name="cirrusly_shipping_config[matrix_rules][' . esc_attr( $idx ) . '][label]" value="' . esc_attr( $rule['label'] ) . '"></td><td>x <input type="number" step="0.1" name="cirrusly_shipping_config[matrix_rules][' . esc_attr( $idx ) . '][cost_mult]" value="' . esc_attr( isset( $rule['cost_mult'] ) ? $rule['cost_mult'] : 1.0 ) . '"></td><td><button type="button" class="button cc-remove-row"><span class="dashicons dashicons-trash"></span></button></td></tr>';
+            echo '<tr><td><input type="text" name="cirrusly_shipping_config[matrix_rules][' . esc_attr( $idx ) . '][key]" value="' . esc_attr( $keyVal ) . '"></td><td><input type="text" name="cirrusly_shipping_config[matrix_rules][' . esc_attr( $idx ) . '][label]" value="' . esc_attr( $rule['label'] ) . '"></td><td>x <input type="number" step="0.1" name="cirrusly_shipping_config[matrix_rules][' . esc_attr( $idx ) . '][cost_mult]" value="' . esc_attr( isset( $rule['cost_mult'] ) ? $rule['cost_mult'] : 1.0 ) . '"></td><td><button type="button" class="button cirrusly-remove-row"><span class="dashicons dashicons-trash"></span></button></td></tr>';
             $idx++;
         }
-        echo '</tbody></table><button type="button" class="button" id="cc-add-matrix-row" style="margin-top:10px;">+ Add Scenario</button></div></div>';
+        echo '</tbody></table><button type="button" class="button" id="cirrusly-add-matrix-row" style="margin-top:10px;">+ Add Scenario</button></div></div>';
     }
 
     public function render_onboarding_notice() {
