@@ -67,11 +67,11 @@ class Cirrusly_Commerce_Audit {
         
         // MIGRATION: Check for old transient and migrate if found
         if ( false === $data ) {
-            $old_data = get_transient( 'cirrusly_audit_data' );
+            $old_data = get_transient( 'cw_audit_data' );
             if ( false !== $old_data ) {
                 $data = $old_data;
                 set_transient( $cache_key, $data, 1 * HOUR_IN_SECONDS );
-                delete_transient( 'cirrusly_audit_data' );
+                delete_transient( 'cw_audit_data' );
             }
         }
         

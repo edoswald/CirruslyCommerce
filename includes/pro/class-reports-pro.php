@@ -75,7 +75,10 @@ class Cirrusly_Commerce_Reports_Pro {
                 $qty = $item->get_quantity();
                 $cogs = (float) $product->get_meta( '_cogs_total_value' );
                 $ship = (float) $product->get_meta( '_cirrusly_est_shipping' );
-                
+                if ( 0.0 === $ship ) {
+                    $ship = (float) $product->get_meta( '_cw_est_shipping' ); // legacy fallback
+                }
+
                 $totals['cogs'] += ( $cogs * $qty );
                 $totals['shipping'] += ( $ship * $qty );
             }

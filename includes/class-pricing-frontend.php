@@ -105,7 +105,8 @@ class Cirrusly_Commerce_Pricing_Frontend {
         }
 
         if ( $msrp_display ) {
-            return '<div class="cirrusly-msrp-container" style="color:#777;font-size:0.9em;margin-bottom:5px;line-height:1;">MSRP: <span class="cirrusly-msrp-value" style="text-decoration:line-through;">' . $msrp_display . '</span></div>';
+            $label = esc_html__( 'MSRP:', 'cirrusly-commerce' );
+            return '<div class="cirrusly-msrp-container cw-msrp-container">' . $label . ' <span class="cirrusly-msrp-value cw-msrp-value">' . $msrp_display . '</span></div>';
         }
         return '';
     }
@@ -137,7 +138,7 @@ class Cirrusly_Commerce_Pricing_Frontend {
         if ( $html ) {
             $html = str_replace( array( '<div', '</div>' ), array( '<span', '</span>' ), $html );
             $html = str_replace( 'margin-bottom:5px', 'margin-right:5px', $html );
-            return $html . $price_html;
+            return wp_kses_post( $html ) . $price_html;
         }
         return $price_html;
     }

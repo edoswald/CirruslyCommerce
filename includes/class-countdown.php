@@ -17,7 +17,7 @@ class Cirrusly_Commerce_Countdown {
         add_shortcode( 'cirrusly_countdown', array( $this, 'render_shortcode' ) );
         
         // Legacy shortcode (Deprecated)
-        add_shortcode( 'cirrusly_countdown', array( $this, 'render_legacy_shortcode' ) );
+        add_shortcode( 'cw_countdown', array( $this, 'render_legacy_shortcode' ) );
         
         add_action( 'woocommerce_single_product_summary', array( $this, 'inject_countdown' ), 11 );
         add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_assets' ) );
@@ -28,7 +28,7 @@ class Cirrusly_Commerce_Countdown {
      */
     public function render_legacy_shortcode( $atts ) {
         if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
-            trigger_error( 'Shortcode [cirrusly_countdown] is deprecated. Please use [cirrusly_countdown] instead.', E_USER_DEPRECATED );
+            trigger_error( 'Shortcode [cw_countdown] is deprecated. Please use [cirrusly_countdown] instead.', E_USER_DEPRECATED );
         }
         return $this->render_shortcode( $atts );
     }
@@ -78,7 +78,7 @@ class Cirrusly_Commerce_Countdown {
         // --- PRIORITY 1: Manual Product Meta (Free Feature) ---    
         $manual_end = get_post_meta( $pid, '_cirrusly_sale_end', true ); // Updated key, fallback below if needed
         if( empty($manual_end) ) {
-             $manual_end = get_post_meta( $pid, '_cirrusly_sale_end', true ); // Legacy fallback
+             $manual_end = get_post_meta( $pid, '_cw_sale_end', true ); // Legacy fallback
         }
 
         if ( ! empty( $manual_end ) && self::is_date_future( $manual_end ) ) {

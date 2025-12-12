@@ -51,7 +51,6 @@ class Cirrusly_Commerce_Audit_UI {
         }
 
         $is_pro = Cirrusly_Commerce_Core::cirrusly_is_pro();
-        $pro_class = $is_pro ? '' : 'cirrusly-pro-feature';
         $disabled_attr = $is_pro ? '' : 'disabled';
 
         // 3. Process Filters & Pagination (Moved Up)

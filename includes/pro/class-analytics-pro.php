@@ -127,8 +127,8 @@ class Cirrusly_Commerce_Analytics_Pro {
 
         $script = "
         document.addEventListener('DOMContentLoaded', function() {
-            const trigger = document.getElementById('ccStatusTrigger');
-            const dropdown = document.getElementById('ccStatusDropdown');
+            const trigger = document.getElementById('cirruslyStatusTrigger');
+            const dropdown = document.getElementById('cirruslyStatusDropdown');
             if(trigger && dropdown){
                 trigger.addEventListener('click', function(e){ e.stopPropagation(); dropdown.classList.toggle('is-open'); });
                 document.addEventListener('click', function(e){ if(!dropdown.contains(e.target) && e.target !== trigger){ dropdown.classList.remove('is-open'); } });
@@ -182,12 +182,12 @@ class Cirrusly_Commerce_Analytics_Pro {
                     </div>
                     <div class="cirrusly-toolbar-right">
                         <div style="position:relative;">
-                            <div class="cirrusly-status-trigger" id="ccStatusTrigger" title="<?php echo esc_attr($status_text); ?>">
+                            <div class="cirrusly-status-trigger" id="cirruslyStatusTrigger" title="<?php echo esc_attr($status_text); ?>">
                                 <span class="dashicons dashicons-filter"></span>
                                 Filters: <?php echo esc_html( substr($status_text, 0, 30) . (strlen($status_text)>30 ? '...' : '') ); ?>
                                 <span class="dashicons dashicons-arrow-down-alt2" style="font-size:10px; width:10px; height:10px; margin-left:auto;"></span>
                             </div>
-                            <div class="cirrusly-status-dropdown" id="ccStatusDropdown">
+                            <div class="cirrusly-status-dropdown" id="cirruslyStatusDropdown">
                                 <h4>Filter Statuses</h4>
                                 <div class="cirrusly-status-list">
                                     <?php foreach ( $all_statuses as $slug => $label ) : ?>
