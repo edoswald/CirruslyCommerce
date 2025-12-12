@@ -120,6 +120,8 @@ class Cirrusly_Commerce_Badges_Pro {
                 $score = (float) $response['sentiment']['score'];
             } elseif ( isset( $response['documentSentiment']['score'] ) ) {
                 $score = (float) $response['documentSentiment']['score'];
+            } elseif ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+                error_log( 'Cirrusly Sentiment: Unexpected response structure - no sentiment score key found.' );
             }
 
             // Threshold: > 0.6 indicates clear positive sentiment

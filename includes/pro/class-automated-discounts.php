@@ -70,12 +70,14 @@ class Cirrusly_Commerce_Automated_Discounts {
     private function verify_jwt( $token ) {
         $cfg = get_option('cirrusly_scan_config', array());
         
-        // Use Google's public validation endpoint (Lightweight Alternative)
-        $url = 'https://oauth2.googleapis.com/tokeninfo?id_token=' . urlencode( $token );
         // Basic shape/size guard before calling external validation
         if ( ! is_string( $token ) || strlen( $token ) > 4096 || ! preg_match( '/^[A-Za-z0-9\-_]+\.[A-Za-z0-9\-_]+\.[A-Za-z0-9\-_]+$/', $token ) ) {
             return false;
         }
+
+        // Use Google's public validation endpoint (Lightweight Alternative)
+        $url = 'https://oauth2.googleapis.com/tokeninfo?id_token=' . urlencode( $token );
+
 
         $response = wp_remote_get( $url, array(
             'timeout'     => 5,
@@ -178,7 +180,7 @@ class Cirrusly_Commerce_Automated_Discounts {
 
         foreach ( $cart->get_cart() as $cart_item ) {
             $product_id = $cart_item['product_id'];
-            $variation_id = $cart_item['variation_id'];
+            $variation_id = isset( $cart_item['variation_id'] ) ? $cart_item['variation_id'] : 0;
 
             $discount = self::get_active_discount( $variation_id ? $variation_id : $product_id );
 

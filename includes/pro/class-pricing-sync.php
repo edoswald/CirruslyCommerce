@@ -36,7 +36,14 @@ class Cirrusly_Commerce_Pricing_Sync {
         // Check existence (handling both old scalar IDs and new array format)
         $exists = false;
         foreach ( $queue as $item ) {
-            $id = is_array( $item ) && isset( $item['id'] ) ? (int) $item['id'] : (int) $item;
+        if ( is_array( $item ) ) {
+            if ( ! isset( $item['id'] ) ) {
+                continue;
+            }
+            $id = (int) $item['id'];
+        } else {
+            $id = (int) $item;
+        }
             if ( $id === (int) $product_id ) {
                 $exists = true;
                 break;
@@ -118,8 +125,8 @@ class Cirrusly_Commerce_Pricing_Sync {
             $batch_entries[] = array(
                 'batchId'      => $q_item['id'], // Use Product ID as Batch ID for tracking
                 'offerId'      => (string) $offer_id,
-                'language'     => substr( $language, 0, 2 ),
-                'country'      => $country,
+                'language'     => strtolower( substr( (string) $language, 0, 2 ) ),
+                'country'      => strtoupper( (string) $country ),
                 'availability' => $product->is_in_stock() ? 'in stock' : 'out of stock',
                 'price'        => $price,
                 'currency'     => get_woocommerce_currency()
@@ -144,8 +151,31 @@ class Cirrusly_Commerce_Pricing_Sync {
                 }
             } else {
                 // Process Worker Results
-                $results = isset( $response['results'] ) ? $response['results'] : array();
+                $results = isset( $response['results'] ) && is_array( $response['results'] ) ? $response['results'] : array();
                 $has_errors = false;
+
+                
+                // Normalize results into a map keyed by batchId (accept either map or list of objects with batchId).
+                $results_by_id = array();
+                foreach ( $results as $k => $v ) {
+                    if ( is_array( $v ) && isset( $v['batchId'] ) ) {
+                        $results_by_id[ (int) $v['batchId'] ] = $v;
+                    } else {
+                        $results_by_id[ (int) $k ] = $v;
+                    }
+                }
+            
+                // Any sent batchId missing from results should be retried.
+                foreach ( array_keys( $processing_items ) as $sent_id ) {
+                    if ( ! isset( $results_by_id[ (int) $sent_id ] ) ) {
+                        $has_errors = true;
+                        $item = $processing_items[ (int) $sent_id ];
+                        $item['attempts']++;   
+                        if ( $item['attempts'] < self::MAX_RETRIES ) {
+                            $requeue_items[] = $item;
+                        }
+                    }
+                }  
 
                 foreach ( $results as $batch_id => $res ) {
                     if ( isset( $res['status'] ) && $res['status'] === 'error' ) {
