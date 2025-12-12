@@ -27,14 +27,14 @@ class Cirrusly_Commerce_Badges_Pro {
         // 1. SMART: INVENTORY (Low Stock)
         if ( ! empty($badge_cfg['smart_inventory']) && $badge_cfg['smart_inventory'] === 'yes' ) {
             if ( $product->managing_stock() && $product->get_stock_quantity() > 0 && $product->get_stock_quantity() < 5 ) {
-                $output .= '<span class="cw-badge-pill" style="background-color:#dba617;">Low Stock</span>';
+                $output .= '<span class="cirrusly-badge-pill" style="background-color:#dba617;">Low Stock</span>';
             }
         }
 
         // 2. SMART: PERFORMANCE (Best Seller)
         if ( ! empty($badge_cfg['smart_performance']) && $badge_cfg['smart_performance'] === 'yes' ) {
             if ( $product->get_total_sales() > 50 ) {
-                $output .= '<span class="cw-badge-pill" style="background-color:#00a32a;">Best Seller</span>';
+                $output .= '<span class="cirrusly-badge-pill" style="background-color:#00a32a;">Best Seller</span>';
             }
         }
 
@@ -45,7 +45,7 @@ class Cirrusly_Commerce_Badges_Pro {
             $now   = time();
 
             if ( $start !== false && $end !== false && $now >= $start && $now <= $end ) {
-                    $output .= '<span class="cw-badge-pill" style="background-color:#826eb4;">Event</span>';
+                    $output .= '<span class="cirrusly-badge-pill" style="background-color:#826eb4;">Event</span>';
             }
         }
 
@@ -134,7 +134,7 @@ class Cirrusly_Commerce_Badges_Pro {
            }
 
             if ( $score > 0.6 ) {
-                $html = '<span class="cw-badge-pill" style="background-color:#e0115f;">Customer Fave ❤️</span>';
+                $html = '<span class="cirrusly-badge-pill" style="background-color:#e0115f;">Customer Fave ❤️</span>';
                 set_transient( $cache_key, $html, 7 * DAY_IN_SECONDS );
                 return $html;
             }

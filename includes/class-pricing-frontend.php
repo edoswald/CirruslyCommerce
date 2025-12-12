@@ -69,7 +69,7 @@ class Cirrusly_Commerce_Pricing_Frontend {
      * Build an HTML fragment displaying a struck-through MSRP when the product's MSRP exceeds its active/current price.
      *
      * @param WC_Product|object $product The product to evaluate.
-     * @return string HTML fragment with the formatted MSRP value (wrapped in a div.cw-msrp-container) if MSRP should be shown, or an empty string otherwise.
+     * @return string HTML fragment with the formatted MSRP value (wrapped in a div.cirrusly-msrp-container) if MSRP should be shown, or an empty string otherwise.
      */
     public static function get_msrp_html( $product ) {
         if ( ! is_object($product) ) return '';
@@ -105,7 +105,7 @@ class Cirrusly_Commerce_Pricing_Frontend {
         }
 
         if ( $msrp_display ) {
-            return '<div class="cw-msrp-container" style="color:#777;font-size:0.9em;margin-bottom:5px;line-height:1;">MSRP: <span class="cw-msrp-value" style="text-decoration:line-through;">' . $msrp_display . '</span></div>';
+            return '<div class="cirrusly-msrp-container" style="color:#777;font-size:0.9em;margin-bottom:5px;line-height:1;">MSRP: <span class="cirrusly-msrp-value" style="text-decoration:line-through;">' . $msrp_display . '</span></div>';
         }
         return '';
     }

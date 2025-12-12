@@ -51,7 +51,7 @@ class Cirrusly_Commerce_Audit_UI {
         }
 
         $is_pro = Cirrusly_Commerce_Core::cirrusly_is_pro();
-        $pro_class = $is_pro ? '' : 'cc-pro-feature';
+        $pro_class = $is_pro ? '' : 'cirrusly-pro-feature';
         $disabled_attr = $is_pro ? '' : 'disabled';
 
         // 3. Process Filters & Pagination (Moved Up)
@@ -90,23 +90,23 @@ class Cirrusly_Commerce_Audit_UI {
 
         // DASHBOARD GRID
         ?>
-        <div class="cc-dashboard-overview" style="margin-bottom:20px;">
-            <div class="cc-dash-grid" style="display:grid; grid-template-columns: repeat(4, 1fr); gap: 20px;">
-                 <div class="cc-dash-card" style="border-top-color: #2271b1; text-align: center;">
-                     <span class="cc-big-num"><?php echo esc_html( $total_skus ); ?></span>
-                     <span class="cc-label">Audited SKUs</span>
+        <div class="cirrusly-dashboard-overview" style="margin-bottom:20px;">
+            <div class="cirrusly-dash-grid" style="display:grid; grid-template-columns: repeat(4, 1fr); gap: 20px;">
+                 <div class="cirrusly-dash-card" style="border-top-color: #2271b1; text-align: center;">
+                     <span class="cirrusly-big-num"><?php echo esc_html( $total_skus ); ?></span>
+                     <span class="cirrusly-label">Audited SKUs</span>
                  </div>
-                 <div class="cc-dash-card" style="border-top-color: #d63638; text-align: center;">
-                     <span class="cc-big-num" style="color:#d63638;"><?php echo esc_html( $loss_count ); ?></span>
-                     <span class="cc-label">Loss Makers (Net &lt; 0)</span>
+                 <div class="cirrusly-dash-card" style="border-top-color: #d63638; text-align: center;">
+                     <span class="cirrusly-big-num" style="color:#d63638;"><?php echo esc_html( $loss_count ); ?></span>
+                     <span class="cirrusly-label">Loss Makers (Net &lt; 0)</span>
                  </div>
-                 <div class="cc-dash-card" style="border-top-color: #dba617; text-align: center;">
-                     <span class="cc-big-num" style="color:#dba617;"><?php echo esc_html( $alert_count ); ?></span>
-                     <span class="cc-label">Data Alerts</span>
+                 <div class="cirrusly-dash-card" style="border-top-color: #dba617; text-align: center;">
+                     <span class="cirrusly-big-num" style="color:#dba617;"><?php echo esc_html( $alert_count ); ?></span>
+                     <span class="cirrusly-label">Data Alerts</span>
                  </div>
-                 <div class="cc-dash-card" style="border-top-color: #008a20; text-align: center;">
-                     <span class="cc-big-num"><?php echo esc_html( $low_margin_count ); ?></span>
-                     <span class="cc-label">Low Margin (&lt; 15%)</span>
+                 <div class="cirrusly-dash-card" style="border-top-color: #008a20; text-align: center;">
+                     <span class="cirrusly-big-num"><?php echo esc_html( $low_margin_count ); ?></span>
+                     <span class="cirrusly-label">Low Margin (&lt; 15%)</span>
                  </div>
                  <div style="grid-column: span 4; background:#f9f9f9; padding:10px; font-size:12px; color:#666; border-radius:4px; display:flex; justify-content:center; gap:30px; border:1px solid #ddd;">
                     <span><strong style="color:#2271b1;">Ship P/L:</strong> Shipping Charged - Estimated Cost</span>
@@ -116,7 +116,7 @@ class Cirrusly_Commerce_Audit_UI {
             </div>
         </div>
 
-        <div class="cc-audit-toolbar" style="background:#fff; border:1px solid #c3c4c7; padding:15px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:15px; margin-bottom:20px; box-shadow: 0 1px 1px rgba(0,0,0,0.04);">
+        <div class="cirrusly-audit-toolbar" style="background:#fff; border:1px solid #c3c4c7; padding:15px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:15px; margin-bottom:20px; box-shadow: 0 1px 1px rgba(0,0,0,0.04);">
             
             <form method="get" style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; flex:1;">
                 <input type="hidden" name="page" value="cirrusly-audit">
@@ -143,7 +143,7 @@ class Cirrusly_Commerce_Audit_UI {
                 <a href="<?php echo esc_url( wp_nonce_url( '?page=cirrusly-audit&refresh_audit=1', 'cc_refresh_audit' ) ); ?>" class="button" title="Refresh Data from Database" style="height:32px; line-height:30px;"><span class="dashicons dashicons-update" style="line-height:30px;"></span></a>
             </form>
 
-            <div class="cc-toolbar-actions" style="display:flex; align-items:center; gap:8px; border-left:1px solid #ddd; padding-left:15px;">
+            <div class="cirrusly-toolbar-actions" style="display:flex; align-items:center; gap:8px; border-left:1px solid #ddd; padding-left:15px;">
                 <?php if(!$is_pro): ?>
                      <a href="<?php echo esc_url( function_exists('cirrusly_fs') ? cirrusly_fs()->get_upgrade_url() : '#' ); ?>" title="Upgrade to Pro" style="color:#d63638; text-decoration:none; margin-right:5px; font-weight:bold;">
                         <span class="dashicons dashicons-lock"></span>
@@ -227,7 +227,7 @@ class Cirrusly_Commerce_Audit_UI {
                 $ship_cell = wp_kses_post(wc_price($row['ship_pl']));
                 
                 if($is_pro) {
-                     $cost_cell = '<span class="cc-inline-edit" data-pid="'.esc_attr($row['id']).'" data-field="_cogs_total_value" contenteditable="true" style="border-bottom:1px dashed #999; cursor:pointer;">'.number_format($row['item_cost'], 2).'</span> <small style="color:#999;">+ Ship '.number_format($row['ship_cost'], 2).'</small>';
+                     $cost_cell = '<span class="cirrusly-inline-edit" data-pid="'.esc_attr($row['id']).'" data-field="_cogs_total_value" contenteditable="true" style="border-bottom:1px dashed #999; cursor:pointer;">'.number_format($row['item_cost'], 2).'</span> <small style="color:#999;">+ Ship '.number_format($row['ship_cost'], 2).'</small>';
                 }
 
                 echo '<tr>

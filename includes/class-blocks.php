@@ -132,7 +132,7 @@ class Cirrusly_Commerce_Blocks {
         
         // If still no product (empty store?), fail gracefully
         if ( ! $cirrusly_product || ! is_object( $cirrusly_product ) ) {
-            if ( defined( 'REST_REQUEST' ) && REST_REQUEST ) return '<div class="cw-placeholder">Add a product to preview MSRP.</div>';
+            if ( defined( 'REST_REQUEST' ) && REST_REQUEST ) return '<div class="cirrusly-placeholder">Add a product to preview MSRP.</div>';
             return '';
         }
 
@@ -144,7 +144,7 @@ class Cirrusly_Commerce_Blocks {
         
         if ( empty( $msrp_html ) ) {
             if ( defined( 'REST_REQUEST' ) && REST_REQUEST ) {
-                $msrp_html = '<div class="cw-msrp-container" style="color:#999;font-size:0.9em;margin-bottom:5px;line-height:1;border:1px dashed #ccc;padding:2px;">MSRP: <span class="cw-msrp-value" style="text-decoration:line-through;">$99.99</span> <small>(Preview)</small></div>';
+                $msrp_html = '<div class="cirrusly-msrp-container" style="color:#999;font-size:0.9em;margin-bottom:5px;line-height:1;border:1px dashed #ccc;padding:2px;">MSRP: <span class="cirrusly-msrp-value" style="text-decoration:line-through;">$99.99</span> <small>(Preview)</small></div>';
             } else {
                 return '';
             }
@@ -180,7 +180,7 @@ class Cirrusly_Commerce_Blocks {
         $cirrusly_product = $this->ensure_product_context( $attributes, $product );
 
         if ( ! $cirrusly_product || ! is_object( $cirrusly_product ) ) {
-             if ( defined( 'REST_REQUEST' ) && REST_REQUEST ) return '<div class="cw-placeholder">Add a product to preview Timer.</div>';
+             if ( defined( 'REST_REQUEST' ) && REST_REQUEST ) return '<div class="cirrusly-placeholder">Add a product to preview Timer.</div>';
              return '';
         }
 
@@ -235,7 +235,7 @@ class Cirrusly_Commerce_Blocks {
         $cirrusly_product = $this->ensure_product_context( $attributes, $product );
         
         if ( ! $cirrusly_product || ! is_object( $cirrusly_product ) ) {
-            if ( defined( 'REST_REQUEST' ) && REST_REQUEST ) return '<div class="cw-placeholder">Add a product to preview Badges.</div>';
+            if ( defined( 'REST_REQUEST' ) && REST_REQUEST ) return '<div class="cirrusly-placeholder">Add a product to preview Badges.</div>';
             return '';
         }
 
@@ -252,7 +252,7 @@ class Cirrusly_Commerce_Blocks {
         }
 
         $align = isset( $attributes['align'] ) ? $attributes['align'] : 'left';
-        return '<div class="cw-badge-container cw-block-render" style="text-align:' . esc_attr( $align ) . '">' . $html . '</div>';
+        return '<div class="cirrusly-badge-container cirrusly-block-render" style="text-align:' . esc_attr( $align ) . '">' . $html . '</div>';
     }
 
     /**
@@ -288,7 +288,7 @@ class Cirrusly_Commerce_Blocks {
         $message = ! empty( $attributes['message'] ) ? $attributes['message'] : '⚡ Exclusive Price Unlocked!';
         
         return sprintf(
-            '<div class="cw-discount-notice" style="background:#e0f7fa; color:#006064; padding:10px; border-radius:4px; text-align:center; font-weight:bold; margin-bottom:15px;">%s</div>',
+            '<div class="cirrusly-discount-notice" style="background:#e0f7fa; color:#006064; padding:10px; border-radius:4px; text-align:center; font-weight:bold; margin-bottom:15px;">%s</div>',
             esc_html( $message )
         );
     }

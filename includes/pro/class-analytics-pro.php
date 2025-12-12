@@ -40,34 +40,34 @@ class Cirrusly_Commerce_Analytics_Pro {
             return;
         }
 
-        wp_enqueue_script( 'cc-chartjs', CIRRUSLY_COMMERCE_URL . 'assets/js/vendor/chart.umd.min.js', array(), '4.4.0', true );
+        wp_enqueue_script( 'cirrusly-chartjs', CIRRUSLY_COMMERCE_URL . 'assets/js/vendor/chart.umd.min.js', array(), '4.4.0', true );
         
         // 1. Inline CSS
-        wp_enqueue_style( 'cc-analytics-styles', false );
-        wp_add_inline_style( 'cc-analytics-styles', "
-            .cc-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; background: #fff; padding: 10px 15px; border: 1px solid #c3c4c7; border-left: 4px solid #2271b1; box-shadow: 0 1px 1px rgba(0,0,0,.04); position: relative; z-index: 100; }
-            .cc-toolbar-left { font-size: 13px; color: #646970; }
-            .cc-toolbar-right { display: flex; align-items: center; gap: 10px; position: relative; }
-            .cc-status-trigger { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: #50575e; background: #f6f7f7; padding: 5px 12px; border-radius: 20px; border: 1px solid #dcdcde; cursor: pointer; transition: all 0.2s; max-width: 300px; }
-            .cc-status-trigger:hover { border-color: #2271b1; color: #2271b1; background: #fff; }
-            .cc-status-trigger .dashicons { font-size: 14px; width: 14px; height: 14px; color: #8c8f94; }
-            .cc-status-dropdown { display: none; position: absolute; top: 100%; right: 0; margin-top: 10px; background: #fff; border: 1px solid #c3c4c7; box-shadow: 0 5px 15px rgba(0,0,0,0.1); border-radius: 4px; padding: 15px; width: 280px; z-index: 999; }
-            .cc-status-dropdown.is-open { display: block; }
-            .cc-status-dropdown h4 { margin: 0 0 10px 0; font-size: 12px; text-transform: uppercase; color: #646970; border-bottom: 1px solid #eee; padding-bottom: 5px; }
-            .cc-status-list { max-height: 300px; overflow-y: auto; margin-bottom: 10px; }
-            .cc-status-item { display: block; margin-bottom: 6px; font-size: 13px; }
-            .cc-status-item input { margin-top: 0; }
-            .cc-analytics-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 20px; }
-            .cc-metric-card { background: #fff; padding: 20px; border-radius: 0; border: 1px solid #dcdcde; box-shadow: 0 1px 1px rgba(0,0,0,.04); position: relative; }
-            .cc-metric-card h3 { margin: 0 0 10px 0; font-size: 13px; color: #646970; text-transform: uppercase; font-weight: 600; }
-            .cc-metric-val { font-size: 28px; font-weight: 400; color: #1d2327; line-height: 1.2; }
-            .cc-metric-sub { font-size: 12px; color: #646970; margin-top: 8px; }
-            .cc-chart-section { background: #fff; padding: 20px; border: 1px solid #dcdcde; box-shadow: 0 1px 1px rgba(0,0,0,.04); margin-bottom: 20px; }
-            .cc-chart-header h2 { font-size: 1.3em; margin: 0; padding: 0 0 15px 0; font-weight: 600; color: #1d2327; }
-            .cc-table-wrapper { background: #fff; border: 1px solid #c3c4c7; margin-bottom: 20px; }
-            .cc-section-title { font-size: 1.1em; padding: 12px 15px; margin: 0; border-bottom: 1px solid #eaecf0; background: #fbfbfb; font-weight: 600; color: #1d2327; }
-            @media (max-width: 960px) { .cc-analytics-grid { grid-template-columns: repeat(2, 1fr); } }
-            @media (max-width: 600px) { .cc-analytics-grid { grid-template-columns: 1fr; } .cc-toolbar { flex-direction: column; align-items: flex-start; gap: 10px; } .cc-status-dropdown { right: auto; left: 0; width: 100%; box-sizing: border-box; } }
+        wp_enqueue_style( 'cirrusly-analytics-styles', false );
+        wp_add_inline_style( 'cirrusly-analytics-styles', "
+            .cirrusly-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; background: #fff; padding: 10px 15px; border: 1px solid #c3c4c7; border-left: 4px solid #2271b1; box-shadow: 0 1px 1px rgba(0,0,0,.04); position: relative; z-index: 100; }
+            .cirrusly-toolbar-left { font-size: 13px; color: #646970; }
+            .cirrusly-toolbar-right { display: flex; align-items: center; gap: 10px; position: relative; }
+            .cirrusly-status-trigger { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: #50575e; background: #f6f7f7; padding: 5px 12px; border-radius: 20px; border: 1px solid #dcdcde; cursor: pointer; transition: all 0.2s; max-width: 300px; }
+            .cirrusly-status-trigger:hover { border-color: #2271b1; color: #2271b1; background: #fff; }
+            .cirrusly-status-trigger .dashicons { font-size: 14px; width: 14px; height: 14px; color: #8c8f94; }
+            .cirrusly-status-dropdown { display: none; position: absolute; top: 100%; right: 0; margin-top: 10px; background: #fff; border: 1px solid #c3c4c7; box-shadow: 0 5px 15px rgba(0,0,0,0.1); border-radius: 4px; padding: 15px; width: 280px; z-index: 999; }
+            .cirrusly-status-dropdown.is-open { display: block; }
+            .cirrusly-status-dropdown h4 { margin: 0 0 10px 0; font-size: 12px; text-transform: uppercase; color: #646970; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+            .cirrusly-status-list { max-height: 300px; overflow-y: auto; margin-bottom: 10px; }
+            .cirrusly-status-item { display: block; margin-bottom: 6px; font-size: 13px; }
+            .cirrusly-status-item input { margin-top: 0; }
+            .cirrusly-analytics-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 20px; }
+            .cirrusly-metric-card { background: #fff; padding: 20px; border-radius: 0; border: 1px solid #dcdcde; box-shadow: 0 1px 1px rgba(0,0,0,.04); position: relative; }
+            .cirrusly-metric-card h3 { margin: 0 0 10px 0; font-size: 13px; color: #646970; text-transform: uppercase; font-weight: 600; }
+            .cirrusly-metric-val { font-size: 28px; font-weight: 400; color: #1d2327; line-height: 1.2; }
+            .cirrusly-metric-sub { font-size: 12px; color: #646970; margin-top: 8px; }
+            .cirrusly-chart-section { background: #fff; padding: 20px; border: 1px solid #dcdcde; box-shadow: 0 1px 1px rgba(0,0,0,.04); margin-bottom: 20px; }
+            .cirrusly-chart-header h2 { font-size: 1.3em; margin: 0; padding: 0 0 15px 0; font-weight: 600; color: #1d2327; }
+            .cirrusly-table-wrapper { background: #fff; border: 1px solid #c3c4c7; margin-bottom: 20px; }
+            .cirrusly-section-title { font-size: 1.1em; padding: 12px 15px; margin: 0; border-bottom: 1px solid #eaecf0; background: #fbfbfb; font-weight: 600; color: #1d2327; }
+            @media (max-width: 960px) { .cirrusly-analytics-grid { grid-template-columns: repeat(2, 1fr); } }
+            @media (max-width: 600px) { .cirrusly-analytics-grid { grid-template-columns: 1fr; } .cirrusly-toolbar { flex-direction: column; align-items: flex-start; gap: 10px; } .cirrusly-status-dropdown { right: auto; left: 0; width: 100%; box-sizing: border-box; } }
         " );
     }
 
@@ -170,28 +170,28 @@ class Cirrusly_Commerce_Analytics_Pro {
             }
         });";
 
-        wp_add_inline_script( 'cc-chartjs', $script );
+        wp_add_inline_script( 'cirrusly-chartjs', $script );
 
         ?>
-        <div class="wrap cc-analytics-wrapper">
-            <form method="get" action="" id="cc-analytics-form">
+        <div class="wrap cirrusly-analytics-wrapper">
+            <form method="get" action="" id="cirrusly-analytics-form">
                 <input type="hidden" name="page" value="cirrusly-analytics">
-                <div class="cc-toolbar">
-                    <div class="cc-toolbar-left">
+                <div class="cirrusly-toolbar">
+                    <div class="cirrusly-toolbar-left">
                         Found <strong><?php echo intval($data['count']); ?></strong> orders in the last <?php echo intval($days); ?> days.
                     </div>
-                    <div class="cc-toolbar-right">
+                    <div class="cirrusly-toolbar-right">
                         <div style="position:relative;">
-                            <div class="cc-status-trigger" id="ccStatusTrigger" title="<?php echo esc_attr($status_text); ?>">
+                            <div class="cirrusly-status-trigger" id="ccStatusTrigger" title="<?php echo esc_attr($status_text); ?>">
                                 <span class="dashicons dashicons-filter"></span>
                                 Filters: <?php echo esc_html( substr($status_text, 0, 30) . (strlen($status_text)>30 ? '...' : '') ); ?>
                                 <span class="dashicons dashicons-arrow-down-alt2" style="font-size:10px; width:10px; height:10px; margin-left:auto;"></span>
                             </div>
-                            <div class="cc-status-dropdown" id="ccStatusDropdown">
+                            <div class="cirrusly-status-dropdown" id="ccStatusDropdown">
                                 <h4>Filter Statuses</h4>
-                                <div class="cc-status-list">
+                                <div class="cirrusly-status-list">
                                     <?php foreach ( $all_statuses as $slug => $label ) : ?>
-                                        <label class="cc-status-item">
+                                        <label class="cirrusly-status-item">
                                             <input type="checkbox" name="cirrusly_statuses[]" value="<?php echo esc_attr($slug); ?>" 
                                                 <?php checked( in_array( $slug, $selected_statuses ) || in_array( str_replace('wc-','',$slug), $selected_statuses ) ); ?>>
                                             <?php echo esc_html( $label ); ?>
@@ -199,12 +199,12 @@ class Cirrusly_Commerce_Analytics_Pro {
                                     <?php endforeach; ?>
                                 </div>
                                 <div style="display:flex; justify-content:space-between;">
-                                    <button type="button" class="button button-small" onclick="document.querySelectorAll('.cc-status-list input').forEach(el=>el.checked=false)">Clear</button>
+                                    <button type="button" class="button button-small" onclick="document.querySelectorAll('.cirrusly-status-list input').forEach(el=>el.checked=false)">Clear</button>
                                     <button type="submit" class="button button-primary button-small">Apply Filters</button>
                                 </div>
                             </div>
                         </div>
-                        <select name="period" id="cc_period_selector" onchange="document.getElementById('cc-analytics-form').submit()" style="vertical-align: top;">
+                        <select name="period" id="cc_period_selector" onchange="document.getElementById('cirrusly-analytics-form').submit()" style="vertical-align: top;">
                             <option value="7" <?php selected( $days, 7 ); ?>>Last 7 Days</option>
                             <option value="30" <?php selected( $days, 30 ); ?>>Last 30 Days</option>
                             <option value="90" <?php selected( $days, 90 ); ?>>Last 90 Days</option>
@@ -218,31 +218,31 @@ class Cirrusly_Commerce_Analytics_Pro {
                 </div>
             </form>
 
-            <div class="cc-analytics-grid">
-                <div class="cc-metric-card" style="border-top: 3px solid #2271b1;">
+            <div class="cirrusly-analytics-grid">
+                <div class="cirrusly-metric-card" style="border-top: 3px solid #2271b1;">
                     <h3>Net Sales</h3>
-                    <div class="cc-metric-val"><?php echo wp_kses_post( wc_price( $data['revenue'] ) ); ?></div>
-                    <div class="cc-metric-sub"><?php echo esc_html( $data['count'] ); ?> Orders</div>
+                    <div class="cirrusly-metric-val"><?php echo wp_kses_post( wc_price( $data['revenue'] ) ); ?></div>
+                    <div class="cirrusly-metric-sub"><?php echo esc_html( $data['count'] ); ?> Orders</div>
                 </div>
-                <div class="cc-metric-card" style="border-top: 3px solid #d63638;">
+                <div class="cirrusly-metric-card" style="border-top: 3px solid #d63638;">
                     <h3>Total Costs</h3>
-                    <div class="cc-metric-val"><?php echo wp_kses_post( wc_price( $data['total_costs'] ) ); ?></div>
-                    <div class="cc-metric-sub">COGS + Ship + Fees</div>
+                    <div class="cirrusly-metric-val"><?php echo wp_kses_post( wc_price( $data['total_costs'] ) ); ?></div>
+                    <div class="cirrusly-metric-sub">COGS + Ship + Fees</div>
                 </div>
-                <div class="cc-metric-card" style="border-top: 3px solid #00a32a;">
+                <div class="cirrusly-metric-card" style="border-top: 3px solid #00a32a;">
                     <h3>Net Profit</h3>
-                    <div class="cc-metric-val" style="color:#00a32a;"><?php echo wp_kses_post( wc_price( $data['net_profit'] ) ); ?></div>
-                    <div class="cc-metric-sub"><?php echo esc_html( number_format( $data['margin'], 1 ) ); ?>% Margin</div>
+                    <div class="cirrusly-metric-val" style="color:#00a32a;"><?php echo wp_kses_post( wc_price( $data['net_profit'] ) ); ?></div>
+                    <div class="cirrusly-metric-sub"><?php echo esc_html( number_format( $data['margin'], 1 ) ); ?>% Margin</div>
                 </div>
-                <div class="cc-metric-card" style="border-top: 3px solid #dba617;">
+                <div class="cirrusly-metric-card" style="border-top: 3px solid #dba617;">
                     <h3>Projected Stockouts</h3>
-                    <div class="cc-metric-val"><?php echo esc_html( count( $velocity ) ); ?></div>
-                    <div class="cc-metric-sub">Next 14 Days</div>
+                    <div class="cirrusly-metric-val"><?php echo esc_html( count( $velocity ) ); ?></div>
+                    <div class="cirrusly-metric-sub">Next 14 Days</div>
                 </div>
             </div>
 
-            <div class="cc-chart-section">
-                <div class="cc-chart-header">
+            <div class="cirrusly-chart-section">
+                <div class="cirrusly-chart-header">
                     <h2>Performance Overview (Last <?php echo intval( $days ); ?> Days)</h2>
                 </div>
                 <div style="width: 100%; height: 350px;">
@@ -251,14 +251,14 @@ class Cirrusly_Commerce_Analytics_Pro {
             </div>
 
             <div style="display:grid; grid-template-columns: 2fr 1fr; gap: 20px;">
-                <div class="cc-table-wrapper">
-                    <div class="cc-section-title">GMC Health Trend (30 Days)</div>
+                <div class="cirrusly-table-wrapper">
+                    <div class="cirrusly-section-title">GMC Health Trend (30 Days)</div>
                     <div style="padding: 20px; height: 300px;">
                         <canvas id="gmcTrendChart"></canvas>
                     </div>
                 </div>
-                <div class="cc-table-wrapper">
-                    <div class="cc-section-title">Top Profitable Products</div>
+                <div class="cirrusly-table-wrapper">
+                    <div class="cirrusly-section-title">Top Profitable Products</div>
                     <table class="wp-list-table widefat striped">
                         <thead><tr><th>Product</th><th style="text-align:right;">Net Profit</th></tr></thead>
                         <tbody>
@@ -281,8 +281,8 @@ class Cirrusly_Commerce_Analytics_Pro {
             </div>
             
             <?php if ( ! empty( $velocity ) ) : ?>
-            <div class="cc-table-wrapper">
-                <div class="cc-section-title" style="border-left: 4px solid #dba617;">⚠️ Inventory Risk: High Velocity Items</div>
+            <div class="cirrusly-table-wrapper">
+                <div class="cirrusly-section-title" style="border-left: 4px solid #dba617;">⚠️ Inventory Risk: High Velocity Items</div>
                 <table class="wp-list-table widefat striped">
                     <thead><tr><th>Product</th><th>Current Stock</th><th>Avg Daily Sales</th><th>Est. Days Left</th><th>Action</th></tr></thead>
                     <tbody>

@@ -1,6 +1,6 @@
 jQuery(document).ready(function($){
     // Handle inline edit blur (Save) - support legacy and new classes
-    $(document).on('blur', '.cirrusly-inline-edit, .cc-inline-edit', function(){
+    $(document).on('blur', '.cirrusly-inline-edit, .cirrusly-inline-edit', function(){
         var $el = $(this);
         var $row = $el.closest('tr');
         var pid = $el.data('pid');
@@ -33,7 +33,7 @@ jQuery(document).ready(function($){
     });
 
     // Handle inline edit focus (Select All)
-    $(document).on('focus', '.cirrusly-inline-edit, .cc-inline-edit', function() {
+    $(document).on('focus', '.cirrusly-inline-edit, .cirrusly-inline-edit', function() {
         var range = document.createRange();
         range.selectNodeContents(this);
         var sel = window.getSelection();

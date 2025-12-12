@@ -169,21 +169,21 @@ class Cirrusly_Commerce_Setup_Wizard {
     public function enqueue_wizard_styles() {
         if ( isset( $_GET['page'] ) && 'cirrusly-setup' === $_GET['page'] ) {
             $wizard_styles = '
-                .cc-wizard-container { max-width: 700px; margin: 50px auto; background: #fff; padding: 40px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border-radius: 4px; }
-                .cc-wizard-header { text-align: center; margin-bottom: 30px; }
-                .cc-wizard-progress { display: flex; justify-content: space-between; margin-bottom: 30px; border-bottom: 1px solid #eee; padding-bottom: 20px; }
-                .cc-step { font-weight: bold; color: #ccc; font-size: 14px; }
-                .cc-step.active { color: #2271b1; }
-                .cc-wizard-footer { margin-top: 30px; display: flex; justify-content: flex-end; align-items: center; gap: 15px; border-top: 1px solid #eee; padding-top: 20px; }
+                .cirrusly-wizard-container { max-width: 700px; margin: 50px auto; background: #fff; padding: 40px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border-radius: 4px; }
+                .cirrusly-wizard-header { text-align: center; margin-bottom: 30px; }
+                .cirrusly-wizard-progress { display: flex; justify-content: space-between; margin-bottom: 30px; border-bottom: 1px solid #eee; padding-bottom: 20px; }
+                .cirrusly-step { font-weight: bold; color: #ccc; font-size: 14px; }
+                .cirrusly-step.active { color: #2271b1; }
+                .cirrusly-wizard-footer { margin-top: 30px; display: flex; justify-content: flex-end; align-items: center; gap: 15px; border-top: 1px solid #eee; padding-top: 20px; }
                 
                 /* Pricing Columns */
-                .cc-pricing-grid { display: flex; gap: 15px; margin-top: 20px; }
-                .cc-pricing-col { flex: 1; border: 1px solid #ddd; padding: 20px; border-radius: 5px; text-align: center; background: #f9f9f9; }
-                .cc-pricing-col.featured { border-color: #2271b1; background: #f0f6fc; transform: scale(1.02); box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-                .cc-pricing-col h4 { margin: 0 0 10px; font-size: 1.2em; }
-                .cc-tag { display: inline-block; background: #2271b1; color: #fff; padding: 2px 6px; border-radius: 3px; font-size: 10px; text-transform: uppercase; margin-bottom: 10px; }
-                .cc-feature-list { text-align: left; font-size: 12px; margin: 15px 0; color: #555; list-style: none; padding: 0; }
-                .cc-feature-list li { margin-bottom: 5px; }
+                .cirrusly-pricing-grid { display: flex; gap: 15px; margin-top: 20px; }
+                .cirrusly-pricing-col { flex: 1; border: 1px solid #ddd; padding: 20px; border-radius: 5px; text-align: center; background: #f9f9f9; }
+                .cirrusly-pricing-col.featured { border-color: #2271b1; background: #f0f6fc; transform: scale(1.02); box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+                .cirrusly-pricing-col h4 { margin: 0 0 10px; font-size: 1.2em; }
+                .cirrusly-tag { display: inline-block; background: #2271b1; color: #fff; padding: 2px 6px; border-radius: 3px; font-size: 10px; text-transform: uppercase; margin-bottom: 10px; }
+                .cirrusly-feature-list { text-align: left; font-size: 12px; margin: 15px 0; color: #555; list-style: none; padding: 0; }
+                .cirrusly-feature-list li { margin-bottom: 5px; }
             ';
             wp_add_inline_style( 'cirrusly-admin-css', $wizard_styles );
         }
@@ -216,18 +216,18 @@ class Cirrusly_Commerce_Setup_Wizard {
 
         ?>
         <div class="wrap">
-            <div class="cc-wizard-container">
-                <div class="cc-wizard-header">
+            <div class="cirrusly-wizard-container">
+                <div class="cirrusly-wizard-header">
                      <img src="<?php echo esc_url( CIRRUSLY_COMMERCE_URL . 'assets/images/logo.svg' ); ?>" style="height: 40px; width: auto;" alt="Cirrusly Commerce">
                     <h2 style="margin-top: 10px;"><?php esc_html_e( 'Setup Guide', 'cirrusly-commerce' ); ?></h2>
                 </div>
 
-                <div class="cc-wizard-progress">
-                    <span class="cc-step <?php echo $step >= 1 ? 'active' : ''; ?>"><?php esc_html_e( '1. License', 'cirrusly-commerce' ); ?></span>
-                    <span class="cc-step <?php echo $step >= 2 ? 'active' : ''; ?>"><?php esc_html_e( '2. Connect', 'cirrusly-commerce' ); ?></span>
-                    <span class="cc-step <?php echo $step >= 3 ? 'active' : ''; ?>"><?php esc_html_e( '3. Finance', 'cirrusly-commerce' ); ?></span>
-                    <span class="cc-step <?php echo $step >= 4 ? 'active' : ''; ?>"><?php esc_html_e( '4. Visuals', 'cirrusly-commerce' ); ?></span>
-                    <span class="cc-step <?php echo $step >= 5 ? 'active' : ''; ?>"><?php esc_html_e( '5. Finish', 'cirrusly-commerce' ); ?></span>
+                <div class="cirrusly-wizard-progress">
+                    <span class="cirrusly-step <?php echo $step >= 1 ? 'active' : ''; ?>"><?php esc_html_e( '1. License', 'cirrusly-commerce' ); ?></span>
+                    <span class="cirrusly-step <?php echo $step >= 2 ? 'active' : ''; ?>"><?php esc_html_e( '2. Connect', 'cirrusly-commerce' ); ?></span>
+                    <span class="cirrusly-step <?php echo $step >= 3 ? 'active' : ''; ?>"><?php esc_html_e( '3. Finance', 'cirrusly-commerce' ); ?></span>
+                    <span class="cirrusly-step <?php echo $step >= 4 ? 'active' : ''; ?>"><?php esc_html_e( '4. Visuals', 'cirrusly-commerce' ); ?></span>
+                    <span class="cirrusly-step <?php echo $step >= 5 ? 'active' : ''; ?>"><?php esc_html_e( '5. Finish', 'cirrusly-commerce' ); ?></span>
                 </div>
 
                 <form method="post" enctype="multipart/form-data">
@@ -269,7 +269,7 @@ class Cirrusly_Commerce_Setup_Wizard {
                     /* translators: %s: plan name (Pro or Pro Plus) */
                     esc_html__( 'You have unlocked %s features.', 'cirrusly-commerce' ), 
                     '<strong>' . ($is_plus ? esc_html__('Pro Plus', 'cirrusly-commerce') : esc_html__('Pro', 'cirrusly-commerce')) . '</strong>'
-                ) . '</p>                <div class="cc-wizard-footer">
+                ) . '</p>                <div class="cirrusly-wizard-footer">
                     <button type="submit" name="save_step" class="button button-primary button-hero">' . esc_html__( 'Let\'s Configure &rarr;', 'cirrusly-commerce' ) . '</button>
                 </div>
             </div>';
@@ -282,11 +282,11 @@ class Cirrusly_Commerce_Setup_Wizard {
         <h3><?php esc_html_e( 'Choose your Edition', 'cirrusly-commerce' ); ?></h3>
         <p><?php esc_html_e( 'The free version offers essential features to get you started. However, upgrading unlocks automation and advanced tools. Take advantage of a risk-free trial to explore these benefits, or continue with your current plan.', 'cirrusly-commerce' ); ?></p>
         
-        <div class="cc-pricing-grid">
-            <div class="cc-pricing-col">
+        <div class="cirrusly-pricing-grid">
+            <div class="cirrusly-pricing-col">
                 <h4><?php esc_html_e( 'Free', 'cirrusly-commerce' ); ?></h4>
                 <p style="font-size: 24px; font-weight: bold;"><?php esc_html_e( '$0', 'cirrusly-commerce' ); ?></p>
-                <ul class="cc-feature-list">
+                <ul class="cirrusly-feature-list">
                     <li><span class="dashicons dashicons-yes" style="color:green;"></span> <?php esc_html_e( 'Health Scan (Manual)', 'cirrusly-commerce' ); ?></li>
                     <li><span class="dashicons dashicons-yes" style="color:green;"></span> <?php esc_html_e( 'Profit Audit', 'cirrusly-commerce' ); ?></li>
                     <li><span class="dashicons dashicons-yes" style="color:green;"></span> <?php esc_html_e( 'Basic Badges', 'cirrusly-commerce' ); ?></li>
@@ -294,11 +294,11 @@ class Cirrusly_Commerce_Setup_Wizard {
                 <button type="submit" name="save_step" class="button button-secondary" style="width:100%;"><?php esc_html_e( 'Continue Free', 'cirrusly-commerce' ); ?></button>
             </div>
 
-            <div class="cc-pricing-col">
-                <span class="cc-tag"><?php esc_html_e( 'Best Value', 'cirrusly-commerce' ); ?></span>
+            <div class="cirrusly-pricing-col">
+                <span class="cirrusly-tag"><?php esc_html_e( 'Best Value', 'cirrusly-commerce' ); ?></span>
                 <h4><?php esc_html_e( 'Pro', 'cirrusly-commerce' ); ?></h4>
                 <p style="font-size: 24px; font-weight: bold;"><?php esc_html_e( '3-Day Trial', 'cirrusly-commerce' ); ?></p>
-                <ul class="cc-feature-list">
+                <ul class="cirrusly-feature-list">
                     <li><span class="dashicons dashicons-yes" style="color:green;"></span> <strong><?php esc_html_e( 'API Sync', 'cirrusly-commerce' ); ?></strong></li>
                     <li><span class="dashicons dashicons-yes" style="color:green;"></span> <?php esc_html_e( 'Multi-Profile Profit', 'cirrusly-commerce' ); ?></li>
                     <li><span class="dashicons dashicons-yes" style="color:green;"></span> <?php esc_html_e( 'Smart Inventory Badges', 'cirrusly-commerce' ); ?></li>
@@ -307,11 +307,11 @@ class Cirrusly_Commerce_Setup_Wizard {
                 <p style="font-size:11px; color:#777; margin-top:5px;"><?php esc_html_e( 'Opens in new window.', 'cirrusly-commerce' ); ?> <br><?php esc_html_e( 'Refresh after purchase.', 'cirrusly-commerce' ); ?></p>
             </div>
 
-            <div class="cc-pricing-col featured">
-                <span class="cc-tag"><?php esc_html_e( 'Automated', 'cirrusly-commerce' ); ?></span>
+            <div class="cirrusly-pricing-col featured">
+                <span class="cirrusly-tag"><?php esc_html_e( 'Automated', 'cirrusly-commerce' ); ?></span>
                 <h4><?php esc_html_e( 'Pro Plus', 'cirrusly-commerce' ); ?></h4>
                 <p style="font-size: 24px; font-weight: bold;"><?php esc_html_e( '7-Day Trial', 'cirrusly-commerce' ); ?></p>
-                <ul class="cc-feature-list">
+                <ul class="cirrusly-feature-list">
                     <li><span class="dashicons dashicons-yes" style="color:green;"></span> <strong><?php esc_html_e( 'All Pro Features', 'cirrusly-commerce' ); ?></strong></li>
                     <li><span class="dashicons dashicons-yes" style="color:green;"></span> <?php esc_html_e( 'Automated Discounts', 'cirrusly-commerce' ); ?></li>
                     <li><span class="dashicons dashicons-yes" style="color:green;"></span> <?php esc_html_e( 'Dynamic Repricing', 'cirrusly-commerce' ); ?></li>
@@ -362,7 +362,7 @@ class Cirrusly_Commerce_Setup_Wizard {
             </tr>
             <?php if ( $is_pro ): ?>
             <tr>
-                <th><?php esc_html_e( 'Service Account JSON', 'cirrusly-commerce' ); ?> <span class="cc-tag">PRO</span></th>
+                <th><?php esc_html_e( 'Service Account JSON', 'cirrusly-commerce' ); ?> <span class="cirrusly-tag">PRO</span></th>
                 <td>
                     <input type="file" name="cirrusly_service_account" accept=".json">
                     <p class="description"><?php esc_html_e( 'Upload your Google Cloud Key for Real-Time API scanning. This requires advanced setup. Refer to our documentation for guidance.', 'cirrusly-commerce' ); ?></p>
@@ -370,7 +370,7 @@ class Cirrusly_Commerce_Setup_Wizard {
             </tr>
             <?php endif; ?>
         </table>
-        <div class="cc-wizard-footer">
+        <div class="cirrusly-wizard-footer">
             <button type="submit" name="save_step" class="button button-primary button-hero"><?php esc_html_e( 'Next: Financials &rarr;', 'cirrusly-commerce' ); ?></button>
         </div>
         <?php
@@ -415,7 +415,7 @@ class Cirrusly_Commerce_Setup_Wizard {
             </tr>
             <?php if ( $is_pro ): ?>
             <tr style="background: #f0f6fc;">
-                <th><?php esc_html_e( 'Multi-Profile', 'cirrusly-commerce' ); ?> <span class="cc-tag">PRO</span></th>
+                <th><?php esc_html_e( 'Multi-Profile', 'cirrusly-commerce' ); ?> <span class="cirrusly-tag">PRO</span></th>
                 <td>
                     <label><input type="radio" name="cirrusly_profile_mode" value="single" <?php checked('single', isset($conf['profile_mode'])?$conf['profile_mode']:'single'); ?>> <?php esc_html_e( 'Single', 'cirrusly-commerce' ); ?></label>
                     <label><input type="radio" name="cirrusly_profile_mode" value="multi" <?php checked('multi', isset($conf['profile_mode'])?$conf['profile_mode']:''); ?>> <?php esc_html_e( 'Mixed (PayPal + Stripe)', 'cirrusly-commerce' ); ?></label>
@@ -432,7 +432,7 @@ class Cirrusly_Commerce_Setup_Wizard {
             </tr>
         </table>
 
-        <div class="cc-wizard-footer">
+        <div class="cirrusly-wizard-footer">
             <button type="submit" name="save_step" class="button button-primary button-hero"><?php esc_html_e( 'Next: Storefront &rarr;', 'cirrusly-commerce' ); ?></button>
         </div>
         <?php
@@ -473,14 +473,14 @@ class Cirrusly_Commerce_Setup_Wizard {
             
             <?php if ( $is_pro ): ?>
             <div style="margin-left: 25px; margin-top: 10px; padding-top: 10px; border-top: 1px dashed #ccc;">
-                <span class="cc-tag">PRO</span><br>
+                <span class="cirrusly-tag">PRO</span><br>
                 <label><input type="checkbox" name="cirrusly_smart_inventory" value="yes" <?php checked( 'yes', $smart_inventory ); ?>> <?php esc_html_e( 'Low Stock Warning (Qty < 5)', 'cirrusly-commerce' ); ?></label><br>
                 <label><input type="checkbox" name="cirrusly_smart_performance" value="yes" <?php checked( 'yes', $smart_performance ); ?>> <?php esc_html_e( 'Best Seller Badge', 'cirrusly-commerce' ); ?></label>
             </div>
             <?php endif; ?>
         </div>
 
-        <div class="cc-wizard-footer">
+        <div class="cirrusly-wizard-footer">
             <button type="submit" name="save_step" class="button button-primary button-hero"><?php esc_html_e( 'Finish Setup &rarr;', 'cirrusly-commerce' ); ?></button>
         </div>
         <?php

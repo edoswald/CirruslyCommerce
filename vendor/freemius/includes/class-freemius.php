@@ -24078,7 +24078,7 @@
             // "No Credit-Card Required" or "No Commitment for N Days".
             $cc_string = $require_payment ?
                 sprintf( $this->get_text_inline( 'No commitment for %s days - cancel anytime!', 'no-commitment-for-x-days' ), $trial_period ) :
-                $this->get_text_inline( 'No credit card required', 'no-cc-required' ) . '!';
+                $this->get_text_inline( 'No credit card required', 'no-cirrusly-required' ) . '!';
 
 
             // Start trial button.

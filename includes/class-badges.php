@@ -52,16 +52,16 @@ class Cirrusly_Commerce_Badges {
         $single_width = ($width_int * 1.5) . 'px';
 
         $css = "html body .wc-block-components-sale-badge, html body .wc-block-grid__product-onsale, html body .wp-block-woocommerce-product-sale-badge, html body .onsale, html body span.onsale, html body .woocommerce-badges .badge-sale { display: none !important; visibility: hidden !important; opacity: 0 !important; z-index: -999 !important; }
-        .cw-badge-pill { background-color: #d63638; color: #fff; font-weight: bold; font-size: {$font_size}; text-transform: uppercase; padding: {$padding}; margin-bottom: 5px; display: inline-block; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.2); width: fit-content; line-height: 1.2; }
-        .cw-badge-pill.cw-new { background-color: #2271b1; }
-        .cw-shop-badge-layer { position: absolute; bottom: 10px; left: 10px; z-index: 99; pointer-events: none; display: flex; flex-direction: column; align-items: flex-start; }
-        .cw-shop-badge-layer .cw-badge-img { width: {$width} !important; height: auto; display: block; margin: 0; box-shadow: none !important; }
-        .cw-badge-container.cw-single-page { margin-bottom: 15px; display: flex; gap: 10px; align-items: center; width: fit-content; }
-        .cw-badge-container.cw-single-page .cw-badge-img { width: {$single_width} !important; height: auto; display: block; margin: 0; }
-        .cw-badge-container.cw-single-page .cw-badge-pill { margin-bottom: 0; font-size: 14px; padding: 6px 10px; }
-        .cw-has-tooltip { cursor: help; position: relative; }
-        .cw-has-tooltip:hover::after { content: attr(data-tooltip); position: absolute; bottom: 120%; left: 0; background-color: #333; color: #fff; font-size: 10px; font-weight: normal; text-transform: none; white-space: nowrap; padding: 5px 10px; border-radius: 4px; z-index: 9999; box-shadow: 0 2px 6px rgba(0,0,0,0.3); pointer-events: none; }
-        .cw-badge-wrap { display: block; line-height: 0; width: fit-content; }";
+        .cirrusly-badge-pill { background-color: #d63638; color: #fff; font-weight: bold; font-size: {$font_size}; text-transform: uppercase; padding: {$padding}; margin-bottom: 5px; display: inline-block; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.2); width: fit-content; line-height: 1.2; }
+        .cirrusly-badge-pill.cirrusly-new { background-color: #2271b1; }
+        .cirrusly-shop-badge-layer { position: absolute; bottom: 10px; left: 10px; z-index: 99; pointer-events: none; display: flex; flex-direction: column; align-items: flex-start; }
+        .cirrusly-shop-badge-layer .cirrusly-badge-img { width: {$width} !important; height: auto; display: block; margin: 0; box-shadow: none !important; }
+        .cirrusly-badge-container.cirrusly-single-page { margin-bottom: 15px; display: flex; gap: 10px; align-items: center; width: fit-content; }
+        .cirrusly-badge-container.cirrusly-single-page .cirrusly-badge-img { width: {$single_width} !important; height: auto; display: block; margin: 0; }
+        .cirrusly-badge-container.cirrusly-single-page .cirrusly-badge-pill { margin-bottom: 0; font-size: 14px; padding: 6px 10px; }
+        .cirrusly-has-tooltip { cursor: help; position: relative; }
+        .cirrusly-has-tooltip:hover::after { content: attr(data-tooltip); position: absolute; bottom: 120%; left: 0; background-color: #333; color: #fff; font-size: 10px; font-weight: normal; text-transform: none; white-space: nowrap; padding: 5px 10px; border-radius: 4px; z-index: 9999; box-shadow: 0 2px 6px rgba(0,0,0,0.3); pointer-events: none; }
+        .cirrusly-badge-wrap { display: block; line-height: 0; width: fit-content; }";
 
         // Attach to the base frontend style handle
         wp_add_inline_style( 'cirrusly-frontend-base', $css );
@@ -70,14 +70,14 @@ class Cirrusly_Commerce_Badges {
         if ( ! is_admin() ) {
             $js = "document.addEventListener('DOMContentLoaded', function() {
                 function moveBadges() {
-                    var payloads = document.querySelectorAll('.cw-badge-payload');
+                    var payloads = document.querySelectorAll('.cirrusly-badge-payload');
                     payloads.forEach(function(payload) {
                         var card = payload.closest('li.product, .wc-block-grid__product, .wp-block-post');
                         if (!card || card.closest('.woosb-products')) return;
                         var imgWrap = card.querySelector('.wc-block-grid__product-image, .woocommerce-loop-product__link, .wp-block-post-featured-image');
-                        if ( imgWrap && ! imgWrap.querySelector('.cw-shop-badge-layer') ) {
+                        if ( imgWrap && ! imgWrap.querySelector('.cirrusly-shop-badge-layer') ) {
                             var layer = document.createElement('div');
-                            layer.className = 'cw-shop-badge-layer';
+                            layer.className = 'cirrusly-shop-badge-layer';
                             layer.innerHTML = payload.innerHTML;
                             imgWrap.style.position = 'relative';
                             imgWrap.appendChild(layer);
@@ -103,27 +103,27 @@ class Cirrusly_Commerce_Badges {
     /**
      * Render badge markup for the current product on single product pages.
      *
-     * Echoes sanitized badge HTML wrapped in a `.cw-badge-container.cw-single-page`
+     * Echoes sanitized badge HTML wrapped in a `.cirrusly-badge-container.cirrusly-single-page`
      * element when a global `$product` is available and badges are present.
      */
     public function render_single_badges() {
         global $product;
         if ( ! $product ) return;
         $html = $this->get_badge_html( $product );
-        if ( $html ) echo '<div class="cw-badge-container cw-single-page">' . wp_kses_post( $html ) . '</div>';
+        if ( $html ) echo '<div class="cirrusly-badge-container cirrusly-single-page">' . wp_kses_post( $html ) . '</div>';
     }
 
     /**
      * Output a hidden container with badge HTML for the current product used in grid and list views.
      *
      * Uses the global $product; if no product or no badge HTML is available nothing is output.
-     * When present, echoes a hidden <div class="cw-badge-payload"> containing the badge HTML (sanitized for safe output).
+     * When present, echoes a hidden <div class="cirrusly-badge-payload"> containing the badge HTML (sanitized for safe output).
      */
     public function render_grid_payload() {
         global $product;
         if ( ! $product ) return;
         $html = $this->get_badge_html( $product );
-        if ( $html ) echo '<div class="cw-badge-payload" style="display:none;">' . wp_kses_post( $html ) . '</div>';
+        if ( $html ) echo '<div class="cirrusly-badge-payload" style="display:none;">' . wp_kses_post( $html ) . '</div>';
     }
 
     /**
@@ -196,7 +196,7 @@ class Cirrusly_Commerce_Badges {
             if ( $percentage >= $min_threshold ) {
                 $source_text = ($calc_from === 'msrp') ? "MSRP" : "Regular Price";
                 $tip = "Discounts calculated from " . $source_text;
-                $output .= '<span class="cw-badge-pill cw-has-tooltip" data-tooltip="' . esc_attr($tip) . '">' . $prefix . $percentage . '%</span>';
+                $output .= '<span class="cirrusly-badge-pill cirrusly-has-tooltip" data-tooltip="' . esc_attr($tip) . '">' . $prefix . $percentage . '%</span>';
             }
         }
 
@@ -206,7 +206,7 @@ class Cirrusly_Commerce_Badges {
             if ( $created_date ) {
                 $diff = (time() - $created_date->getTimestamp()) / (60 * 60 * 24);
                 if ( $diff <= $new_days ) {
-                    $output .= '<span class="cw-badge-pill cw-new">New</span>';
+                    $output .= '<span class="cirrusly-badge-pill cirrusly-new">New</span>';
                 }
             }
         }
@@ -217,9 +217,9 @@ class Cirrusly_Commerce_Badges {
                 if ( empty($badge['tag']) || empty($badge['url']) ) continue;
                 if ( has_term( $badge['tag'], 'product_tag', $product->get_id() ) ) {
                     $width = !empty($badge['width']) ? intval($badge['width']) . 'px' : '60px';
-                    $tooltip_attr = !empty($badge['tooltip']) ? ' class="cw-badge-wrap cw-has-tooltip" data-tooltip="' . esc_attr($badge['tooltip']) . '"' : ' class="cw-badge-wrap"';
+                    $tooltip_attr = !empty($badge['tooltip']) ? ' class="cirrusly-badge-wrap cirrusly-has-tooltip" data-tooltip="' . esc_attr($badge['tooltip']) . '"' : ' class="cirrusly-badge-wrap"';
                     $output .= '<span' . $tooltip_attr . '>';
-                    $output .= '<img src="' . esc_url($badge['url']) . '" style="width:' . esc_attr($width) . ' !important;" class="cw-badge-img" />';
+                    $output .= '<img src="' . esc_url($badge['url']) . '" style="width:' . esc_attr($width) . ' !important;" class="cirrusly-badge-img" />';
                     $output .= '</span>';
                 }
             }
