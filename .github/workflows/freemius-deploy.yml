@@ -1,4 +1,6 @@
 name: Deploy to Freemius
+permissions:
+  contents: read
 on:
   release:
     types: [published]
