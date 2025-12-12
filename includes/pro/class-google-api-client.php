@@ -17,12 +17,11 @@ class Cirrusly_Commerce_Google_API_Client {
 
         if ( empty( $json_key ) ) return new WP_Error( 'missing_creds', 'Service Account JSON missing' );
 
-        // 2. Get Freemius Install Token
-        // Rely on locally persisted token captured during activation/connection hooks
-        $install_token = get_option( 'cirrusly_install_api_token' );
+        // 2. Get API Key (Replaces Freemius Token)
+        $api_key = isset( $scan_config['api_key'] ) ? sanitize_text_field( $scan_config['api_key'] ) : '';
 
-        if ( empty( $install_token ) ) {
-            return new WP_Error( 'no_token', 'Active Pro License required (Token missing). Please re-activate your license.' );
+        if ( empty( $api_key ) ) {
+            return new WP_Error( 'no_token', 'API License Key missing. Please enter it in Settings > General.' );
         }
 
         // 3. Decrypt Google JSON
@@ -49,8 +48,8 @@ class Cirrusly_Commerce_Google_API_Client {
             'body'    => json_encode( $body ),
             'headers' => array( 
                 'Content-Type'  => 'application/json',
-                // Send Install API Token as Bearer Token
-                'Authorization' => 'Bearer ' . $install_token
+                // Send API Key as Bearer Token
+                'Authorization' => 'Bearer ' . $api_key
             ),
             'timeout' => 45
         ) );

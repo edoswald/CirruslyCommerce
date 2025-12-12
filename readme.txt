@@ -4,7 +4,7 @@ Contributors: edoswald
 Tags: Google Merchant Center, WooCommerce, pricing, MSRP, profit margin
 Requires at least: 5.8 
 Tested up to: 6.9 
-Stable tag: 1.4.2 
+Stable tag: 1.4.3 
 Requires PHP: 8.1 
 License: GPLv2 or later 
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
@@ -106,6 +106,10 @@ Yes. The Pro version allows you to set a "Split Profile" (e.g., 70% Stripe / 30%
 
 == Changelog ==
 
+= 1.4.3 =
+* **Refactor:** Changes help areas to reflect support forum location of plugin following WP Plugin Directory approval. A thank you to the Plugin Review team for their work!
+* **Fix:** API functionality that was broken following migration to SaaS model has been restored. (Pro/Pro Plus)
+
 = 1.4.2 =
 * **Enhancement:** All scripts and styles are now dedicated external assets.
 * **Fix:** Standardized codebase naming conventions to prevent conflicts with other plugins (cc* and cw* to cirrusly).
@@ -118,7 +122,7 @@ Yes. The Pro version allows you to set a "Split Profile" (e.g., 70% Stripe / 30%
 * **Refactor:** Migrated option/transient naming for consistency and future extensibility.
 * **Enhancement:** Centralized admin inline JavaScript for improved maintainability.
 * **Enhancement (Pro):** Refactored analytics data preparation and chart rendering.
-* **Enhancement (Pro):** Moved to service worker for API calls.
+* **Enhancement (Pro):** Moved to service worker for API calls, allowing for easier upgrades of functionality without bloating plugin for Pro users.
 
 = 1.3.3 =
 * **New Feature:** Admin Setup Wizard - Automated onboarding runs on activation with milestone-based prompts.

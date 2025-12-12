@@ -294,6 +294,8 @@ class Cirrusly_Commerce_Settings_Manager {
         $daily = isset($scan['enable_daily_scan']) ? $scan['enable_daily_scan'] : '';
         
         $merchant_id_pro = isset($scan['merchant_id_pro']) ? $scan['merchant_id_pro'] : '';
+        $api_key = isset($scan['api_key']) ? $scan['api_key'] : '';
+
         $alert_reports = isset($scan['alert_weekly_report']) ? $scan['alert_weekly_report'] : '';
         $alert_disapproval = isset($scan['alert_gmc_disapproval']) ? $scan['alert_gmc_disapproval'] : '';
         $uploaded_file = isset($scan['service_account_name']) ? $scan['service_account_name'] : '';
@@ -390,6 +392,8 @@ class Cirrusly_Commerce_Settings_Manager {
                 <p class="description">Upload your Google Service Account JSON to enable real-time API scanning. This allows the plugin to fetch live disapproval statuses directly from Google Merchant Center.</p>
                 <table class="form-table cirrusly-settings-table">
                 <tr><th>Service Account JSON</th><td><input type="file" name="cirrusly_service_account" accept=".json" '.esc_attr($disabled_attr).'>'.($uploaded_file ? '<br><small>Uploaded: '.esc_html($uploaded_file).'</small>' : '').'</td></tr>
+                
+                <tr><th>API License Key</th><td><input type="text" name="cirrusly_scan_config[api_key]" value="'.esc_attr($api_key).'" '.esc_attr($disabled_attr).' placeholder="Enter License Key"></td></tr>
             
                 <tr><th>Merchant ID</th><td><input type="text" name="cirrusly_scan_config[merchant_id_pro]" value="'.esc_attr($merchant_id_pro).'" '.esc_attr($disabled_attr).'></td></tr>
             </table>

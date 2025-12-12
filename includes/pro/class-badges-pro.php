@@ -12,12 +12,12 @@ class Cirrusly_Commerce_Badges_Pro {
      *
      * @param \WC_Product $product The product to evaluate.
      * @param array $badge_cfg Configuration array. Recognized keys:
-     *                         - 'smart_inventory' (string) : 'yes' to enable inventory badge.
-     *                         - 'smart_performance' (string): 'yes' to enable performance badge.
-     *                         - 'smart_scheduler' (string) : 'yes' to enable scheduler badge.
-     *                         - 'scheduler_start' (string)  : start datetime for scheduler badge.
-     *                         - 'scheduler_end' (string)    : end datetime for scheduler badge.
-     *                         - 'smart_sentiment' (string)  : 'yes' to enable sentiment badge.
+     * - 'smart_inventory' (string) : 'yes' to enable inventory badge.
+     * - 'smart_performance' (string): 'yes' to enable performance badge.
+     * - 'smart_scheduler' (string) : 'yes' to enable scheduler badge.
+     * - 'scheduler_start' (string)  : start datetime for scheduler badge.
+     * - 'scheduler_end' (string)    : end datetime for scheduler badge.
+     * - 'smart_sentiment' (string)  : 'yes' to enable sentiment badge.
 
      * @return string HTML string containing the concatenated badge elements (may be empty).
      */
@@ -64,10 +64,9 @@ class Cirrusly_Commerce_Badges_Pro {
     /**
      * Produce a sentiment-based badge HTML when recent reviews indicate strong positive sentiment.
      *
-     * Analyzes up to five recent approved reviews for the given product and returns a "Customer Fave" badge
-     * HTML if the aggregated sentiment exceeds a positive threshold. Results are cached: a positive badge is
-     * cached for seven days; absence of a positive badge is cached for one day. If required dependencies are
-     * missing or an error occurs during analysis, the function returns an empty string.
+     * Analyzes up to five recent approved reviews for the given product via the Worker API.
+     * Returns a "Customer Fave" badge HTML if the aggregated sentiment exceeds a positive threshold (0.6).
+     * Results are cached: a positive badge is cached for seven days; absence of a positive badge is cached for one day.
      *
      * @param object $product Product object (e.g., WC_Product) whose reviews will be analyzed.
      * @return string Badge HTML when strong positive sentiment is detected, empty string otherwise.
@@ -91,58 +90,42 @@ class Cirrusly_Commerce_Badges_Pro {
             return '';
         }
 
-        // Dependency Check
+        // Dependency Check: Use the Proxy Client
         if ( ! class_exists( 'Cirrusly_Commerce_Google_API_Client' ) ) {
-            set_transient( $cache_key, '', DAY_IN_SECONDS );
-            return '';
-        }
-        
-        $client = Cirrusly_Commerce_Google_API_Client::get_client();
-        if ( is_wp_error( $client ) ) {
-            set_transient( $cache_key, '', DAY_IN_SECONDS );
-            return '';
-        }
-    
-        if ( ! class_exists( 'Google\Service\CloudNaturalLanguage' ) ) {
-            if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
-                error_log( 'Cirrusly: Google Cloud Natural Language service class not found. Install google/apiclient-services.' );
-            }
             set_transient( $cache_key, '', DAY_IN_SECONDS );
             return '';
         }
 
         try {
-            $service = new Google\Service\CloudNaturalLanguage( $client );
-            
+            // Combine text from recent reviews
             $combined_text = implode( "\n\n", array_map( function( $c ) {
                 return wp_strip_all_tags( $c->comment_content );
             }, $comments ) );
             
-            $doc = new Google\Service\CloudNaturalLanguage\Document();
-            $doc->setContent( $combined_text );
-            $doc->setType( 'PLAIN_TEXT' );
-            
-            $request = new Google\Service\CloudNaturalLanguage\AnalyzeSentimentRequest();
-            $request->setDocument( $doc );
-            
-            $resp = $service->documents->analyzeSentiment( $request );
-           $doc_sentiment = $resp->getDocumentSentiment();
-           if ( ! $doc_sentiment ) {
-               $score = 0.0;
-           } else {
-               $score = $doc_sentiment->getScore();
-           }
+            // Send to Worker via Proxy
+            // Note: Worker must be updated to return 'sentiment' key (documentSentiment score) for this to work.
+            $response = Cirrusly_Commerce_Google_API_Client::request( 'nlp_analyze', array( 'text' => $combined_text ) );
 
+            if ( is_wp_error( $response ) ) {
+                set_transient( $cache_key, '', DAY_IN_SECONDS );
+                return '';
+            }
+
+            // Check if sentiment score exists in response (Worker compatibility check)
+            $score = 0.0;
+            if ( isset( $response['sentiment']['score'] ) ) {
+                $score = (float) $response['sentiment']['score'];
+            } elseif ( isset( $response['documentSentiment']['score'] ) ) {
+                $score = (float) $response['documentSentiment']['score'];
+            }
+
+            // Threshold: > 0.6 indicates clear positive sentiment
             if ( $score > 0.6 ) {
                 $html = '<span class="cirrusly-badge-pill" style="background-color:#e0115f;">Customer Fave ❤️</span>';
                 set_transient( $cache_key, $html, 7 * DAY_IN_SECONDS );
                 return $html;
             }
 
-        } catch ( Google\Service\Exception $e ) {
-            if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
-                error_log( 'Cirrusly Sentiment API Error: ' . $e->getMessage() );
-            }
         } catch ( Exception $e ) {
             if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
                 error_log( 'Cirrusly Sentiment Analysis Error: ' . $e->getMessage() );
