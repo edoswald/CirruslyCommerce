@@ -36,8 +36,8 @@ class Cirrusly_Commerce_Pricing_Sync {
         // Check existence (handling both old scalar IDs and new array format)
         $exists = false;
         foreach ( $queue as $item ) {
-            $id = is_array( $item ) ? $item['id'] : $item;
-            if ( $id == $product_id ) {
+            $id = is_array( $item ) && isset( $item['id'] ) ? (int) $item['id'] : (int) $item;
+            if ( $id === (int) $product_id ) {
                 $exists = true;
                 break;
             }
@@ -98,9 +98,6 @@ class Cirrusly_Commerce_Pricing_Sync {
                 $q_item = array( 'id' => (int) $q_item, 'attempts' => 0 );
             }
             
-            // Store for retry logic
-            $processing_items[ $q_item['id'] ] = $q_item;
-
             $product = wc_get_product( $q_item['id'] );
             if ( ! $product ) continue; 
 
@@ -108,11 +105,15 @@ class Cirrusly_Commerce_Pricing_Sync {
             $offer_id = $product->get_sku() ?: $product->get_id();
             $language = apply_filters( 'cirrusly_gmc_content_language', get_bloginfo( 'language' ) );
             $country  = $base_country;
-            $price    = $product->get_price();
+            $price    = wc_format_decimal( $product->get_price() );
 
             if ( ! is_numeric( $price ) || $price < 0 ) {
                 continue;
             }
+
+            // Store for retry logic
+            $processing_items[ $q_item['id'] ] = $q_item;
+
             
             $batch_entries[] = array(
                 'batchId'      => $q_item['id'], // Use Product ID as Batch ID for tracking
@@ -176,7 +177,9 @@ class Cirrusly_Commerce_Pricing_Sync {
         if ( ! empty( $queue ) ) {
             update_option( self::QUEUE_OPTION, $queue, false );
             // Schedule next run immediately if items remain
-            wp_schedule_single_event( time() + 5, self::CRON_HOOK );
+            if ( ! wp_next_scheduled( self::CRON_HOOK ) ) {
+                wp_schedule_single_event( time() + 5, self::CRON_HOOK );
+            }
         } else {
             delete_option( self::QUEUE_OPTION );
         }

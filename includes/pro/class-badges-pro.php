@@ -101,6 +101,9 @@ class Cirrusly_Commerce_Badges_Pro {
             $combined_text = implode( "\n\n", array_map( function( $c ) {
                 return wp_strip_all_tags( $c->comment_content );
             }, $comments ) );
+
+            // Prevent oversized payloads
+            $combined_text = mb_substr( $combined_text, 0, 8000 );
             
             // Send to Worker via Proxy
             // Note: Worker must be updated to return 'sentiment' key (documentSentiment score) for this to work.

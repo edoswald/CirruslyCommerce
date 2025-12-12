@@ -58,8 +58,8 @@ Upgrade to Pro or Pro Plus for added functionality.
 * **CSV Import/Export (Pro):** Bulk manage your financial data via CSV for external analysis.
 * **Countdown Timer (Pro):** Add urgency to your product pages.
 * **Discount Notices (Pro):** Show dynamic "You saved $X!" messages in the cart.
-* **Automated Discounts (Pro Plus):** Full integration with Google's "Automated Discounts" program. We validate Google's secure pricing tokens (JWT) to dynamically update the cart price to match the discounted ad price.
-* **Psychological Repricing (Pro Plus):** Automatically round calculated prices to .99, .50, or the nearest 5 to maximize click-through rate (CTR) and conversion.
+* **Automated Discounts (Pro Plus):** Full integration with Google's "Automated Discounts" program. We validate Google's secure pricing tokens (JWT) to dynamically update the cart price to match the discounted ad price, without the high starting costs of other plugins.
+* **Psychological Repricing (Pro Plus):** Automatically round calculated prices to .99, .50, or the nearest $5 to maximize click-through rate (CTR) and conversion.
 
 == External Services ==
 
@@ -108,7 +108,7 @@ Yes. The Pro version allows you to set a "Split Profile" (e.g., 70% Stripe / 30%
 
 = 1.4.3 =
 * **Refactor:** Changes help areas to reflect support forum location of plugin following WP Plugin Directory approval. A thank you to the Plugin Review team for their work!
-* **Fix:** API functionality that was broken following migration to SaaS model has been restored. (Pro/Pro Plus)
+* **Fix:** API functionality that was broken following migration to SaaS model for Premium features has been restored. (Pro/Pro Plus)
 
 = 1.4.2 =
 * **Enhancement:** All scripts and styles are now dedicated external assets.
