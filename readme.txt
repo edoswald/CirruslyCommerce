@@ -8,7 +8,6 @@ Stable tag: 1.4.1
 Requires PHP: 8.1 
 License: GPLv2 or later 
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
-
 The Financial Operating System for WooCommerce that doesn't cost an arm and a leg.
 
 **Stop guessing if your Google Ads are profitable. Stop worrying about Merchant Center suspensions.** Cirrusly Commerce is the financial operating system for WooCommerce stores. It is the only plugin that combines **Google Merchant Center compliance**, **Net Profit Auditing**, and **Dynamic Pricing** into a single, powerful suite.
