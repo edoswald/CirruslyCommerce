@@ -204,7 +204,7 @@ class Cirrusly_Commerce_Analytics_Pro {
                                 </div>
                             </div>
                         </div>
-                        <select name="period" id="cc_period_selector" onchange="document.getElementById('cirrusly-analytics-form').submit()" style="vertical-align: top;">
+                        <select name="period" id="cirrusly_period_selector" onchange="document.getElementById('cirrusly-analytics-form').submit()" style="vertical-align: top;">
                             <option value="7" <?php selected( $days, 7 ); ?>>Last 7 Days</option>
                             <option value="30" <?php selected( $days, 30 ); ?>>Last 30 Days</option>
                             <option value="90" <?php selected( $days, 90 ); ?>>Last 90 Days</option>
