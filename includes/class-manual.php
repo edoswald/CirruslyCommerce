@@ -24,16 +24,16 @@ class Cirrusly_Commerce_Manual {
      */
     private static function get_inline_styles() {
         return '
-            .cc-manual-nav a { text-decoration: none; margin-right: 15px; font-weight: 500; }
-            .cc-manual-nav a:hover { text-decoration: underline; }
-            .cc-manual-pro { background:#2271b1; color:#fff; padding:2px 6px; border-radius:3px; font-size:10px; vertical-align:middle; margin-left:5px; font-weight:bold; }
-            .cc-manual-section { margin-bottom: 40px; border-bottom: 1px solid #eee; padding-bottom: 20px; }
-            .cc-manual-section h3 { font-size: 1.3em; margin-bottom: 15px; display: flex; align-items: center; }
-            .cc-manual-section h4 { font-size: 1.1em; margin-top: 20px; margin-bottom: 10px; color: #23282d; }
-            .cc-manual-list li { margin-bottom: 8px; line-height: 1.5; }
-            .cc-callout { background: #f0f6fc; border-left: 4px solid #72aee6; padding: 15px; margin: 15px 0; }
-            .cc-alert { background: #fcf0f1; border-left: 4px solid #d63638; padding: 15px; margin: 15px 0; }
-            .cc-tip { background: #f0f9eb; border-left: 4px solid #00a32a; padding: 15px; margin: 15px 0; }
+            .cirrusly-manual-nav a { text-decoration: none; margin-right: 15px; font-weight: 500; }
+            .cirrusly-manual-nav a:hover { text-decoration: underline; }
+            .cirrusly-manual-pro { background:#2271b1; color:#fff; padding:2px 6px; border-radius:3px; font-size:10px; vertical-align:middle; margin-left:5px; font-weight:bold; }
+            .cirrusly-manual-section { margin-bottom: 40px; border-bottom: 1px solid #eee; padding-bottom: 20px; }
+            .cirrusly-manual-section h3 { font-size: 1.3em; margin-bottom: 15px; display: flex; align-items: center; }
+            .cirrusly-manual-section h4 { font-size: 1.1em; margin-top: 20px; margin-bottom: 10px; color: #23282d; }
+            .cirrusly-manual-list li { margin-bottom: 8px; line-height: 1.5; }
+            .cirrusly-callout { background: #f0f6fc; border-left: 4px solid #72aee6; padding: 15px; margin: 15px 0; }
+            .cirrusly-alert { background: #fcf0f1; border-left: 4px solid #d63638; padding: 15px; margin: 15px 0; }
+            .cirrusly-tip { background: #f0f9eb; border-left: 4px solid #00a32a; padding: 15px; margin: 15px 0; }
             code { background: #f0f0f1; padding: 2px 5px; border-radius: 3px; }
         ';
     }

@@ -14,8 +14,8 @@ class Cirrusly_Commerce_Security {
     private static function get_keys() {
         $salt = wp_salt( 'auth' );
         return array(
-            'enc'  => hash_hmac( 'sha256', 'cc_encryption_context', $salt, true ),
-            'auth' => hash_hmac( 'sha256', 'cc_authentication_context', $salt, true ),
+            'enc'  => hash_hmac( 'sha256', 'cirrusly_encryption_context', $salt, true ),
+            'auth' => hash_hmac( 'sha256', 'cirrusly_authentication_context', $salt, true ),
         );
     }
 

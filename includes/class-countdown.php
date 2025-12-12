@@ -13,10 +13,24 @@ class Cirrusly_Commerce_Countdown {
      * Initialize the countdown feature.
      */
     public function __construct() {
-        add_shortcode( 'cw_countdown', array( $this, 'render_shortcode' ) );
+        // Primary shortcode
+        add_shortcode( 'cirrusly_countdown', array( $this, 'render_shortcode' ) );
+        
+        // Legacy shortcode (Deprecated)
+        add_shortcode( 'cw_countdown', array( $this, 'render_legacy_shortcode' ) );
+        
         add_action( 'woocommerce_single_product_summary', array( $this, 'inject_countdown' ), 11 );
         add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_assets' ) );
-        // Removed wp_footer action
+    }
+
+    /**
+     * Wrapper for legacy 'cirrusly_countdown' shortcode with deprecation notice.
+     */
+    public function render_legacy_shortcode( $atts ) {
+        if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+            trigger_error( 'Shortcode [cw_countdown] is deprecated. Please use [cirrusly_countdown] instead.', E_USER_DEPRECATED );
+        }
+        return $this->render_shortcode( $atts );
     }
 
     /**
@@ -50,10 +64,10 @@ class Cirrusly_Commerce_Countdown {
      *
      * @param object $product Product object (expected WC_Product or similar) to evaluate.
      * @return array|false Array with keys:
-     *                     - `end`   : string end date/time for the countdown.
-     *                     - `label` : string label to display (e.g., "Sale Ends In:").
-     *                     - `align` : string alignment value, one of 'left', 'center', 'right'.
-     *                    Returns `false` if no active countdown configuration exists.
+     * - `end`   : string end date/time for the countdown.
+     * - `label` : string label to display (e.g., "Sale Ends In:").
+     * - `align` : string alignment value, one of 'left', 'center', 'right'.
+     * Returns `false` if no active countdown configuration exists.
      */
     public static function get_smart_countdown_config( $product ) {
         if ( ! is_object( $product ) || ! method_exists( $product, 'get_id' ) ) {
@@ -62,7 +76,11 @@ class Cirrusly_Commerce_Countdown {
         $pid = $product->get_id();
 
         // --- PRIORITY 1: Manual Product Meta (Free Feature) ---    
-        $manual_end = get_post_meta( $pid, '_cw_sale_end', true );
+        $manual_end = get_post_meta( $pid, '_cirrusly_sale_end', true ); // Updated key, fallback below if needed
+        if( empty($manual_end) ) {
+             $manual_end = get_post_meta( $pid, '_cw_sale_end', true ); // Legacy fallback
+        }
+
         if ( ! empty( $manual_end ) && self::is_date_future( $manual_end ) ) {
             return array(
                 'end'   => $manual_end,
@@ -132,20 +150,20 @@ class Cirrusly_Commerce_Countdown {
         if ( $align === 'right' )  $justify = 'flex-end';
         ob_start();
         ?>
-        <div class="cw-countdown-wrapper cw-init-needed" 
+        <div class="cirrusly-countdown-wrapper cirrusly-init-needed" 
              data-end="<?php echo esc_attr( $js_target ); ?>"
              style="justify-content: <?php echo esc_attr( $justify ); ?>;">
             <?php if ( ! empty( $label ) ) : ?>
-                <span class="cw-timer-label"><?php echo esc_html( $label ); ?> </span>
+                <span class="cirrusly-timer-label"><?php echo esc_html( $label ); ?> </span>
             <?php endif; ?>
-            <div class="cw-timer-digits">
-                <div class="cw-time-group"><span class="cw-val cw-days"><?php echo esc_html( $d_str ); ?></span><span class="cw-unit">DAYS</span></div>
-                <span class="cw-sep">:</span>
-                <div class="cw-time-group"><span class="cw-val cw-hours"><?php echo esc_html( $h_str ); ?></span><span class="cw-unit">HRS</span></div>
-                <span class="cw-sep">:</span>
-                <div class="cw-time-group"><span class="cw-val cw-mins"><?php echo esc_html( $m_str ); ?></span><span class="cw-unit">MINS</span></div>
-                <span class="cw-sep">:</span>
-                <div class="cw-time-group"><span class="cw-val cw-secs"><?php echo esc_html( $s_str ); ?></span><span class="cw-unit">SECS</span></div>
+            <div class="cirrusly-timer-digits">
+                <div class="cirrusly-time-group"><span class="cirrusly-val cirrusly-days"><?php echo esc_html( $d_str ); ?></span><span class="cirrusly-unit">DAYS</span></div>
+                <span class="cirrusly-sep">:</span>
+                <div class="cirrusly-time-group"><span class="cirrusly-val cirrusly-hours"><?php echo esc_html( $h_str ); ?></span><span class="cirrusly-unit">HRS</span></div>
+                <span class="cirrusly-sep">:</span>
+                <div class="cirrusly-time-group"><span class="cirrusly-val cirrusly-mins"><?php echo esc_html( $m_str ); ?></span><span class="cirrusly-unit">MINS</span></div>
+                <span class="cirrusly-sep">:</span>
+                <div class="cirrusly-time-group"><span class="cirrusly-val cirrusly-secs"><?php echo esc_html( $s_str ); ?></span><span class="cirrusly-unit">SECS</span></div>
             </div>
         </div>
         <?php
@@ -170,30 +188,31 @@ class Cirrusly_Commerce_Countdown {
     public function enqueue_assets() {
         if ( ! is_product() ) return;
         
+        // Updated Class Names in CSS
         $css = "
-        .cw-countdown-wrapper { display: flex; align-items: center; font-family: inherit; font-weight: 700; color: #000; gap: 8px; line-height: 1.2; flex-wrap: wrap; min-height: 42px; box-sizing: border-box; margin-bottom: 15px; }
-        .cw-timer-label { font-size: 16px; margin-right: 5px; white-space: nowrap; }
-        .cw-timer-digits { display: flex; align-items: baseline; gap: 4px; }
-        .cw-val { font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1; min-width: 28px; text-align: center; display: inline-block; }
-        .cw-unit { font-size: 9px; text-transform: uppercase; color: #555; text-align: center; font-weight: 600; margin-top: 2px; }
-        .cw-time-group { display: flex; flex-direction: column; align-items: center; }
-        .cw-sep { font-size: 20px; font-weight: 800; color: #000; position: relative; top: -4px; }
+        .cirrusly-countdown-wrapper { display: flex; align-items: center; font-family: inherit; font-weight: 700; color: #000; gap: 8px; line-height: 1.2; flex-wrap: wrap; min-height: 42px; box-sizing: border-box; margin-bottom: 15px; }
+        .cirrusly-timer-label { font-size: 16px; margin-right: 5px; white-space: nowrap; }
+        .cirrusly-timer-digits { display: flex; align-items: baseline; gap: 4px; }
+        .cirrusly-val { font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1; min-width: 28px; text-align: center; display: inline-block; }
+        .cirrusly-unit { font-size: 9px; text-transform: uppercase; color: #555; text-align: center; font-weight: 600; margin-top: 2px; }
+        .cirrusly-time-group { display: flex; flex-direction: column; align-items: center; }
+        .cirrusly-sep { font-size: 20px; font-weight: 800; color: #000; position: relative; top: -4px; }
         ";
         // Attach CSS to frontend base
         wp_add_inline_style( 'cirrusly-frontend-base', $css );
         
-        // Convert the previous raw script to an inline script string
+        // Updated JS Selectors
         $js = "document.addEventListener('DOMContentLoaded', function() {
-            const timers = document.querySelectorAll('.cw-countdown-wrapper.cw-init-needed');
+            const timers = document.querySelectorAll('.cirrusly-countdown-wrapper.cirrusly-init-needed');
             timers.forEach(function(timer) {
-                timer.classList.remove('cw-init-needed');
+                timer.classList.remove('cirrusly-init-needed');
                 const endDate = parseInt(timer.getAttribute('data-end'));
                 if (isNaN(endDate)) return;
                 const els = {
-                    d: timer.querySelector('.cw-days'),
-                    h: timer.querySelector('.cw-hours'),
-                    m: timer.querySelector('.cw-mins'),
-                    s: timer.querySelector('.cw-secs')
+                    d: timer.querySelector('.cirrusly-days'),
+                    h: timer.querySelector('.cirrusly-hours'),
+                    m: timer.querySelector('.cirrusly-mins'),
+                    s: timer.querySelector('.cirrusly-secs')
                 };
                 function update() {
                     const now = new Date().getTime();

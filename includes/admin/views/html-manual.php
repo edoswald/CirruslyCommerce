@@ -5,10 +5,10 @@ defined( 'ABSPATH' ) || exit;
 <div class="wrap">
     <?php Cirrusly_Commerce_Core::render_global_header( __( 'User Manual', 'cirrusly-commerce' ) ); ?>
 
-    <div class="card cc-manual-container" style="max-width: 1200px; margin-top: 20px; padding: 0;">
+    <div class="card cirrusly-manual-container" style="max-width: 1200px; margin-top: 20px; padding: 0;">
         
-        <div class="cc-manual-grid" style="display: flex;">
-            <div class="cc-manual-sidebar" style="width: 250px; background: #f0f6fc; padding: 20px; border-right: 1px solid #dcdcde;">
+        <div class="cirrusly-manual-grid" style="display: flex;">
+            <div class="cirrusly-manual-sidebar" style="width: 250px; background: #f0f6fc; padding: 20px; border-right: 1px solid #dcdcde;">
                 <h3 style="margin-top: 0; font-size: 1.1em; color: #1d2327;">Table of Contents</h3>
                 <ul style="margin: 0; list-style: none; line-height: 2;">
                     <li><a href="#intro" style="text-decoration:none;">Introduction</a></li>
@@ -22,9 +22,9 @@ defined( 'ABSPATH' ) || exit;
                 </ul>
             </div>
 
-            <div class="cc-manual-content" style="flex: 1; padding: 40px;">
+            <div class="cirrusly-manual-content" style="flex: 1; padding: 40px;">
                 
-                <div id="intro" class="cc-manual-section" style="margin-bottom: 50px;">
+                <div id="intro" class="cirrusly-manual-section" style="margin-bottom: 50px;">
                     <h2 style="margin-top:0;">Welcome to Cirrusly Commerce</h2>
                     <p>Cirrusly Commerce is an all-in-one suite designed to optimize your WooCommerce store's financial health, presentation, and Google Merchant Center compliance.</p>
                     <p>This manual covers setup, configuration, and advanced usage for developers.</p>
@@ -32,7 +32,7 @@ defined( 'ABSPATH' ) || exit;
 
                 <hr>
 
-                <div id="gmc" class="cc-manual-section" style="margin-bottom: 50px;">
+                <div id="gmc" class="cirrusly-manual-section" style="margin-bottom: 50px;">
                     <h3><span class="dashicons dashicons-cloud" style="color:#2271b1;"></span> Google Merchant Center (GMC) Hub</h3>
                     <p>The GMC Hub acts as your command center for product feed health.</p>
                     <ul>
@@ -42,7 +42,7 @@ defined( 'ABSPATH' ) || exit;
                     </ul>
                 </div>
 
-                <div id="pricing" class="cc-manual-section" style="margin-bottom: 50px;">
+                <div id="pricing" class="cirrusly-manual-section" style="margin-bottom: 50px;">
                     <h3><span class="dashicons dashicons-money-alt" style="color:#2271b1;"></span> Pricing & Profit Engine</h3>
                     <p>Stop guessing your profits. The Pricing engine allows you to input cost data to calculate real-time margins.</p>
                     
@@ -59,7 +59,7 @@ defined( 'ABSPATH' ) || exit;
                     <p><em>Configure your revenue tiers and payment processor fees in <strong>Settings > Profit Engine</strong> to get accurate Net Profit calculations.</em></p>
                 </div>
 
-                <div id="badges" class="cc-manual-section" style="margin-bottom: 50px;">
+                <div id="badges" class="cirrusly-manual-section" style="margin-bottom: 50px;">
                     <h3><span class="dashicons dashicons-awards" style="color:#2271b1;"></span> Smart Badges</h3>
                     <p>Automate your store's visual merchandising. Badges are automatically injected into product loops and single product pages.</p>
                     <ul>
@@ -69,7 +69,7 @@ defined( 'ABSPATH' ) || exit;
                     </ul>
                 </div>
 
-                <div id="countdown" class="cc-manual-section" style="margin-bottom: 50px;">
+                <div id="countdown" class="cirrusly-manual-section" style="margin-bottom: 50px;">
                     <h3><span class="dashicons dashicons-clock" style="color:#2271b1;"></span> Countdown Timers</h3>
                     <p>Create urgency with sale countdowns. Timers can be set:</p>
                     <ol>
@@ -78,7 +78,7 @@ defined( 'ABSPATH' ) || exit;
                     </ol>
                 </div>
 
-                <div id="shortcodes" class="cc-manual-section" style="margin-bottom: 50px;">
+                <div id="shortcodes" class="cirrusly-manual-section" style="margin-bottom: 50px;">
                     <h3><span class="dashicons dashicons-editor-code" style="color:#2271b1;"></span> Shortcodes & Blocks</h3>
                     <p>Use these tools to display Cirrusly features anywhere on your site.</p>
 
@@ -91,7 +91,7 @@ defined( 'ABSPATH' ) || exit;
                     </ul>
 
                     <h4>Shortcode</h4>
-                    <p><code>[cw_countdown end="2025-12-31" label="Sale Ends:"]</code></p>
+                    <p><code>[cirrusly_countdown end="2025-12-31" label="Sale Ends:"]</code></p>
                     <p>Attributes:</p>
                     <ul style="list-style:disc; margin-left:20px;">
                         <li><code>end</code>: Date string (YYYY-MM-DD).</li>
@@ -100,7 +100,7 @@ defined( 'ABSPATH' ) || exit;
                     </ul>
                 </div>
 
-                <div id="pro" class="cc-manual-section" style="margin-bottom: 50px; background: #f6f7f7; padding: 20px; border-left: 4px solid #72aee6;">
+                <div id="pro" class="cirrusly-manual-section" style="margin-bottom: 50px; background: #f6f7f7; padding: 20px; border-left: 4px solid #72aee6;">
                     <h3 style="margin-top:0;">Pro Features</h3>
                     <p>Upgrade to unlock advanced automation:</p>
                     <ul style="margin-bottom: 0;">
@@ -112,7 +112,7 @@ defined( 'ABSPATH' ) || exit;
                     </ul>
                 </div>
 
-                <div id="dev-ref" class="cc-manual-section">
+                <div id="dev-ref" class="cirrusly-manual-section">
                     <h3><span class="dashicons dashicons-database" style="color:#2271b1;"></span> Developer Reference: Meta Keys</h3>
                     <p>Use these keys when mapping data in 3rd-party feed plugins (like Product Feed PRO or Google Product Feed).</p>
                     
@@ -137,7 +137,7 @@ defined( 'ABSPATH' ) || exit;
                             </tr>
                             <tr>
                                 <td><strong>Est. Shipping Cost</strong></td>
-                                <td><code>_cw_est_shipping</code></td>
+                                <td><code>_cirrusly_est_shipping</code></td>
                                 <td>Internal shipping cost estimate.</td>
                             </tr>
                             <tr>
@@ -162,7 +162,7 @@ defined( 'ABSPATH' ) || exit;
                             </tr>
                             <tr>
                                 <td><strong>Sale End Date</strong></td>
-                                <td><code>_cw_sale_end</code></td>
+                                <td><code>_cirrusly_sale_end</code></td>
                                 <td>Date string (YYYY-MM-DD) for manual countdowns.</td>
                             </tr>
                             <tr>

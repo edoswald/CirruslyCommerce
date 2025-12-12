@@ -109,7 +109,7 @@ class Cirrusly_Commerce_Audit {
                 
                 // --- Financials ---
                 $cost = (float) get_post_meta( $p->get_id(), '_cogs_total_value', true );
-                $ship_cost = (float)$p->get_meta('_cw_est_shipping');
+                $ship_cost = (float)$p->get_meta('_cirrusly_est_shipping');
                 
                 // --- Custom Pricing Fields ---
                 $map = (float)$p->get_meta('_cirrusly_map_price');
@@ -215,7 +215,7 @@ class Cirrusly_Commerce_Audit {
         $is_shipping_exempt = $p->is_virtual() || $p->is_downloadable();
         
         $cost = (float) get_post_meta( $p->get_id(), '_cogs_total_value', true );
-        $ship_cost = (float)$p->get_meta('_cw_est_shipping');
+        $ship_cost = (float)$p->get_meta('_cirrusly_est_shipping');
         
         if($ship_cost <= 0 && !$is_shipping_exempt) {
             $cid = $p->get_shipping_class_id();

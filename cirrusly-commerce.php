@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Cirrusly Commerce
  * Description: All-in-one suite: GMC Assistant, Promotion Manager, Pricing Engine, and Store Financial Audit that doesn't cost an arm and a leg.
- * Version: 1.4
+ * Version: 1.4.2
  * Author: Cirrusly Weather
  * Author URI: https://cirruslyweather.com
  * Text Domain: cirrusly-commerce
@@ -20,7 +20,7 @@ if ( file_exists( plugin_dir_path( __FILE__ ) . 'vendor/autoload.php' ) ) {
     require_once plugin_dir_path( __FILE__ ) . 'vendor/autoload.php';
 }
 
-define( 'CIRRUSLY_COMMERCE_VERSION', '1.4' );
+define( 'CIRRUSLY_COMMERCE_VERSION', '1.4.2' );
 define( 'CIRRUSLY_COMMERCE_PATH', plugin_dir_path( __FILE__ ) );
 define( 'CIRRUSLY_COMMERCE_URL', plugin_dir_url( __FILE__ ) );
 
@@ -65,6 +65,26 @@ if ( ! function_exists( 'cirrusly_fs' ) ) {
                     'support'        => false,
                 ),
             ) );
+
+            // Hooks to persist Install API Token from response
+            $cirrusly_fs->add_action( 'after_account_connection', function( $_user, $_account, $install ) {
+                $token = ( is_object( $install ) && ! empty( $install->install_api_token ) )
+                    ? sanitize_text_field( (string) $install->install_api_token )
+                    : '';
+                if ( '' !== $token ) {
+                    update_option( 'cirrusly_install_api_token', $token, false );
+                }
+            }, 10, 3 );
+
+            $cirrusly_fs->add_action( 'after_license_activation', function( $_license, $install ) {
+                $token = ( is_object( $install ) && ! empty( $install->install_api_token ) )
+                    ? sanitize_text_field( (string) $install->install_api_token )
+                    : '';
+                if ( '' !== $token ) {
+                    update_option( 'cirrusly_install_api_token', $token, false );
+                }
+            }, 10, 2 );
+
         }
 
         return $cirrusly_fs;

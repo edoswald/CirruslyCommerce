@@ -34,18 +34,18 @@ class Cirrusly_Commerce_GMC_UI {
         // Only enqueue promotions JS if on the promotions tab
         $tab = isset( $_GET['tab'] ) ? sanitize_text_field( wp_unslash( $_GET['tab'] ) ) : 'scan';
         if ( 'promotions' === $tab ) {
-            $nonce_list   = wp_create_nonce( 'cc_promo_api_list' );
-            $nonce_submit = wp_create_nonce( 'cc_promo_api_submit' );
+            $nonce_list   = wp_create_nonce( 'cirrusly_promo_api_list' );
+            $nonce_submit = wp_create_nonce( 'cirrusly_promo_api_submit' );
 
             wp_enqueue_script(
-                'cc-admin-promotions',
+                'cirrusly-admin-promotions',
                 CIRRUSLY_COMMERCE_URL . 'assets/js/admin-promotions.js',
                 array( 'jquery', 'cirrusly-admin-base-js' ),
                 '1.0.0',
                 true
             );
 
-            wp_localize_script( 'cc-admin-promotions', 'cirrusly_promo_data', array(
+            wp_localize_script( 'cirrusly-admin-promotions', 'cirrusly_promo_data', array(
                 'ajaxurl'      => admin_url( 'admin-ajax.php' ),
                 'nonce_list'   => $nonce_list,
                 'nonce_submit' => $nonce_submit,
@@ -54,7 +54,7 @@ class Cirrusly_Commerce_GMC_UI {
     }
 
     /**
-     * Render the Google Merchant Center admin hub page with tabbed navigation.
+     * Render the Google Merchant Center hub page with tabbed navigation.
      *
      * Displays the hub header, a three-tab navigation (Health Check, Promotion Manager, Site Content),
      * and delegates rendering to the corresponding view for the currently selected tab.
@@ -93,7 +93,7 @@ class Cirrusly_Commerce_GMC_UI {
      */
     private function render_scan_view() {
         $is_pro = Cirrusly_Commerce_Core::cirrusly_is_pro();
-        $pro_class = $is_pro ? '' : 'cc-pro-feature';
+        $pro_class = $is_pro ? '' : 'cirrusly-pro-feature';
         $disabled_attr = $is_pro ? '' : 'disabled';
         
         $scan_cfg = get_option('cirrusly_scan_config', array());
@@ -101,16 +101,16 @@ class Cirrusly_Commerce_GMC_UI {
         $auto_strip = isset($scan_cfg['auto_strip_banned']) ? 'checked' : '';
 
         // CORE 1: Manual Helper
-        echo '<div class="cc-manual-helper"><h4>Health Check</h4><p>This audit tool scans your WooCommerce product catalog for common issues that may lead to Google Merchant Center disapprovals or account suspensions. Use this tool to identify and fix potential problems before submitting your product feed to Google.</p></div>';
+        echo '<div class="cirrusly-manual-helper"><h4>Health Check</h4><p>This audit tool scans your WooCommerce product catalog for common issues that may lead to Google Merchant Center disapprovals or account suspensions. Use this tool to identify and fix potential problems before submitting your product feed to Google.</p></div>';
         
         // CORE 2: Scan Button
         echo '<div style="background:#fff; padding:20px; border-bottom:1px solid #ccc;"><form method="post">';
-        wp_nonce_field( 'cirrusly_gmc_scan', 'cc_gmc_scan_nonce' );
+        wp_nonce_field( 'cirrusly_gmc_scan', 'cirrusly_gmc_scan_nonce' );
         echo '<input type="hidden" name="run_gmc_scan" value="1">';
         submit_button('Scan for Issues', 'primary', 'run_scan', false);
         echo '</form></div>';
 
-        if ( isset( $_POST['run_gmc_scan'] ) && check_admin_referer( 'cirrusly_gmc_scan', 'cc_gmc_scan_nonce' ) ) {
+        if ( isset( $_POST['run_gmc_scan'] ) && check_admin_referer( 'cirrusly_gmc_scan', 'cirrusly_gmc_scan_nonce' ) ) {
             // Unwrap new result structure
             $scan_result = Cirrusly_Commerce_GMC::run_gmc_scan_logic();
             $results     = isset( $scan_result['results'] ) ? $scan_result['results'] : array();
@@ -143,7 +143,7 @@ class Cirrusly_Commerce_GMC_UI {
                 
                 $actions = '<a href="'.esc_url(get_edit_post_link($p->get_id())).'" class="button button-small">Edit</a> ';
                 if ( strpos( $issues, 'Missing GTIN' ) !== false ) {
-                    $url = wp_nonce_url( admin_url( 'admin-post.php?action=cc_mark_custom&pid=' . $p->get_id() ), 'cc_mark_custom_' . $p->get_id() );
+                    $url = wp_nonce_url( admin_url( 'admin-post.php?action=cirrusly_mark_custom&pid=' . $p->get_id() ), 'cirrusly_mark_custom_' . $p->get_id() );
                     $actions .= '<a href="'.esc_url($url).'" class="button button-small">Mark as Custom</a>';
                 }
 
@@ -154,13 +154,13 @@ class Cirrusly_Commerce_GMC_UI {
 
         // PRO 3: Automation & Workflow Rules (Corrected Title)
         echo '<div class="'.esc_attr($pro_class).'" style="background:#f0f6fc; padding:15px; border:1px solid #c3c4c7; margin-top:20px; position:relative;">';
-            if(!$is_pro) echo '<div class="cc-pro-overlay"><a href="'.esc_url( function_exists('cirrusly_fs') ? cirrusly_fs()->get_upgrade_url() : '#' ).'" class="cc-upgrade-btn">Upgrade to Automate</a></div>';
+            if(!$is_pro) echo '<div class="cirrusly-pro-overlay"><a href="'.esc_url( function_exists('cirrusly_fs') ? cirrusly_fs()->get_upgrade_url() : '#' ).'" class="cirrusly-upgrade-btn">Upgrade to Automate</a></div>';
             
             echo '<form method="post" action="options.php">';
             settings_fields('cirrusly_general_group'); 
             
             // UPDATED HEADER
-            echo '<strong>Automation & Workflow Rules <span class="cc-pro-badge">PRO</span></strong><br>
+            echo '<strong>Automation & Workflow Rules <span class="cirrusly-pro-badge">PRO</span></strong><br>
             <label><input type="checkbox" name="cirrusly_scan_config[block_on_critical]" value="yes" '.esc_attr($block_save).' '.esc_attr($disabled_attr).'> Block Save on Critical Error</label>
             <label style="margin-left:10px;"><input type="checkbox" name="cirrusly_scan_config[auto_strip_banned]" value="yes" '.esc_attr($auto_strip).' '.esc_attr($disabled_attr).'> Auto-strip Banned Words</label>';
             
@@ -192,30 +192,30 @@ class Cirrusly_Commerce_GMC_UI {
      */
     private function render_promotions_view() {
         $is_pro = Cirrusly_Commerce_Core::cirrusly_is_pro();
-        $pro_class = $is_pro ? '' : 'cc-pro-feature';
+        $pro_class = $is_pro ? '' : 'cirrusly-pro-feature';
         $disabled_attr = $is_pro ? '' : 'disabled';
         
-        echo '<div class="cc-settings-card '.esc_attr($pro_class).'" style="margin-bottom:20px;">';
-        if(!$is_pro) echo '<div class="cc-pro-overlay"><a href="'.esc_url( function_exists('cirrusly_fs') ? cirrusly_fs()->get_upgrade_url() : '#' ).'" class="cc-upgrade-btn"><span class="dashicons dashicons-lock cc-lock-icon"></span> Unlock Live Feed</a></div>';
+        echo '<div class="cirrusly-settings-card '.esc_attr($pro_class).'" style="margin-bottom:20px;">';
+        if(!$is_pro) echo '<div class="cirrusly-pro-overlay"><a href="'.esc_url( function_exists('cirrusly_fs') ? cirrusly_fs()->get_upgrade_url() : '#' ).'" class="cirrusly-upgrade-btn"><span class="dashicons dashicons-lock cirrusly-lock-icon"></span> Unlock Live Feed</a></div>';
         
-        echo '<div class="cc-card-header" style="background:#f8f9fa; border-bottom:1px solid #ddd; padding:15px; display:flex; justify-content:space-between; align-items:center;">
-                <h3 style="margin:0;">Live Google Promotions <span class="cc-pro-badge">PRO</span></h3>
-                <button type="button" class="button button-secondary" id="cc_load_promos" '.esc_attr($disabled_attr).'><span class="dashicons dashicons-update"></span> Sync from Google</button>
+        echo '<div class="cirrusly-card-header" style="background:#f8f9fa; border-bottom:1px solid #ddd; padding:15px; display:flex; justify-content:space-between; align-items:center;">
+                <h3 style="margin:0;">Live Google Promotions <span class="cirrusly-pro-badge">PRO</span></h3>
+                <button type="button" class="button button-secondary" id="cirrusly_load_promos" '.esc_attr($disabled_attr).'><span class="dashicons dashicons-update"></span> Sync from Google</button>
               </div>';
         
-        echo '<div class="cc-card-body" style="padding:0;">
-                <table class="wp-list-table widefat fixed striped" id="cc-gmc-promos-table" style="border:0; box-shadow:none;">
+        echo '<div class="cirrusly-card-body" style="padding:0;">
+                <table class="wp-list-table widefat fixed striped" id="cirrusly-gmc-promos-table" style="border:0; box-shadow:none;">
                     <thead><tr><th>ID</th><th>Title</th><th>Effective Dates</th><th>Status</th><th>Type</th><th>Actions</th></tr></thead>
-                    <tbody><tr class="cc-empty-row"><td colspan="6" style="padding:20px; text-align:center; color:#666;">Loading active promotions...</td></tr></tbody>
+                    <tbody><tr class="cirrusly-empty-row"><td colspan="6" style="padding:20px; text-align:center; color:#666;">Loading active promotions...</td></tr></tbody>
                 </table>
               </div>';
         echo '</div>';
         
-        echo '<div class="cc-manual-helper"><h4>Promotion Feed Generator</h4><p>Create or update a promotion entry for Google Merchant Center. Fill in the details, generate the code, and paste it into your Google Sheet feed.</p></div>';
+        echo '<div class="cirrusly-manual-helper"><h4>Promotion Feed Generator</h4><p>Create or update a promotion entry for Google Merchant Center. Fill in the details, generate the code, and paste it into your Google Sheet feed.</p></div>';
         ?>
-        <div class="cc-promo-generator" id="cc_promo_form_container">
-            <h3 style="margin-top:0;" id="cc_form_title">Create Promotion Entry</h3>
-            <div class="cc-promo-grid">
+        <div class="cirrusly-promo-generator" id="cirrusly_promo_form_container">
+            <h3 style="margin-top:0;" id="cirrusly_form_title">Create Promotion Entry</h3>
+            <div class="cirrusly-promo-grid">
                 <div>
                     <label for="pg_id">Promotion ID <span class="dashicons dashicons-info" title="Unique ID"></span></label>
                     <input type="text" id="pg_id" placeholder="SUMMER_SALE">
@@ -243,29 +243,29 @@ class Cirrusly_Commerce_GMC_UI {
                     </span>
                     <div style="position:relative;">
                         <?php if(!$is_pro): ?>
-                        <div class="cc-pro-overlay">
-                            <a href="<?php echo esc_url( function_exists('cirrusly_fs') ? cirrusly_fs()->get_upgrade_url() : '#' ); ?>" class="cc-upgrade-btn">
-                               <span class="dashicons dashicons-lock cc-lock-icon"></span> Upgrade
+                        <div class="cirrusly-pro-overlay">
+                            <a href="<?php echo esc_url( function_exists('cirrusly_fs') ? cirrusly_fs()->get_upgrade_url() : '#' ); ?>" class="cirrusly-upgrade-btn">
+                               <span class="dashicons dashicons-lock cirrusly-lock-icon"></span> Upgrade
                             </a>
                         </div>
                         <?php endif; ?>
                         <button type="button" class="button button-secondary" id="pg_api_submit" <?php echo esc_attr($disabled_attr); ?>>
                             <span class="dashicons dashicons-cloud-upload"></span> One-Click Submit to Google
                         </button>
-                        <span class="cc-pro-badge">PRO</span>
+                        <span class="cirrusly-pro-badge">PRO</span>
                     </div>
                 </div>
             </div>
 
             <div id="pg_result_area" style="display:none; margin-top:15px;">
-                <span class="cc-copy-hint">Copy and paste this line into your Google Sheet:</span>
-                <div id="pg_output" class="cc-generated-code"></div>
+                <span class="cirrusly-copy-hint">Copy and paste this line into your Google Sheet:</span>
+                <div id="pg_output" class="cirrusly-generated-code"></div>
             </div>
         </div>
         <?php
         global $wpdb;
         
-        if ( isset( $_POST['gmc_promo_bulk_action'] ) && isset( $_POST['gmc_promo_products'] ) && check_admin_referer( 'cirrusly_promo_bulk', 'cc_promo_nonce' ) ) {
+        if ( isset( $_POST['gmc_promo_bulk_action'] ) && isset( $_POST['gmc_promo_products'] ) && check_admin_referer( 'cirrusly_promo_bulk', 'cirrusly_promo_nonce' ) ) {
             $new_promo_id = isset($_POST['gmc_new_promo_id']) ? sanitize_text_field( wp_unslash( $_POST['gmc_new_promo_id'] ) ) : '';
             $action = sanitize_text_field( wp_unslash( $_POST['gmc_promo_bulk_action'] ) );
             
@@ -287,6 +287,8 @@ class Cirrusly_Commerce_GMC_UI {
 
         $promo_stats = get_transient( 'cirrusly_active_promos_stats' );
         if ( false === $promo_stats ) {
+            // Note: This direct query is used for aggregation which is not supported by WP_Query. 
+            // It is strictly wrapped in get_transient to ensure caching compliance.
             $promo_stats = $wpdb->get_results( "SELECT meta_value as promo_id, count(post_id) as count FROM {$wpdb->postmeta} WHERE meta_key = '_gmc_promotion_id' AND meta_value != '' GROUP BY meta_value ORDER BY count DESC" );
             set_transient( 'cirrusly_active_promos_stats', $promo_stats, 1 * HOUR_IN_SECONDS );
         }
@@ -322,7 +324,7 @@ class Cirrusly_Commerce_GMC_UI {
 
             echo '<hr><h3>Managing: '.esc_html($filter_promo).'</h3>';
             echo '<form method="post">';
-            wp_nonce_field( 'cirrusly_promo_bulk', 'cc_promo_nonce' );
+            wp_nonce_field( 'cirrusly_promo_bulk', 'cirrusly_promo_nonce' );
             echo '<div style="background:#e5e5e5; padding:10px; margin-bottom:10px;">With Selected: <input type="text" name="gmc_new_promo_id" placeholder="New ID"> <button type="submit" name="gmc_promo_bulk_action" value="update" class="button">Move</button> <button type="submit" name="gmc_promo_bulk_action" value="remove" class="button">Remove</button></div>';
             
             // Pagination Top
@@ -370,7 +372,7 @@ class Cirrusly_Commerce_GMC_UI {
         $is_pro = Cirrusly_Commerce_Core::cirrusly_is_pro();
         
         // --- 1. CORE: LOCAL SCAN EXPLANATION ---
-        echo '<div class="cc-manual-helper">
+        echo '<div class="cirrusly-manual-helper">
             <h4>Site Content Audit (Local)</h4>
             <p>This tool scans your site pages and product descriptions to ensure compliance with Google Merchant Center policies.</p>
         </div>';
@@ -386,7 +388,7 @@ class Cirrusly_Commerce_GMC_UI {
             'Privacy Policy'       => array('privacy')
         );
 
-        echo '<h3 style="margin-top:0;">Required Policies</h3><div class="cc-policy-grid">';
+        echo '<h3 style="margin-top:0;">Required Policies</h3><div class="cirrusly-policy-grid">';
         foreach($required as $label => $keywords) {
             $found = false;
             foreach($found_titles as $title) {
@@ -394,9 +396,9 @@ class Cirrusly_Commerce_GMC_UI {
                     if(strpos($title, $kw) !== false) { $found = true; break 2; }
                 }
             }
-            $cls = $found ? 'cc-policy-ok' : 'cc-policy-fail';
+            $cls = $found ? 'cirrusly-policy-ok' : 'cirrusly-policy-fail';
             $icon = $found ? 'dashicons-yes' : 'dashicons-no';
-            echo '<div class="cc-policy-item '.esc_attr($cls).'"><span class="dashicons '.esc_attr($icon).'"></span> '.esc_html($label).'</div>';
+            echo '<div class="cirrusly-policy-item '.esc_attr($cls).'"><span class="dashicons '.esc_attr($icon).'"></span> '.esc_html($label).'</div>';
         }
         echo '</div>';
 
@@ -405,12 +407,12 @@ class Cirrusly_Commerce_GMC_UI {
             <div style="display:flex; justify-content:space-between; align-items:center;">
                 <h3 style="margin:0;">Restricted Terms Scan</h3>
                 <form method="post" style="margin:0;">';
-        wp_nonce_field( 'cirrusly_content_scan', 'cc_content_scan_nonce' );
+        wp_nonce_field( 'cirrusly_content_scan', 'cirrusly_content_scan_nonce' );
         echo '<input type="hidden" name="run_content_scan" value="1">';
         submit_button('Run New Scan', 'primary', 'run_scan', false);
         echo '</form></div>';
 
-        if ( isset( $_POST['run_content_scan'] ) && check_admin_referer( 'cirrusly_content_scan', 'cc_content_scan_nonce' ) ) {
+        if ( isset( $_POST['run_content_scan'] ) && check_admin_referer( 'cirrusly_content_scan', 'cirrusly_content_scan_nonce' ) ) {
             $issues = $this->execute_content_scan_logic();
             update_option( 'cirrusly_content_scan_data', array('timestamp'=>time(), 'issues'=>$issues) );
             echo '<div class="notice notice-success inline" style="margin-top:10px;"><p>Scan Complete. Results saved.</p></div>';
@@ -442,17 +444,17 @@ class Cirrusly_Commerce_GMC_UI {
         echo '</div>';
 
         // --- 3. PRO: GOOGLE ACCOUNT STATUS (Moved to Bottom) ---
-        echo '<div class="cc-settings-card ' . ( $is_pro ? '' : 'cc-pro-feature' ) . '" style="margin-bottom:20px; border:1px solid #c3c4c7; padding:0;">';
+        echo '<div class="cirrusly-settings-card ' . ( $is_pro ? '' : 'cirrusly-pro-feature' ) . '" style="margin-bottom:20px; border:1px solid #c3c4c7; padding:0;">';
         
         if ( ! $is_pro ) {
-            echo '<div class="cc-pro-overlay"><a href="' . esc_url( function_exists('cirrusly_fs') ? cirrusly_fs()->get_upgrade_url() : '#' ) . '" class="cc-upgrade-btn"><span class="dashicons dashicons-lock cc-lock-icon"></span> Check Account Bans</a></div>';
+            echo '<div class="cirrusly-pro-overlay"><a href="' . esc_url( function_exists('cirrusly_fs') ? cirrusly_fs()->get_upgrade_url() : '#' ) . '" class="cirrusly-upgrade-btn"><span class="dashicons dashicons-lock cirrusly-lock-icon"></span> Check Account Bans</a></div>';
         }
 
-        echo '<div class="cc-card-header" style="background:#f8f9fa; border-bottom:1px solid #ddd; padding:15px;">
-                <h3 style="margin:0;">Google Account Status <span class="cc-pro-badge">PRO</span></h3>
+        echo '<div class="cirrusly-card-header" style="background:#f8f9fa; border-bottom:1px solid #ddd; padding:15px;">
+                <h3 style="margin:0;">Google Account Status <span class="cirrusly-pro-badge">PRO</span></h3>
               </div>';
         
-        echo '<div class="cc-card-body" style="padding:15px;">';
+        echo '<div class="cirrusly-card-body" style="padding:15px;">';
         
         if ( $is_pro ) {
             $account_status = $this->fetch_google_account_issues();
@@ -566,15 +568,15 @@ class Cirrusly_Commerce_GMC_UI {
      * Show an admin error notice when a user-specific blocked-save transient exists.
      *
      * Checks that the current user can edit products; if a transient named
-     * `cc_gmc_blocked_save_{user_id}` is present, displays its message as an
+     * `cirrusly_gmc_blocked_save_{user_id}` is present, displays its message as an
      * error notice in the admin and removes the transient afterward.
      */
     public function render_blocked_save_notice() {
         if ( ! current_user_can( 'edit_products' ) ) return;
-        $msg = get_transient( 'cc_gmc_blocked_save_' . get_current_user_id() );
+        $msg = get_transient( 'cirrusly_gmc_blocked_save_' . get_current_user_id() );
         if ( $msg ) {
             echo '<div class="notice notice-error is-dismissible"><p><strong>Cirrusly Commerce Alert:</strong> ' . esc_html( $msg ) . '</p></div>';
-            delete_transient( 'cc_gmc_blocked_save_' . get_current_user_id() );
+            delete_transient( 'cirrusly_gmc_blocked_save_' . get_current_user_id() );
         }
     }   
 

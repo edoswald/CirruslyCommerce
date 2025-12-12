@@ -5,71 +5,65 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class Cirrusly_Commerce_Help {
 
-    /**
-     * Register the admin-side hooks required for the help center UI and bug report handling.
-     *
-     * Attaches:
-     * - 'admin_enqueue_scripts' → enqueue_script to inject the help center scripts.
-     * - 'admin_footer' → render_modal to render the help center modal markup.
-     * - 'wp_ajax_cc_submit_bug_report' → handle_bug_submission to process AJAX bug reports.
-     */
     public static function init() {
         add_action( 'admin_enqueue_scripts', array( __CLASS__, 'enqueue_script' ) );
         add_action( 'admin_footer', array( __CLASS__, 'render_modal' ) );
-        add_action( 'wp_ajax_cc_submit_bug_report', array( __CLASS__, 'handle_bug_submission' ) );
+        
+        // New Standard Action
+        add_action( 'wp_ajax_cirrusly_submit_bug_report', array( __CLASS__, 'handle_bug_submission' ) );
+        
+        // Legacy Action (Deprecated)
+        add_action( 'wp_ajax_cc_submit_bug_report', array( __CLASS__, 'handle_legacy_submission' ) );
     }
 
-    /**
-     * Enqueues inline admin JavaScript that initializes the Cirrusly Help Center UI on Cirrusly admin pages.
-     *
-     * The script is attached to the 'cirrusly-admin-base-js' handle and provides modal open/close behavior,
-     * view switching between main and bug-report form, system-info copying, and AJAX submission for the bug report form.
-     *
-     * @param string $hook The current admin page hook suffix; the inline script is added only when the `page` query
-     * parameter contains the substring 'cirrusly-'.
-     */
+    public static function handle_legacy_submission() {
+        if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+            error_log( 'AJAX action cc_submit_bug_report is deprecated. Use cirrusly_submit_bug_report.' );
+        }
+        self::handle_bug_submission();
+    }
+
     public static function enqueue_script( $hook ) {
         if ( ! isset( $_GET['page'] ) || strpos( sanitize_text_field( wp_unslash( $_GET['page'] ) ), 'cirrusly-' ) === false ) {
             return;
         }
 
-        // Attach to our plugin's base admin handle instead of 'common'
+        // Updated selectors and action names in JS
         wp_add_inline_script( 'cirrusly-admin-base-js', 'jQuery(document).ready(function($){
-            // --- UI Interactions ---
-            $("#cc-open-help-center").click(function(e){
+            $("#cirrusly-open-help-center").click(function(e){
                 e.preventDefault();
-                $("#cc-help-backdrop, #cc-help-modal").fadeIn(200);
+                $("#cirrusly-help-backdrop, #cirrusly-help-modal").fadeIn(200);
             });
-            $("#cc-close-help, #cc-help-backdrop").click(function(){
-                $("#cc-help-backdrop, #cc-help-modal").fadeOut(200);
-                $("#cc-help-main-view").show();
-                $("#cc-help-form-view").hide();
-                $("#cc-bug-response").html("").hide();
+            $("#cirrusly-close-help, #cirrusly-help-backdrop").click(function(){
+                $("#cirrusly-help-backdrop, #cirrusly-help-modal").fadeOut(200);
+                $("#cirrusly-help-main-view").show();
+                $("#cirrusly-help-form-view").hide();
+                $("#cirrusly-bug-response").html("").hide();
             });
-            $("#cc-btn-bug-report").click(function(e){
+            $("#cirrusly-btn-bug-report").click(function(e){
                 e.preventDefault();
-                $("#cc-help-main-view").hide();
-                $("#cc-help-form-view").fadeIn(200);
+                $("#cirrusly-help-main-view").hide();
+                $("#cirrusly-help-form-view").fadeIn(200);
             });
-            $("#cc-btn-back-help").click(function(e){
+            $("#cirrusly-btn-back-help").click(function(e){
                 e.preventDefault();
-                $("#cc-help-form-view").hide();
-                $("#cc-help-main-view").fadeIn(200);
+                $("#cirrusly-help-form-view").hide();
+                $("#cirrusly-help-main-view").fadeIn(200);
             });
-            $("#cc-bug-report-form").on("submit", function(e){
+            $("#cirrusly-bug-report-form").on("submit", function(e){
                 e.preventDefault();
                 var $form = $(this);
                 var $btn  = $form.find("button[type=submit]");
-                var $msg  = $("#cc-bug-response");
+                var $msg  = $("#cirrusly-bug-response");
                 $btn.prop("disabled", true).text("Sending...");
                 $msg.hide().removeClass("notice-error notice-success");
-                var formData = $form.serialize() + "&system_info=" + encodeURIComponent($("#cc-sys-info-text").val());
+                var formData = $form.serialize() + "&system_info=" + encodeURIComponent($("#cirrusly-sys-info-text").val());
                 $.post(ajaxurl, formData, function(response) {
                     $btn.prop("disabled", false).text("Send Report");
                     if ( response.success ) {
                         $form[0].reset();
-                        $("#cc-help-form-view").hide();
-                        $("#cc-help-main-view").fadeIn();
+                        $("#cirrusly-help-form-view").hide();
+                        $("#cirrusly-help-main-view").fadeIn();
                         alert("Report sent successfully! We will be in touch shortly.");
                     } else {
                         $msg.addClass("notice notice-error").html("<p>" + (response.data || "Unknown error") + "</p>").show();
@@ -82,24 +76,10 @@ class Cirrusly_Commerce_Help {
         });' );
     }
 
-    /**
-     * Outputs the Help Center button into the admin interface.
-     *
-     * The button is rendered as an anchor element with id "cc-open-help-center",
-     * classes "button button-secondary", and includes the help dashicon. It is
-     * intended to act as the trigger for opening the Help Center modal.
-     */
     public static function render_button() {
-        echo '<a href="#" id="cc-open-help-center" class="button button-secondary"><span class="dashicons dashicons-editor-help" style="vertical-align:middle;margin-top:2px;"></span> Help Center</a>';
+        echo '<a href="#" id="cirrusly-open-help-center" class="button button-secondary"><span class="dashicons dashicons-editor-help" style="vertical-align:middle;margin-top:2px;"></span> Help Center</a>';
     }
 
-    /**
-     * Outputs the Help Center modal and backdrop HTML for Cirrusly admin pages.
-     *
-     * Renders a modal with a documentation link, support mailto, system health log (populated from get_system_info()),
-     * and a bug report form (prefilled with the current user's email). The modal is only printed when the current
-     * admin page query parameter `page` contains `cirrusly-`.
-     */
     public static function render_modal() {
         if ( ! isset( $_GET['page'] ) || strpos( sanitize_text_field( wp_unslash( $_GET['page'] ) ), 'cirrusly-' ) === false ) {
             return;
@@ -107,13 +87,13 @@ class Cirrusly_Commerce_Help {
         $mailto = 'mailto:help@cirruslyweather.com?subject=Support%20Request';
         $current_user = wp_get_current_user();
         ?>
-        <div id="cc-help-backdrop" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:9999;"></div>
-        <div id="cc-help-modal" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); width:650px; background:#fff; box-shadow:0 4px 25px rgba(0,0,0,0.15); z-index:10000; border-radius:6px; overflow:hidden;">
-            <div class="cc-help-header" style="background:#f0f0f1; padding:15px 20px; border-bottom:1px solid #c3c4c7; display:flex; justify-content:space-between; align-items:center;">
+        <div id="cirrusly-help-backdrop" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:9999;"></div>
+        <div id="cirrusly-help-modal" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); width:650px; background:#fff; box-shadow:0 4px 25px rgba(0,0,0,0.15); z-index:10000; border-radius:6px; overflow:hidden;">
+            <div class="cirrusly-help-header" style="background:#f0f0f1; padding:15px 20px; border-bottom:1px solid #c3c4c7; display:flex; justify-content:space-between; align-items:center;">
                 <h3 style="margin:0; font-size:16px;">Cirrusly Help Center</h3>
-                <button type="button" id="cc-close-help" style="background:none; border:none; cursor:pointer; font-size:24px; line-height:1; color:#646970;">&times;</button>
+                <button type="button" id="cirrusly-close-help" style="background:none; border:none; cursor:pointer; font-size:24px; line-height:1; color:#646970;">&times;</button>
             </div>
-            <div id="cc-help-main-view" class="cc-help-body" style="padding:0; display:flex; height: 450px;">
+            <div id="cirrusly-help-main-view" class="cirrusly-help-body" style="padding:0; display:flex; height: 450px;">
                 <div style="width:40%; padding:20px; border-right:1px solid #eee; background:#fff;">
                     <h4 style="margin-top:0;"><span class="dashicons dashicons-book-alt" style="color:#2271b1;"></span> Documentation</h4>
                     <p style="color:#666; font-size:13px; margin-bottom:15px;">Check the manual for setup guides and troubleshooting.</p>
@@ -122,28 +102,28 @@ class Cirrusly_Commerce_Help {
                     <h4 style="margin-top:0;"><span class="dashicons dashicons-email-alt" style="color:#2271b1;"></span> Support</h4>
                     <p style="color:#666; font-size:13px; margin-bottom:15px;">Having trouble? Reach out to our team.</p>
                     <a href="<?php echo esc_url( $mailto ); ?>" class="button" style="width:100%; text-align:center; margin-bottom:10px;">Email Support</a>
-                    <button type="button" id="cc-btn-bug-report" class="button button-primary" style="width:100%; text-align:center;">
+                    <button type="button" id="cirrusly-btn-bug-report" class="button button-primary" style="width:100%; text-align:center;">
                         <span class="dashicons dashicons-warning" style="font-size:16px; vertical-align:middle; margin-right:5px;"></span> Submit Bug Report
                     </button>
                 </div>
                 <div style="width:60%; padding:20px; background:#f9f9f9;">
                     <h4 style="margin-top:0; display:flex; justify-content:space-between; align-items:center;">
                         <span>System Health</span>
-                        <button type="button" class="button button-small" onclick="var copyText = document.getElementById('cc-sys-info-text');navigator.clipboard.writeText(copyText.value).then(function(){alert('Copied to clipboard!');}).catch(function(){copyText.select();document.execCommand('copy');alert('Copied to clipboard!');});">Copy Log</button>
+                        <button type="button" class="button button-small" onclick="var copyText = document.getElementById('cirrusly-sys-info-text');navigator.clipboard.writeText(copyText.value).then(function(){alert('Copied to clipboard!');}).catch(function(){copyText.select();document.execCommand('copy');alert('Copied to clipboard!');});">Copy Log</button>
                     </h4>
                     <p style="color:#666; font-size:12px; margin-bottom:10px;">This info will be automatically attached to your bug report.</p>
-                    <textarea id="cc-sys-info-text" style="width:100%; height:320px; font-family:monospace; font-size:11px; background:#fff; border:1px solid #ccc; white-space:pre;" readonly><?php echo esc_textarea( self::get_system_info() ); ?></textarea>
+                    <textarea id="cirrusly-sys-info-text" style="width:100%; height:320px; font-family:monospace; font-size:11px; background:#fff; border:1px solid #ccc; white-space:pre;" readonly><?php echo esc_textarea( self::get_system_info() ); ?></textarea>
                 </div>
             </div>
-            <div id="cc-help-form-view" style="display:none; height:450px; padding:20px; background:#fff;">
+            <div id="cirrusly-help-form-view" style="display:none; height:450px; padding:20px; background:#fff;">
                 <h4 style="margin-top:0; margin-bottom:20px; display:flex; align-items:center;">
-                    <button type="button" id="cc-btn-back-help" class="button button-small" style="margin-right:10px;"><span class="dashicons dashicons-arrow-left-alt2"></span> Back</button>
+                    <button type="button" id="cirrusly-btn-back-help" class="button button-small" style="margin-right:10px;"><span class="dashicons dashicons-arrow-left-alt2"></span> Back</button>
                     Submit Bug Report
                 </h4>
-                <div id="cc-bug-response" style="display:none; margin-bottom:15px; padding:10px;"></div>
-                <form id="cc-bug-report-form">
-                    <input type="hidden" name="action" value="cc_submit_bug_report">
-                    <?php wp_nonce_field( 'cc_bug_report_nonce', 'security' ); ?>
+                <div id="cirrusly-bug-response" style="display:none; margin-bottom:15px; padding:10px;"></div>
+                <form id="cirrusly-bug-report-form">
+                    <input type="hidden" name="action" value="cirrusly_submit_bug_report">
+                    <?php wp_nonce_field( 'cirrusly_bug_report_nonce', 'security' ); ?>
                     <div style="display:flex; gap:15px; margin-bottom:15px;">
                         <div style="flex:1;">
                             <label style="display:block; margin-bottom:5px; font-weight:600;">Your Email</label>
@@ -167,17 +147,26 @@ class Cirrusly_Commerce_Help {
         <?php
     }
 
-    /**
-     * Process an AJAX bug report submission, validate and sanitize input, and send a formatted email to support.
-     *
-     * Verifies the request nonce and current user's capabilities, validates the reporter's email, ensures the mailer
-     * dependency is available, and sends an HTML email to help@cirruslyweather.com containing the user-provided
-     * subject, message, and system information. Responses are returned to the AJAX caller as JSON success or error messages.
-     */
     public static function handle_bug_submission() {
-        if ( ! isset( $_POST['security'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['security'] ) ), 'cc_bug_report_nonce' ) ) {
+        $nonce = isset( $_POST['security'] ) ? sanitize_text_field( wp_unslash( $_POST['security'] ) ) : '';
+        $verified = false;
+
+        // Check new standard nonce
+        if ( wp_verify_nonce( $nonce, 'cirrusly_bug_report_nonce' ) ) {
+            $verified = true;
+        }
+        // Check legacy nonce (deprecated)
+        elseif ( wp_verify_nonce( $nonce, 'cc_bug_report_nonce' ) ) {
+            $verified = true;
+            if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+                error_log( 'Legacy nonce cc_bug_report_nonce used in handle_bug_submission. Use cirrusly_bug_report_nonce.' );
+            }
+        }
+
+        if ( ! $verified ) {
             wp_send_json_error( 'Security check failed. Please refresh the page.' );
         }
+
         if ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'edit_products' ) ) {
             wp_send_json_error( 'Unauthorized.' );
         }
@@ -212,15 +201,6 @@ class Cirrusly_Commerce_Help {
         }
     }
 
-    /**
-     * Build a plain-text summary of the current site and environment.
-     *
-     * The returned text includes site URL, WordPress version, WooCommerce version (or "Not Installed"),
-     * Cirrusly Commerce version (or "Unknown"), PHP version, server software, and a newline-separated list
-     * of active plugin file paths.
-     *
-     * @return string A multiline plain-text system information block suitable for inclusion in bug reports.
-     */
     public static function get_system_info() {
         global $wp_version;
         $out  = "### System Info ###\n";
@@ -241,11 +221,6 @@ class Cirrusly_Commerce_Help {
         return $out;
     }
 
-    /**
-     * Outputs the site's system information as escaped plain text for display in the admin UI.
-     *
-     * The output is escaped for safe HTML rendering.
-     */
     public static function render_system_info() {
         echo esc_html( self::get_system_info() );
     }

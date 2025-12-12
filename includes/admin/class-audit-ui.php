@@ -13,10 +13,10 @@ class Cirrusly_Commerce_Audit_UI {
         
         // Handle Import Submission (Delegated to Pro)
         if (
-            isset( $_POST['cc_import_nonce'] )
+            isset( $_POST['cirrusly_import_nonce'] )
             && wp_verify_nonce(
-                sanitize_text_field( wp_unslash( $_POST['cc_import_nonce'] ) ),
-                'cc_import_action'
+                sanitize_text_field( wp_unslash( $_POST['cirrusly_import_nonce'] ) ),
+                'cirrusly_import_action'
             )
             && Cirrusly_Commerce_Core::cirrusly_is_pro()
             && class_exists( 'Cirrusly_Commerce_Audit_Pro' )
@@ -30,7 +30,7 @@ class Cirrusly_Commerce_Audit_UI {
         settings_errors('cirrusly_audit');
 
         // 1. Handle Cache & Refresh
-        $refresh = isset( $_GET['refresh_audit'] ) && isset( $_GET['_wpnonce'] ) && wp_verify_nonce( sanitize_text_field( wp_unslash( $_GET['_wpnonce'] ) ), 'cc_refresh_audit' );
+        $refresh = isset( $_GET['refresh_audit'] ) && isset( $_GET['_wpnonce'] ) && wp_verify_nonce( sanitize_text_field( wp_unslash( $_GET['_wpnonce'] ) ), 'cirrusly_refresh_audit' );
         if ( $refresh ) {
             delete_transient( 'cirrusly_audit_data' );
         }
@@ -51,7 +51,6 @@ class Cirrusly_Commerce_Audit_UI {
         }
 
         $is_pro = Cirrusly_Commerce_Core::cirrusly_is_pro();
-        $pro_class = $is_pro ? '' : 'cc-pro-feature';
         $disabled_attr = $is_pro ? '' : 'disabled';
 
         // 3. Process Filters & Pagination (Moved Up)
@@ -90,23 +89,23 @@ class Cirrusly_Commerce_Audit_UI {
 
         // DASHBOARD GRID
         ?>
-        <div class="cc-dashboard-overview" style="margin-bottom:20px;">
-            <div class="cc-dash-grid" style="display:grid; grid-template-columns: repeat(4, 1fr); gap: 20px;">
-                 <div class="cc-dash-card" style="border-top-color: #2271b1; text-align: center;">
-                     <span class="cc-big-num"><?php echo esc_html( $total_skus ); ?></span>
-                     <span class="cc-label">Audited SKUs</span>
+        <div class="cirrusly-dashboard-overview" style="margin-bottom:20px;">
+            <div class="cirrusly-dash-grid" style="display:grid; grid-template-columns: repeat(4, 1fr); gap: 20px;">
+                 <div class="cirrusly-dash-card" style="border-top-color: #2271b1; text-align: center;">
+                     <span class="cirrusly-big-num"><?php echo esc_html( $total_skus ); ?></span>
+                     <span class="cirrusly-label">Audited SKUs</span>
                  </div>
-                 <div class="cc-dash-card" style="border-top-color: #d63638; text-align: center;">
-                     <span class="cc-big-num" style="color:#d63638;"><?php echo esc_html( $loss_count ); ?></span>
-                     <span class="cc-label">Loss Makers (Net &lt; 0)</span>
+                 <div class="cirrusly-dash-card" style="border-top-color: #d63638; text-align: center;">
+                     <span class="cirrusly-big-num" style="color:#d63638;"><?php echo esc_html( $loss_count ); ?></span>
+                     <span class="cirrusly-label">Loss Makers (Net &lt; 0)</span>
                  </div>
-                 <div class="cc-dash-card" style="border-top-color: #dba617; text-align: center;">
-                     <span class="cc-big-num" style="color:#dba617;"><?php echo esc_html( $alert_count ); ?></span>
-                     <span class="cc-label">Data Alerts</span>
+                 <div class="cirrusly-dash-card" style="border-top-color: #dba617; text-align: center;">
+                     <span class="cirrusly-big-num" style="color:#dba617;"><?php echo esc_html( $alert_count ); ?></span>
+                     <span class="cirrusly-label">Data Alerts</span>
                  </div>
-                 <div class="cc-dash-card" style="border-top-color: #008a20; text-align: center;">
-                     <span class="cc-big-num"><?php echo esc_html( $low_margin_count ); ?></span>
-                     <span class="cc-label">Low Margin (&lt; 15%)</span>
+                 <div class="cirrusly-dash-card" style="border-top-color: #008a20; text-align: center;">
+                     <span class="cirrusly-big-num"><?php echo esc_html( $low_margin_count ); ?></span>
+                     <span class="cirrusly-label">Low Margin (&lt; 15%)</span>
                  </div>
                  <div style="grid-column: span 4; background:#f9f9f9; padding:10px; font-size:12px; color:#666; border-radius:4px; display:flex; justify-content:center; gap:30px; border:1px solid #ddd;">
                     <span><strong style="color:#2271b1;">Ship P/L:</strong> Shipping Charged - Estimated Cost</span>
@@ -116,7 +115,7 @@ class Cirrusly_Commerce_Audit_UI {
             </div>
         </div>
 
-        <div class="cc-audit-toolbar" style="background:#fff; border:1px solid #c3c4c7; padding:15px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:15px; margin-bottom:20px; box-shadow: 0 1px 1px rgba(0,0,0,0.04);">
+        <div class="cirrusly-audit-toolbar" style="background:#fff; border:1px solid #c3c4c7; padding:15px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:15px; margin-bottom:20px; box-shadow: 0 1px 1px rgba(0,0,0,0.04);">
             
             <form method="get" style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; flex:1;">
                 <input type="hidden" name="page" value="cirrusly-audit">
@@ -140,10 +139,10 @@ class Cirrusly_Commerce_Audit_UI {
                 </label>
                 
                 <button class="button button-primary" style="height:32px; line-height:30px;">Filter</button>
-                <a href="<?php echo esc_url( wp_nonce_url( '?page=cirrusly-audit&refresh_audit=1', 'cc_refresh_audit' ) ); ?>" class="button" title="Refresh Data from Database" style="height:32px; line-height:30px;"><span class="dashicons dashicons-update" style="line-height:30px;"></span></a>
+                <a href="<?php echo esc_url( wp_nonce_url( '?page=cirrusly-audit&refresh_audit=1', 'cirrusly_refresh_audit' ) ); ?>" class="button" title="Refresh Data from Database" style="height:32px; line-height:30px;"><span class="dashicons dashicons-update" style="line-height:30px;"></span></a>
             </form>
 
-            <div class="cc-toolbar-actions" style="display:flex; align-items:center; gap:8px; border-left:1px solid #ddd; padding-left:15px;">
+            <div class="cirrusly-toolbar-actions" style="display:flex; align-items:center; gap:8px; border-left:1px solid #ddd; padding-left:15px;">
                 <?php if(!$is_pro): ?>
                      <a href="<?php echo esc_url( function_exists('cirrusly_fs') ? cirrusly_fs()->get_upgrade_url() : '#' ); ?>" title="Upgrade to Pro" style="color:#d63638; text-decoration:none; margin-right:5px; font-weight:bold;">
                         <span class="dashicons dashicons-lock"></span>
@@ -151,7 +150,7 @@ class Cirrusly_Commerce_Audit_UI {
                 <?php endif; ?>
 
                 <?php if($is_pro): ?>
-                <a href="<?php echo esc_url( wp_nonce_url( add_query_arg('action', 'export_csv'), 'cc_export_csv' ) ); ?>" class="button button-secondary" title="Export CSV">
+                <a href="<?php echo esc_url( wp_nonce_url( add_query_arg('action', 'export_csv'), 'cirrusly_export_csv' ) ); ?>" class="button button-secondary" title="Export CSV">
                     <span class="dashicons dashicons-download"></span> Export
                 </a>
                 <?php else: ?>
@@ -161,7 +160,7 @@ class Cirrusly_Commerce_Audit_UI {
                 <?php endif; ?>
 
                 <form method="post" enctype="multipart/form-data" style="margin:0;">
-                     <?php wp_nonce_field('cc_import_action', 'cc_import_nonce'); ?>
+                     <?php wp_nonce_field('cirrusly_import_action', 'cirrusly_import_nonce'); ?>
                      <label class="button button-secondary" style="cursor:pointer;" title="Import Cost CSV" <?php echo esc_attr( $disabled_attr ); ?>>
                          <span class="dashicons dashicons-upload"></span> Import
                          <input type="file" name="csv_import" style="display:none;" onchange="this.form.submit()" <?php echo esc_attr( $disabled_attr ); ?>>
@@ -227,7 +226,7 @@ class Cirrusly_Commerce_Audit_UI {
                 $ship_cell = wp_kses_post(wc_price($row['ship_pl']));
                 
                 if($is_pro) {
-                     $cost_cell = '<span class="cc-inline-edit" data-pid="'.esc_attr($row['id']).'" data-field="_cogs_total_value" contenteditable="true" style="border-bottom:1px dashed #999; cursor:pointer;">'.number_format($row['item_cost'], 2).'</span> <small style="color:#999;">+ Ship '.number_format($row['ship_cost'], 2).'</small>';
+                     $cost_cell = '<span class="cirrusly-inline-edit" data-pid="'.esc_attr($row['id']).'" data-field="_cogs_total_value" contenteditable="true" style="border-bottom:1px dashed #999; cursor:pointer;">'.number_format($row['item_cost'], 2).'</span> <small style="color:#999;">+ Ship '.number_format($row['ship_cost'], 2).'</small>';
                 }
 
                 echo '<tr>
@@ -249,51 +248,9 @@ class Cirrusly_Commerce_Audit_UI {
              echo '<div class="tablenav bottom">' . wp_kses_post( $pagination_html ) . '</div>';
         }
 
-        if($is_pro) {
-            $nonce = wp_create_nonce("cc_audit_save");
-            $script = "
-            jQuery(document).ready(function($){
-                $('.cc-inline-edit').on('blur', function(){
-                    var \$el = $(this);
-                    var \$row = \$el.closest('tr');
-                    var pid = \$el.data('pid');
-                    var field = \$el.data('field');
-                    var val = \$el.text();
-                    \$el.css('opacity', '0.5');
-
-                    $.post(ajaxurl, {
-                        action: 'cc_audit_save',
-                        pid: pid,
-                        field: field,
-                        value: val,
-                        _nonce: '" . esc_js( $nonce ) . "'
-                    }, function(res){
-                        \$el.css('opacity', '1');
-                        if(res.success) {
-                            \$el.css('background-color', '#e7f6e7');
-                            setTimeout(function(){ \$el.css('background-color', 'transparent'); }, 1500);
-                            if(res.data) {
-                                if(res.data.net_html) \$row.find('.col-net').html(res.data.net_html);
-                                if(res.data.net_style) \$row.find('.col-net').attr('style', res.data.net_style);
-                                if(res.data.margin) \$row.find('.col-margin').text(res.data.margin + '%');
-                            }
-                        } else {
-                            \$el.css('background-color', '#f8d7da');
-                            alert('Save Failed: ' + (res.data || 'Unknown error'));
-                        }
-                    });
-                });
-                $('.cc-inline-edit').on('focus', function() {
-                    var range = document.createRange();
-                    range.selectNodeContents(this);
-                    var sel = window.getSelection();
-                    sel.removeAllRanges();
-                    sel.addRange(range);
-                });
-            });";
-            
-            wp_add_inline_script( 'cirrusly-audit-js', $script );
-        }
+        // Inline script block removed.
+        // It is now handled by assets/js/audit.js which is enqueued in Cirrusly_Commerce_Admin_Assets
+        
         echo '</div>'; 
     }
 }

@@ -9,14 +9,14 @@ jQuery(document).ready(function($){
     });
 
     var loadPromotions = function( forceRefresh ) {
-        var $btn = $('#cc_load_promos');
-        var $table = $('#cc-gmc-promos-table tbody');
+        var $btn = $('#cirrusly_load_promos');
+        var $table = $('#cirrusly-gmc-promos-table tbody');
         
         $btn.prop('disabled', true).html('<span class="dashicons dashicons-update" style="animation:spin 2s linear infinite;"></span> Syncing...');
-        if( forceRefresh ) $table.html('<tr class="cc-empty-row"><td colspan="6" style="padding:20px; text-align:center;">Refreshing data...</td></tr>');
+        if( forceRefresh ) $table.html('<tr class="cirrusly-empty-row"><td colspan="6" style="padding:20px; text-align:center;">Refreshing data...</td></tr>');
         
         $.post(cirrusly_promo_data.ajaxurl, {
-            action: 'cc_list_promos_gmc',
+            action: 'cirrusly_list_promos_gmc',
             security: cirrusly_promo_data.nonce_list,
             force_refresh: forceRefresh ? 1 : 0
         }, function(res) {
@@ -24,7 +24,7 @@ jQuery(document).ready(function($){
             if(res.success) {
                 $table.empty();
                 if(res.data.length === 0) {
-                    $table.html('<tr class="cc-empty-row"><td colspan="6" style="padding:20px; text-align:center;">No promotions found in Merchant Center.</td></tr>');
+                    $table.html('<tr class="cirrusly-empty-row"><td colspan="6" style="padding:20px; text-align:center;">No promotions found in Merchant Center.</td></tr>');
                     return;
                 }
                 function ccEscapeHtml(str) {
@@ -43,30 +43,30 @@ jQuery(document).ready(function($){
                         '<td>' + ccEscapeHtml(p.dates) + '</td>' +
                         '<td><span class="gmc-badge" style="background:'+statusColor+';color:#fff;">'+ccEscapeHtml(displayStatus)+'</span></td>' +
                         '<td>' + ccEscapeHtml(p.type) + (p.code ? ': <code>'+ccEscapeHtml(p.code)+'</code>' : '') + '</td>' +
-                        '<td><button type="button" class="button button-small cc-edit-promo" ' +
+                        '<td><button type="button" class="button button-small cirrusly-edit-promo" ' +
                         'data-id="'+ccEscapeHtml(p.id)+'" data-title="'+ccEscapeHtml(p.title)+'" data-dates="'+ccEscapeHtml(p.dates)+'" data-app="'+ccEscapeHtml(p.app)+'" data-type="'+ccEscapeHtml(p.type)+'" data-code="'+ccEscapeHtml(p.code || '')+'">Edit</button></td>' +
                         '</tr>';
                     $table.append(row);
                 });
             } else {
                 if(forceRefresh) alert('Error: ' + (res.data || 'Failed to fetch data.'));
-                $table.html('<tr class="cc-empty-row"><td colspan="6" style="padding:20px; text-align:center; color:#d63638;">Error loading data.</td></tr>');
+                $table.html('<tr class="cirrusly-empty-row"><td colspan="6" style="padding:20px; text-align:center; color:#d63638;">Error loading data.</td></tr>');
             }
         }).fail(function() {
             $btn.prop('disabled', false).html('<span class="dashicons dashicons-update"></span> Sync from Google');
-            $table.html('<tr class="cc-empty-row"><td colspan="6" style="padding:20px; text-align:center; color:#d63638;">Error loading data.</td></tr>');
+            $table.html('<tr class="cirrusly-empty-row"><td colspan="6" style="padding:20px; text-align:center; color:#d63638;">Error loading data.</td></tr>');
                     if ( forceRefresh ) {
                 alert('Error: Could not reach the server.');
             }
         });
     };
 
-    if( $('#cc-gmc-promos-table').length > 0 ) {
+    if( $('#cirrusly-gmc-promos-table').length > 0 ) {
         loadPromotions(false);
     }
-    $('#cc_load_promos').click(function(){ loadPromotions(true); });
+    $('#cirrusly_load_promos').click(function(){ loadPromotions(true); });
 
-    $(document).on('click', '.cc-edit-promo', function(e){
+    $(document).on('click', '.cirrusly-edit-promo', function(e){
         e.preventDefault();
         var d = $(this).data();
         $('#pg_id').val(d.id); 
@@ -75,9 +75,9 @@ jQuery(document).ready(function($){
         $('#pg_app').val(d.app).trigger('change');
         $('#pg_type').val(d.type).trigger('change');
         $('#pg_code').val(d.code);
-        $('html, body').animate({ scrollTop: $("#cc_promo_form_container").offset().top - 50 }, 500);
-        $('#cc_promo_form_container').css('border', '2px solid #2271b1').animate({borderWidth: 0}, 1500, function(){ $(this).css('border',''); });
-        $('#cc_form_title').text('Edit Promotion: ' + d.id);
+        $('html, body').animate({ scrollTop: $("#cirrusly_promo_form_container").offset().top - 50 }, 500);
+        $('#cirrusly_promo_form_container').css('border', '2px solid #2271b1').animate({borderWidth: 0}, 1500, function(){ $(this).css('border',''); });
+        $('#cirrusly_form_title').text('Edit Promotion: ' + d.id);
     });
 
     $('#pg_api_submit').click(function(){
@@ -89,7 +89,7 @@ jQuery(document).ready(function($){
         }
         $btn.prop('disabled', true).text('Sending...');
         $.post(cirrusly_promo_data.ajaxurl, {
-            action: 'cc_submit_promo_to_gmc',
+            action: 'cirrusly_submit_promo_to_gmc',
             security: cirrusly_promo_data.nonce_submit,
             // Prefix custom data key
             cirrusly_promo_data: {

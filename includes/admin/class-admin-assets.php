@@ -6,13 +6,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 class Cirrusly_Commerce_Admin_Assets {
 
     /**
-     * Enqueue and localize admin styles, scripts, and UI helper inline code for plugin and product admin pages.
-     *
-     * When the current admin page is part of the plugin or a product edit screen, this registers and enqueues
-     * the base admin CSS and JS, conditionally enqueues audit and pricing scripts, localizes their data objects,
-     * and attaches UI helper JavaScript as an inline script on the base admin JS handle.
-     *
-     * @param string $hook The current admin page hook (e.g., 'post.php', 'post-new.php', or plugin page hook).
+     * Enqueue and localize admin styles, scripts, and UI helper code.
      */
     public function enqueue( $hook ) {
         $page = isset( $_GET['page'] ) ? sanitize_text_field( wp_unslash( $_GET['page'] ) ) : '';
@@ -29,23 +23,25 @@ class Cirrusly_Commerce_Admin_Assets {
         wp_register_style( 'cirrusly-admin-css', CIRRUSLY_COMMERCE_URL . 'assets/css/admin.css', array(), CIRRUSLY_COMMERCE_VERSION );
         wp_enqueue_style( 'cirrusly-admin-css' );
 
-        // NEW: Base Admin JS (for attaching inline scripts)
-        wp_register_script( 'cirrusly-admin-base-js', false, array( 'jquery' ), CIRRUSLY_COMMERCE_VERSION, true );
+        // Base Admin JS (Restored: Loads external file instead of inline)
+        wp_register_script( 'cirrusly-admin-base-js', CIRRUSLY_COMMERCE_URL . 'assets/js/admin.js', array( 'jquery' ), CIRRUSLY_COMMERCE_VERSION, true );
         wp_enqueue_script( 'cirrusly-admin-base-js' );
 
-        // ... [Keep Audit JS and Pricing JS Logic] ...
+        // Audit JS Logic
         if ( $page === 'cirrusly-audit' ) {
             wp_enqueue_script( 'cirrusly-audit-js', CIRRUSLY_COMMERCE_URL . 'assets/js/audit.js', array( 'jquery' ), CIRRUSLY_COMMERCE_VERSION, true );
-            wp_localize_script( 'cirrusly-audit-js', 'cc_audit_vars', array(
+            
+            // Renamed localized object to match new prefix
+            wp_localize_script( 'cirrusly-audit-js', 'cirrusly_audit_vars', array(
                 'ajax_url' => admin_url( 'admin-ajax.php' ),
-                'nonce'    => wp_create_nonce( 'cc_audit_save' )
+                'nonce'    => wp_create_nonce( 'cirrusly_audit_save' )
             ));
         }
 
+        // Pricing JS Logic
         if ( $is_product_page ) {
             wp_enqueue_script( 'cirrusly-pricing-js', CIRRUSLY_COMMERCE_URL . 'assets/js/pricing.js', array( 'jquery' ), CIRRUSLY_COMMERCE_VERSION, true );
             
-            // Reconstruct config logic...
             $config = get_option( 'cirrusly_shipping_config', array() );
             $defaults = array(
                 'revenue_tiers_json' => json_encode(array(
@@ -88,48 +84,8 @@ class Cirrusly_Commerce_Admin_Assets {
                 foreach ( $terms as $term ) $id_map[ $term->term_id ] = $term->slug;
             }
 
-            wp_localize_script( 'cirrusly-pricing-js', 'cw_vars', array( 'ship_config' => $js_config, 'id_map' => $id_map ));
+            // Renamed localized object
+            wp_localize_script( 'cirrusly-pricing-js', 'cirrusly_pricing_vars', array( 'ship_config' => $js_config, 'id_map' => $id_map ));
         }
-        
-        // 4. UI Helper Scripts attached via wp_add_inline_script to base handle
-        $js_ui_helpers = '
-        jQuery(document).ready(function($){
-            var frame; var $currentBtn;
-            $(document).on("click", ".cc-upload-btn", function(e) {
-                e.preventDefault(); $currentBtn = $(this);
-                if ( frame ) { frame.open(); return; }
-                frame = wp.media({ title: "Select Badge Image", button: { text: "Use this image" }, multiple: false });
-                frame.on( "select", function() {
-                    var attachment = frame.state().get("selection").first().toJSON();
-                    $currentBtn.prev("input").val(attachment.url).trigger("change");
-                });
-                frame.open();
-            });
-            $(document).on("click", ".cc-remove-btn", function(e){ e.preventDefault(); $(this).siblings("input").val(""); });
-            
-            $("#cc-add-badge-row").click(function(){
-                var idx = $("#cc-badge-rows tr").length + 1000;
-                var row = "<tr><td><input type=\'text\' name=\'cirrusly_badge_config[custom_badges]["+idx+"][tag]\'></td><td><input type=\'text\' name=\'cirrusly_badge_config[custom_badges]["+idx+"][url]\' class=\'regular-text\'> <button type=\'button\' class=\'button cc-upload-btn\'>Upload</button></td><td><input type=\'text\' name=\'cirrusly_badge_config[custom_badges]["+idx+"][tooltip]\'></td><td><input type=\'number\' name=\'cirrusly_badge_config[custom_badges]["+idx+"][width]\' value=\'60\'> px</td><td><button type=\'button\' class=\'button cc-remove-row\'><span class=\'dashicons dashicons-trash\'></span></button></td></tr>";
-                $("#cc-badge-rows").append(row);
-            });
-            $("#cc-add-revenue-row").click(function(){
-                var idx = $("#cc-revenue-rows tr").length + 1000;
-                var row = "<tr><td><input type=\'number\' step=\'0.01\' name=\'cirrusly_shipping_config[revenue_tiers]["+idx+"][min]\'></td><td><input type=\'number\' step=\'0.01\' name=\'cirrusly_shipping_config[revenue_tiers]["+idx+"][max]\'></td><td><input type=\'number\' step=\'0.01\' name=\'cirrusly_shipping_config[revenue_tiers]["+idx+"][charge]\'></td><td><button type=\'button\' class=\'button cc-remove-row\'><span class=\'dashicons dashicons-trash\'></span></button></td></tr>";
-                $("#cc-revenue-rows").append(row);
-            });
-            $("#cc-add-matrix-row").click(function(){
-                var idx = $("#cc-matrix-rows tr").length + 1000;
-                var row = "<tr><td><input type=\'text\' name=\'cirrusly_shipping_config[matrix_rules]["+idx+"][key]\'></td><td><input type=\'text\' name=\'cirrusly_shipping_config[matrix_rules]["+idx+"][label]\'></td><td>x <input type=\'number\' step=\'0.1\' name=\'cirrusly_shipping_config[matrix_rules]["+idx+"][cost_mult]\' value=\'1.0\'></td><td><button type=\'button\' class=\'button cc-remove-row\'><span class=\'dashicons dashicons-trash\'></span></button></td></tr>";
-                $("#cc-matrix-rows").append(row);
-            });
-            $("#cc-add-countdown-row").click(function(){
-                var idx = $("#cc-countdown-rows tr").length + 1000;
-                var row = "<tr><td><input type=\'text\' name=\'cirrusly_countdown_rules["+idx+"][taxonomy]\'></td><td><input type=\'text\' name=\'cirrusly_countdown_rules["+idx+"][term]\'></td><td><input type=\'text\' name=\'cirrusly_countdown_rules["+idx+"][end]\'></td><td><input type=\'text\' name=\'cirrusly_countdown_rules["+idx+"][label]\'></td><td><select name=\'cirrusly_countdown_rules["+idx+"][align]\'><option value=\'left\'>Left</option><option value=\'right\'>Right</option><option value=\'center\'>Center</option></select></td><td><button type=\'button\' class=\'button cc-remove-row\'><span class=\'dashicons dashicons-trash\'></span></button></td></tr>";
-                $("#cc-countdown-rows").append(row);
-            });
-            $(document).on("click", ".cc-remove-row", function(){ $(this).closest("tr").remove(); });
-        });';
-        
-        wp_add_inline_script( 'cirrusly-admin-base-js', $js_ui_helpers );
     }
 }
