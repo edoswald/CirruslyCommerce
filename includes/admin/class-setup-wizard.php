@@ -127,10 +127,10 @@ class Cirrusly_Commerce_Setup_Wizard {
         if ( ! $type ) return;
 
         $url = admin_url( 'admin.php?page=cirrusly-setup' );
-        $dismiss_url = wp_nonce_url( add_query_arg( 'cc_dismiss_wizard', '1' ), 'cc_dismiss_wizard_nonce' );
+        $dismiss_url = wp_nonce_url( add_query_arg( 'cirrusly_dismiss_wizard', '1' ), 'cirrusly_dismiss_wizard_nonce' );
 
         // Handle Dismissal
-        if ( isset( $_GET['cc_dismiss_wizard'] ) && check_admin_referer( 'cc_dismiss_wizard_nonce' ) ) {
+        if ( isset( $_GET['cirrusly_dismiss_wizard'] ) && check_admin_referer( 'cirrusly_dismiss_wizard_nonce' ) ) {
             delete_transient( 'cirrusly_upgrade_prompt' );
             // If dismissed, assume they are "up to date" to prevent immediate resurfacing
             update_option( 'cirrusly_wizard_completed_version', defined('CIRRUSLY_COMMERCE_VERSION') ? CIRRUSLY_COMMERCE_VERSION : '1.0.0' );

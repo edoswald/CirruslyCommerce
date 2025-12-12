@@ -89,10 +89,10 @@ class Cirrusly_Commerce_Analytics_Pro {
 
         $all_statuses = wc_get_order_statuses();
 
-        if ( isset( $_GET['cc_refresh'] ) && check_admin_referer( 'cc_refresh_analytics' ) ) {
+        if ( isset( $_GET['cirrusly_refresh'] ) && check_admin_referer( 'cirrusly_refresh_analytics' ) ) {
             global $wpdb;
-            $wpdb->query( "DELETE FROM {$wpdb->prefix}options WHERE option_name LIKE '_transient_cc_analytics_pnl_v4_%' OR option_name LIKE '_transient_timeout_cc_analytics_pnl_v4_%'" );
-            wp_safe_redirect( remove_query_arg( array( 'cc_refresh', '_wpnonce' ) ) );
+            $wpdb->query( "DELETE FROM {$wpdb->prefix}options WHERE option_name LIKE '_transient_cirrusly_analytics_pnl_v4_%' OR option_name LIKE '_transient_timeout_cirrusly_analytics_pnl_v4_%'" );
+            wp_safe_redirect( remove_query_arg( array( 'cirrusly_refresh', '_wpnonce' ) ) );
             exit;
         }
 
@@ -105,7 +105,7 @@ class Cirrusly_Commerce_Analytics_Pro {
             $selected_statuses = $data['statuses_used'];
         }
         $velocity = self::get_inventory_velocity();
-        $refresh_url = wp_nonce_url( add_query_arg( array( 'cc_refresh' => '1' ) ), 'cc_refresh_analytics' );
+        $refresh_url = wp_nonce_url( add_query_arg( array( 'cirrusly_refresh' => '1' ) ), 'cirrusly_refresh_analytics' );
         
         $readable_labels = array();
         foreach ( $selected_statuses as $slug ) {
@@ -371,7 +371,7 @@ class Cirrusly_Commerce_Analytics_Pro {
 
         // Generate Cache Key based on days + status fingerprint
         $status_hash = md5( json_encode( $target_statuses ) );
-        $cache_key   = 'cc_analytics_pnl_v4_' . $days . '_' . $status_hash; 
+        $cache_key   = 'cirrusly_analytics_pnl_v4_' . $days . '_' . $status_hash; 
         
         $cached = get_transient( $cache_key );
         if ( false !== $cached ) { return $cached; }
@@ -477,7 +477,7 @@ class Cirrusly_Commerce_Analytics_Pro {
                     
                     // Cost Logic
                     $cogs_val = (float) $product->get_meta( '_cogs_total_value' );
-                    $ship_val = (float) $product->get_meta( '_cw_est_shipping' );
+                    $ship_val = (float) $product->get_meta( '_cirrusly_est_shipping' );
                     
                     $cost_basis = ($cogs_val + $ship_val) * $qty;
                     $order_cogs += ($cogs_val * $qty);

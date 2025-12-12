@@ -34,7 +34,7 @@ class Cirrusly_Commerce_Pricing_Frontend {
 
         // Product Page Logic
         if ( 'inline' === $pos_prod ) {
-            add_filter( 'woocommerce_get_price_html', array( $this, 'cw_render_msrp_inline' ), 100, 2 );
+            add_filter( 'woocommerce_get_price_html', array( $this, 'cirrusly_render_msrp_inline' ), 100, 2 );
         } else {
             $hook = 'woocommerce_single_product_summary';
             $prio = 9;
@@ -49,19 +49,19 @@ class Cirrusly_Commerce_Pricing_Frontend {
                 case 'before_price':       $prio = 9;  break;
                 default:                   $prio = 9;  break;
             }
-            add_action( $hook, array( $this, 'cw_render_msrp_block_hook' ), $prio );
+            add_action( $hook, array( $this, 'cirrusly_render_msrp_block_hook' ), $prio );
         }
 
         // Loop/Catalog Logic
         if ( 'inline' === $pos_loop ) {
             if ( 'inline' !== $pos_prod ) { 
-                add_filter( 'woocommerce_get_price_html', array( $this, 'cw_render_msrp_inline_loop_check' ), 100, 2 );
+                add_filter( 'woocommerce_get_price_html', array( $this, 'cirrusly_render_msrp_inline_loop_check' ), 100, 2 );
             }
         } else {
             $hook = 'woocommerce_after_shop_loop_item_title';
             $prio = 9;
             if ( $pos_loop === 'after_price' ) $prio = 11;
-            add_action( $hook, array( $this, 'cw_render_msrp_block_hook' ), $prio );
+            add_action( $hook, array( $this, 'cirrusly_render_msrp_block_hook' ), $prio );
         }
     }
 
@@ -117,7 +117,7 @@ class Cirrusly_Commerce_Pricing_Frontend {
      *
      * @return void
      */
-    public function cw_render_msrp_block_hook() {
+    public function cirrusly_render_msrp_block_hook() {
         global $product;
         echo wp_kses_post( self::get_msrp_html( $product ) );
     }
@@ -132,7 +132,7 @@ class Cirrusly_Commerce_Pricing_Frontend {
      * @param WC_Product|object $product The product object to retrieve MSRP for.
      * @return string The combined HTML containing inline MSRP (if present) and the original price HTML.
      */
-    public function cw_render_msrp_inline( $price_html, $product ) {
+    public function cirrusly_render_msrp_inline( $price_html, $product ) {
         $html = self::get_msrp_html( $product );
         if ( $html ) {
             $html = str_replace( array( '<div', '</div>' ), array( '<span', '</span>' ), $html );
@@ -149,8 +149,8 @@ class Cirrusly_Commerce_Pricing_Frontend {
      * @param \WC_Product|null $product    The product object for which to render MSRP.
      * @return string The original or modified price HTML including inline MSRP when applicable.
      */
-    public function cw_render_msrp_inline_loop_check( $price_html, $product ) {
-        if ( ! is_product() ) return $this->cw_render_msrp_inline( $price_html, $product );
+    public function cirrusly_render_msrp_inline_loop_check( $price_html, $product ) {
+        if ( ! is_product() ) return $this->cirrusly_render_msrp_inline( $price_html, $product );
         return $price_html;
     }
 }

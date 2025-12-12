@@ -73,7 +73,7 @@ class Cirrusly_Commerce_Badges_Pro {
      * @return string Badge HTML when strong positive sentiment is detected, empty string otherwise.
      */
     private static function get_sentiment_badge( $product ) {
-        $cache_key = 'cc_sentiment_' . $product->get_id();
+        $cache_key = 'cirrusly_sentiment_' . $product->get_id();
         $cached = get_transient( $cache_key );
         if ( false !== $cached ) return $cached;
 

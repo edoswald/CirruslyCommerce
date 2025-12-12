@@ -50,7 +50,7 @@ class Cirrusly_Commerce_GMC {
         add_action( 'woocommerce_product_bulk_edit_save', array( $this, 'save_quick_bulk_edit' ) );
 
         // 4. Handle "Mark as Custom" action (Redirect logic)
-        add_action( 'admin_post_cc_mark_custom', array( $this, 'handle_mark_custom' ) );
+        add_action( 'admin_post_cirrusly_mark_custom', array( $this, 'handle_mark_custom' ) );
     }
 
     /**
@@ -124,7 +124,7 @@ class Cirrusly_Commerce_GMC {
      * Mark the product identified by $_GET['pid'] as non-custom and redirect to the GMC scan tab.
      *
      * Verifies the current user has the 'edit_products' capability and that the provided product ID
-     * is valid, then checks the admin nonce `cc_mark_custom_{pid}`. On success updates the product
+     * is valid, then checks the admin nonce `cirrusly_mark_custom_{pid}`. On success updates the product
      * meta `_gla_identifier_exists` to `'no'` and redirects to the GMC admin scan page with
      * `msg=custom_marked`. Calls wp_die on permission or ID/nonce validation failures.
      */
@@ -137,7 +137,7 @@ class Cirrusly_Commerce_GMC {
         if ( $pid <= 0 ) {
             wp_die( 'Invalid product ID' );
         }
-        check_admin_referer( 'cc_mark_custom_' . $pid );
+        check_admin_referer( 'cirrusly_mark_custom_' . $pid );
         update_post_meta( $pid, '_gla_identifier_exists', 'no' );
         wp_safe_redirect( admin_url('admin.php?page=cirrusly-gmc&tab=scan&msg=custom_marked') );
         exit;

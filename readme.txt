@@ -108,8 +108,8 @@ Yes. The Pro version allows you to set a "Split Profile" (e.g., 70% Stripe / 30%
 
 = 1.4.1 =
 * **Enhancement:** All scripts and styles are now dedicated external assets.
-* **Fix:** Standardized codebase naming conventions to prevent conflicts with other plugins.
-* **Fix:** README styling fix to align with WordPress best practices.
+* **Fix:** Standardized codebase naming conventions to prevent conflicts with other plugins (cc* and cw* to cirrusly).
+* **Fix:** README styling fix to align with WordPress best practices, and correct false short description error in Plugin Check.
 
 = 1.4 =
 * **Enhancement:** Frontend asset registration refactored for better architecture and compliance.

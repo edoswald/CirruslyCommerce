@@ -11,8 +11,8 @@ class Cirrusly_Commerce_GMC_Pro {
      */
     public function __construct() {
         // AJAX Endpoints for Promotions (API)
-        add_action( 'wp_ajax_cc_list_promos_gmc', array( $this, 'handle_promo_api_list' ) );
-        add_action( 'wp_ajax_cc_submit_promo_to_gmc', array( $this, 'handle_promo_api_submit' ) );
+        add_action( 'wp_ajax_cirrusly_list_promos_gmc', array( $this, 'handle_promo_api_list' ) );
+        add_action( 'wp_ajax_cirrusly_submit_promo_to_gmc', array( $this, 'handle_promo_api_submit' ) );
 
         // Automation Hooks
         add_action( 'save_post_product', array( $this, 'check_compliance_on_save' ), 10, 3 );
@@ -160,7 +160,7 @@ class Cirrusly_Commerce_GMC_Pro {
      * List promotions from Google Merchant Center and emit a JSON AJAX response.
      */
     public function handle_promo_api_list() {
-        check_ajax_referer( 'cc_promo_api_list', 'security' );
+        check_ajax_referer( 'cirrusly_promo_api_list', 'security' );
 
         if ( ! current_user_can( 'manage_woocommerce' ) ) {
             wp_send_json_error( 'Insufficient permissions.' );
@@ -300,7 +300,7 @@ class Cirrusly_Commerce_GMC_Pro {
      * Handle an AJAX request to create and submit a Promotion to the Google Shopping Content API.
      */
     public function handle_promo_api_submit() {
-        check_ajax_referer( 'cc_promo_api_submit', 'security' );
+        check_ajax_referer( 'cirrusly_promo_api_submit', 'security' );
 
         if ( ! current_user_can( 'manage_woocommerce' ) ) {
             wp_send_json_error( 'Insufficient permissions.' );
@@ -484,7 +484,7 @@ class Cirrusly_Commerce_GMC_Pro {
             remove_action( 'save_post_product', array( $this, 'check_compliance_on_save' ), 10 );
             wp_update_post( array( 'ID' => $post_id, 'post_status' => 'draft' ) );
             if ( $original_status !== 'draft' ) {
-                set_transient( 'cc_gmc_blocked_save_' . get_current_user_id(), 'Product reverted to Draft due to restricted terms.', 30 );
+                set_transient( 'cirrusly_gmc_blocked_save_' . get_current_user_id(), 'Product reverted to Draft due to restricted terms.', 30 );
             }
             add_action( 'save_post_product', array( $this, 'check_compliance_on_save' ), 10, 3 );
         }
@@ -655,7 +655,7 @@ class Cirrusly_Commerce_GMC_Pro {
 
         // Check Cache
         $text_hash = md5( $text );
-        $cached_data = get_post_meta( $post_id, '_cc_nlp_cache', true );
+        $cached_data = get_post_meta( $post_id, '_cirrusly_nlp_cache', true );
         $cache_ttl = 7 * DAY_IN_SECONDS;
         if ( is_array( $cached_data ) && isset( $cached_data['hash'], $cached_data['time'] ) && $cached_data['hash'] === $text_hash && ( time() - $cached_data['time'] ) < $cache_ttl ) {
             if ( class_exists( 'Google\Service\CloudNaturalLanguage\AnnotateTextResponse' ) ) {
@@ -687,7 +687,7 @@ class Cirrusly_Commerce_GMC_Pro {
 
         try {
             $results = $service->documents->annotateText( $request );
-            update_post_meta( $post_id, '_cc_nlp_cache', array(
+            update_post_meta( $post_id, '_cirrusly_nlp_cache', array(
                 'hash'     => $text_hash,
                 'response' => json_decode( json_encode( $results->toSimpleObject() ), true ),
                 'time'     => time()

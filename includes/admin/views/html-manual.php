@@ -91,7 +91,7 @@ defined( 'ABSPATH' ) || exit;
                     </ul>
 
                     <h4>Shortcode</h4>
-                    <p><code>[cw_countdown end="2025-12-31" label="Sale Ends:"]</code></p>
+                    <p><code>[cirrusly_countdown end="2025-12-31" label="Sale Ends:"]</code></p>
                     <p>Attributes:</p>
                     <ul style="list-style:disc; margin-left:20px;">
                         <li><code>end</code>: Date string (YYYY-MM-DD).</li>
@@ -137,7 +137,7 @@ defined( 'ABSPATH' ) || exit;
                             </tr>
                             <tr>
                                 <td><strong>Est. Shipping Cost</strong></td>
-                                <td><code>_cw_est_shipping</code></td>
+                                <td><code>_cirrusly_est_shipping</code></td>
                                 <td>Internal shipping cost estimate.</td>
                             </tr>
                             <tr>
@@ -162,7 +162,7 @@ defined( 'ABSPATH' ) || exit;
                             </tr>
                             <tr>
                                 <td><strong>Sale End Date</strong></td>
-                                <td><code>_cw_sale_end</code></td>
+                                <td><code>_cirrusly_sale_end</code></td>
                                 <td>Date string (YYYY-MM-DD) for manual countdowns.</td>
                             </tr>
                             <tr>

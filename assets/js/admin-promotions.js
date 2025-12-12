@@ -9,14 +9,14 @@ jQuery(document).ready(function($){
     });
 
     var loadPromotions = function( forceRefresh ) {
-        var $btn = $('#cc_load_promos');
+        var $btn = $('#cirrusly_load_promos');
         var $table = $('#cirrusly-gmc-promos-table tbody');
         
         $btn.prop('disabled', true).html('<span class="dashicons dashicons-update" style="animation:spin 2s linear infinite;"></span> Syncing...');
         if( forceRefresh ) $table.html('<tr class="cirrusly-empty-row"><td colspan="6" style="padding:20px; text-align:center;">Refreshing data...</td></tr>');
         
         $.post(cirrusly_promo_data.ajaxurl, {
-            action: 'cc_list_promos_gmc',
+            action: 'cirrusly_list_promos_gmc',
             security: cirrusly_promo_data.nonce_list,
             force_refresh: forceRefresh ? 1 : 0
         }, function(res) {
@@ -64,7 +64,7 @@ jQuery(document).ready(function($){
     if( $('#cirrusly-gmc-promos-table').length > 0 ) {
         loadPromotions(false);
     }
-    $('#cc_load_promos').click(function(){ loadPromotions(true); });
+    $('#cirrusly_load_promos').click(function(){ loadPromotions(true); });
 
     $(document).on('click', '.cirrusly-edit-promo', function(e){
         e.preventDefault();
@@ -75,9 +75,9 @@ jQuery(document).ready(function($){
         $('#pg_app').val(d.app).trigger('change');
         $('#pg_type').val(d.type).trigger('change');
         $('#pg_code').val(d.code);
-        $('html, body').animate({ scrollTop: $("#cc_promo_form_container").offset().top - 50 }, 500);
-        $('#cc_promo_form_container').css('border', '2px solid #2271b1').animate({borderWidth: 0}, 1500, function(){ $(this).css('border',''); });
-        $('#cc_form_title').text('Edit Promotion: ' + d.id);
+        $('html, body').animate({ scrollTop: $("#cirrusly_promo_form_container").offset().top - 50 }, 500);
+        $('#cirrusly_promo_form_container').css('border', '2px solid #2271b1').animate({borderWidth: 0}, 1500, function(){ $(this).css('border',''); });
+        $('#cirrusly_form_title').text('Edit Promotion: ' + d.id);
     });
 
     $('#pg_api_submit').click(function(){
@@ -89,7 +89,7 @@ jQuery(document).ready(function($){
         }
         $btn.prop('disabled', true).text('Sending...');
         $.post(cirrusly_promo_data.ajaxurl, {
-            action: 'cc_submit_promo_to_gmc',
+            action: 'cirrusly_submit_promo_to_gmc',
             security: cirrusly_promo_data.nonce_submit,
             // Prefix custom data key
             cirrusly_promo_data: {

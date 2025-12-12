@@ -96,7 +96,7 @@ class Cirrusly_Commerce_Core {
      *
      * Validates the current user's capability and the request nonce, and requires the plugin's Pro mode.
      * Reads `pid`, `value`, and `field` from POST and, when `pid` is greater than zero and `field` is one of
-     * `_cogs_total_value` or `_cw_est_shipping`, updates the corresponding post meta and clears the
+     * `_cogs_total_value` or `_cirrusly_est_shipping`, updates the corresponding post meta and clears the
      * `cirrusly_audit_data` transient before returning a JSON success response. On validation failure or
      * invalid input, returns a JSON error with an explanatory message.
      */
@@ -113,7 +113,7 @@ class Cirrusly_Commerce_Core {
         $field = isset( $_POST['field'] ) ? sanitize_text_field( wp_unslash( $_POST['field'] ) ) : '';
 
         if ( $pid > 0 && current_user_can( 'edit_post', $pid )
-            && in_array( $field, array( '_cogs_total_value', '_cw_est_shipping' ), true ) ) {
+            && in_array( $field, array( '_cogs_total_value', '_cirrusly_est_shipping' ), true ) ) {
             update_post_meta( $pid, $field, $val );
             delete_transient( 'cirrusly_audit_data' );
             wp_send_json_success();

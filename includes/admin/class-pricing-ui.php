@@ -24,7 +24,7 @@ class Cirrusly_Commerce_Pricing_UI {
         foreach ( $columns as $key => $title ) {
             $new_columns[$key] = $title;
             if ( 'price' === $key ) {
-                $new_columns['cw_margin'] = __( 'Margin', 'cirrusly-commerce' );
+                $new_columns['cirrusly_margin'] = __( 'Margin', 'cirrusly-commerce' );
             }
 
         }
@@ -32,7 +32,7 @@ class Cirrusly_Commerce_Pricing_UI {
     }
 
     public function render_margin_column( $column, $post_id ) {
-        if ( 'cw_margin' !== $column ) return;
+        if ( 'cirrusly_margin' !== $column ) return;
         
         $product = wc_get_product( $post_id );
         if ( ! $product ) return;
@@ -57,7 +57,7 @@ class Cirrusly_Commerce_Pricing_UI {
      */
     public function pe_render_simple_fields() {
         global $product_object;
-        $ship = $product_object->get_meta( '_cw_est_shipping' );
+        $ship = $product_object->get_meta( '_cirrusly_est_shipping' );
         $map  = $product_object->get_meta( '_cirrusly_map_price' ); 
         $msrp = $product_object->get_meta( '_alg_msrp' ); 
         $min  = $product_object->get_meta( '_auto_pricing_min_price' );
@@ -75,10 +75,10 @@ class Cirrusly_Commerce_Pricing_UI {
         
         woocommerce_wp_text_input( array( 'id' => '_cirrusly_map_price', 'label' => 'MAP ($)', 'class' => 'wc_input_price short cirrusly-map-input', 'value' => $map, 'data_type' => 'price', 'wrapper_class' => 'cirrusly-flex-field' ));
         woocommerce_wp_text_input( array( 'id' => '_alg_msrp', 'label' => 'MSRP ($)', 'class' => 'wc_input_price short cirrusly-msrp-input', 'value' => $msrp, 'data_type' => 'price', 'wrapper_class' => 'cirrusly-flex-field' ));
-        woocommerce_wp_text_input( array( 'id' => '_cw_est_shipping', 'label' => 'Base Ship ($)', 'class' => 'wc_input_price short cirrusly-ship-input', 'value' => $ship, 'data_type' => 'price', 'description' => 'Auto-fills', 'wrapper_class' => 'cirrusly-flex-field' ));
+        woocommerce_wp_text_input( array( 'id' => '_cirrusly_est_shipping', 'label' => 'Base Ship ($)', 'class' => 'wc_input_price short cirrusly-ship-input', 'value' => $ship, 'data_type' => 'price', 'description' => 'Auto-fills', 'wrapper_class' => 'cirrusly-flex-field' ));
         
-        $sale_end = $product_object->get_meta( '_cw_sale_end' );
-        woocommerce_wp_text_input( array( 'id' => '_cw_sale_end', 'label' => 'Sale Timer End', 'placeholder' => 'YYYY-MM-DD HH:MM', 'class' => 'short cirrusly-date-input', 'value' => $sale_end, 'wrapper_class' => 'cirrusly-flex-field' ));
+        $sale_end = $product_object->get_meta( '_cirrusly_sale_end' );
+        woocommerce_wp_text_input( array( 'id' => '_cirrusly_sale_end', 'label' => 'Sale Timer End', 'placeholder' => 'YYYY-MM-DD HH:MM', 'class' => 'short cirrusly-date-input', 'value' => $sale_end, 'wrapper_class' => 'cirrusly-flex-field' ));
         echo '</div>';
         $this->pe_render_toolbar();
         echo '</div>';
@@ -95,7 +95,7 @@ class Cirrusly_Commerce_Pricing_UI {
      * @param object $variation     Variation post object (WP_Post) for which fields are rendered.
      */
     public function pe_render_variable_fields( $loop, $variation_data, $variation ) {
-        $ship = get_post_meta( $variation->ID, '_cw_est_shipping', true );
+        $ship = get_post_meta( $variation->ID, '_cirrusly_est_shipping', true );
         $map  = get_post_meta( $variation->ID, '_cirrusly_map_price', true ); 
         $msrp = get_post_meta( $variation->ID, '_alg_msrp', true ); 
         $min  = get_post_meta( $variation->ID, '_auto_pricing_min_price', true );
@@ -104,7 +104,7 @@ class Cirrusly_Commerce_Pricing_UI {
         woocommerce_wp_text_input( array( 'id' => "_auto_pricing_min_price[$loop]", 'label' => 'Google Min Price', 'class' => 'wc_input_price short cirrusly-min-input', 'value' => $min, 'wrapper_class' => 'cirrusly-flex-field' ));
         woocommerce_wp_text_input( array( 'id' => "_cirrusly_map_price[$loop]", 'label' => 'MAP', 'class' => 'wc_input_price short cirrusly-map-input', 'value' => $map, 'wrapper_class' => 'cirrusly-flex-field' ));
         woocommerce_wp_text_input( array( 'id' => "_alg_msrp[$loop]", 'label' => 'MSRP', 'class' => 'wc_input_price short cirrusly-msrp-input', 'value' => $msrp, 'wrapper_class' => 'cirrusly-flex-field' ));
-        woocommerce_wp_text_input( array( 'id' => "_cw_est_shipping[$loop]", 'label' => 'Shipping Cost', 'class' => 'wc_input_price short cirrusly-ship-input', 'value' => $ship, 'wrapper_class' => 'cirrusly-flex-field' ));
+        woocommerce_wp_text_input( array( 'id' => "_cirrusly_est_shipping[$loop]", 'label' => 'Shipping Cost', 'class' => 'wc_input_price short cirrusly-ship-input', 'value' => $ship, 'wrapper_class' => 'cirrusly-flex-field' ));
         echo '</div>';
         $this->pe_render_toolbar();
         echo '</div>';
@@ -170,12 +170,12 @@ public function pe_save_simple( $post_id ) {
         }
 
         // [Security] Nonce verified above, comments removed.
-        if ( isset( $_POST['_cw_est_shipping'] ) ) update_post_meta( $post_id, '_cw_est_shipping', wc_format_decimal( sanitize_text_field( wp_unslash( $_POST['_cw_est_shipping'] ) ) ) );
+        if ( isset( $_POST['_cirrusly_est_shipping'] ) ) update_post_meta( $post_id, '_cirrusly_est_shipping', wc_format_decimal( sanitize_text_field( wp_unslash( $_POST['_cirrusly_est_shipping'] ) ) ) );
         if ( isset( $_POST['_cirrusly_map_price'] ) ) update_post_meta( $post_id, '_cirrusly_map_price', wc_format_decimal( sanitize_text_field( wp_unslash( $_POST['_cirrusly_map_price'] ) ) ) );
         if ( isset( $_POST['_alg_msrp'] ) ) update_post_meta( $post_id, '_alg_msrp', wc_format_decimal( sanitize_text_field( wp_unslash( $_POST['_alg_msrp'] ) ) ) );
         if ( isset( $_POST['_auto_pricing_min_price'] ) ) update_post_meta( $post_id, '_auto_pricing_min_price', wc_format_decimal( sanitize_text_field( wp_unslash( $_POST['_auto_pricing_min_price'] ) ) ) );
         
-        if ( isset( $_POST['_cw_sale_end'] ) ) update_post_meta( $post_id, '_cw_sale_end', sanitize_text_field( wp_unslash( $_POST['_cw_sale_end'] ) ) );
+        if ( isset( $_POST['_cirrusly_sale_end'] ) ) update_post_meta( $post_id, '_cirrusly_sale_end', sanitize_text_field( wp_unslash( $_POST['_cirrusly_sale_end'] ) ) );
         
         $this->schedule_gmc_sync( $post_id );
     }
@@ -187,8 +187,8 @@ public function pe_save_simple( $post_id ) {
         }
     
         // [Security] Nonce verified above, comments removed.
-        if ( isset( $_POST['_cw_est_shipping'] ) && is_array( $_POST['_cw_est_shipping'] ) && isset( $_POST['_cw_est_shipping'][$i] ) ) {
-            update_post_meta( $vid, '_cw_est_shipping', wc_format_decimal( sanitize_text_field( wp_unslash( $_POST['_cw_est_shipping'][$i] ) ) ) );
+        if ( isset( $_POST['_cirrusly_est_shipping'] ) && is_array( $_POST['_cirrusly_est_shipping'] ) && isset( $_POST['_cirrusly_est_shipping'][$i] ) ) {
+            update_post_meta( $vid, '_cirrusly_est_shipping', wc_format_decimal( sanitize_text_field( wp_unslash( $_POST['_cirrusly_est_shipping'][$i] ) ) ) );
         }
         if ( isset( $_POST['_cirrusly_map_price'] ) && is_array( $_POST['_cirrusly_map_price'] ) && isset( $_POST['_cirrusly_map_price'][$i] ) ) {
             update_post_meta( $vid, '_cirrusly_map_price', wc_format_decimal( sanitize_text_field( wp_unslash( $_POST['_cirrusly_map_price'][$i] ) ) ) );

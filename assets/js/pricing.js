@@ -45,7 +45,7 @@ jQuery(document).ready(function($) {
             cost: $c.find('input[name^="_cogs_total_value"]'), 
             min: $c.find('input[name^="_auto_pricing_min_price"]'), 
             msrp: $c.find('input[name^="_alg_msrp"]'),
-            ship: $c.find('input[name^="_cw_est_shipping"]'), 
+            ship: $c.find('input[name^="_cirrusly_est_shipping"]'), 
             shipClass: $c.find('select[name^="variable_shipping_class"]'), 
             // Updated Selectors
             display: $c.find('.cirrusly-profit-display'), 
@@ -58,7 +58,7 @@ jQuery(document).ready(function($) {
             cost: $c.find('#_cogs_total_value'),
             min: $c.find('#_auto_pricing_min_price'), 
             msrp: $c.find('#_alg_msrp'),
-            ship: $c.find('#_cw_est_shipping'), 
+            ship: $c.find('#_cirrusly_est_shipping'), 
             shipClass: $c.find('#product_shipping_class'), 
             display: $('.cirrusly-profit-display'), 
             matrix: $('.cirrusly-shipping-matrix'),

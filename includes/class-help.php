@@ -13,12 +13,12 @@ class Cirrusly_Commerce_Help {
         add_action( 'wp_ajax_cirrusly_submit_bug_report', array( __CLASS__, 'handle_bug_submission' ) );
         
         // Legacy Action (Deprecated)
-        add_action( 'wp_ajax_cc_submit_bug_report', array( __CLASS__, 'handle_legacy_submission' ) );
+        add_action( 'wp_ajax_cirrusly_submit_bug_report', array( __CLASS__, 'handle_legacy_submission' ) );
     }
 
     public static function handle_legacy_submission() {
         if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
-            error_log( 'AJAX action cc_submit_bug_report is deprecated. Use cirrusly_submit_bug_report.' );
+            error_log( 'AJAX action cirrusly_submit_bug_report is deprecated. Use cirrusly_submit_bug_report.' );
         }
         self::handle_bug_submission();
     }
@@ -156,10 +156,10 @@ class Cirrusly_Commerce_Help {
             $verified = true;
         }
         // Check legacy nonce (deprecated)
-        elseif ( wp_verify_nonce( $nonce, 'cc_bug_report_nonce' ) ) {
+        elseif ( wp_verify_nonce( $nonce, 'cirrusly_bug_report_nonce' ) ) {
             $verified = true;
             if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
-                error_log( 'Legacy nonce cc_bug_report_nonce used in handle_bug_submission. Use cirrusly_bug_report_nonce.' );
+                error_log( 'Legacy nonce cirrusly_bug_report_nonce used in handle_bug_submission. Use cirrusly_bug_report_nonce.' );
             }
         }
 

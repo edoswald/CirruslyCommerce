@@ -13,10 +13,10 @@ class Cirrusly_Commerce_Audit_UI {
         
         // Handle Import Submission (Delegated to Pro)
         if (
-            isset( $_POST['cc_import_nonce'] )
+            isset( $_POST['cirrusly_import_nonce'] )
             && wp_verify_nonce(
-                sanitize_text_field( wp_unslash( $_POST['cc_import_nonce'] ) ),
-                'cc_import_action'
+                sanitize_text_field( wp_unslash( $_POST['cirrusly_import_nonce'] ) ),
+                'cirrusly_import_action'
             )
             && Cirrusly_Commerce_Core::cirrusly_is_pro()
             && class_exists( 'Cirrusly_Commerce_Audit_Pro' )
@@ -30,7 +30,7 @@ class Cirrusly_Commerce_Audit_UI {
         settings_errors('cirrusly_audit');
 
         // 1. Handle Cache & Refresh
-        $refresh = isset( $_GET['refresh_audit'] ) && isset( $_GET['_wpnonce'] ) && wp_verify_nonce( sanitize_text_field( wp_unslash( $_GET['_wpnonce'] ) ), 'cc_refresh_audit' );
+        $refresh = isset( $_GET['refresh_audit'] ) && isset( $_GET['_wpnonce'] ) && wp_verify_nonce( sanitize_text_field( wp_unslash( $_GET['_wpnonce'] ) ), 'cirrusly_refresh_audit' );
         if ( $refresh ) {
             delete_transient( 'cirrusly_audit_data' );
         }
@@ -140,7 +140,7 @@ class Cirrusly_Commerce_Audit_UI {
                 </label>
                 
                 <button class="button button-primary" style="height:32px; line-height:30px;">Filter</button>
-                <a href="<?php echo esc_url( wp_nonce_url( '?page=cirrusly-audit&refresh_audit=1', 'cc_refresh_audit' ) ); ?>" class="button" title="Refresh Data from Database" style="height:32px; line-height:30px;"><span class="dashicons dashicons-update" style="line-height:30px;"></span></a>
+                <a href="<?php echo esc_url( wp_nonce_url( '?page=cirrusly-audit&refresh_audit=1', 'cirrusly_refresh_audit' ) ); ?>" class="button" title="Refresh Data from Database" style="height:32px; line-height:30px;"><span class="dashicons dashicons-update" style="line-height:30px;"></span></a>
             </form>
 
             <div class="cirrusly-toolbar-actions" style="display:flex; align-items:center; gap:8px; border-left:1px solid #ddd; padding-left:15px;">
@@ -151,7 +151,7 @@ class Cirrusly_Commerce_Audit_UI {
                 <?php endif; ?>
 
                 <?php if($is_pro): ?>
-                <a href="<?php echo esc_url( wp_nonce_url( add_query_arg('action', 'export_csv'), 'cc_export_csv' ) ); ?>" class="button button-secondary" title="Export CSV">
+                <a href="<?php echo esc_url( wp_nonce_url( add_query_arg('action', 'export_csv'), 'cirrusly_export_csv' ) ); ?>" class="button button-secondary" title="Export CSV">
                     <span class="dashicons dashicons-download"></span> Export
                 </a>
                 <?php else: ?>
@@ -161,7 +161,7 @@ class Cirrusly_Commerce_Audit_UI {
                 <?php endif; ?>
 
                 <form method="post" enctype="multipart/form-data" style="margin:0;">
-                     <?php wp_nonce_field('cc_import_action', 'cc_import_nonce'); ?>
+                     <?php wp_nonce_field('cirrusly_import_action', 'cirrusly_import_nonce'); ?>
                      <label class="button button-secondary" style="cursor:pointer;" title="Import Cost CSV" <?php echo esc_attr( $disabled_attr ); ?>>
                          <span class="dashicons dashicons-upload"></span> Import
                          <input type="file" name="csv_import" style="display:none;" onchange="this.form.submit()" <?php echo esc_attr( $disabled_attr ); ?>>

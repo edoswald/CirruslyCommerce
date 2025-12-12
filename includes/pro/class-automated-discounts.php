@@ -5,7 +5,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class Cirrusly_Commerce_Automated_Discounts {
 
-    const SESSION_KEY_PREFIX = 'cc_google_ad_';
+    const SESSION_KEY_PREFIX = 'cirrusly_google_ad_';
     const TOKEN_PARAM = 'pv2';
 
     /**
@@ -145,7 +145,7 @@ class Cirrusly_Commerce_Automated_Discounts {
                 'price' => $price,
                 'exp'   => $expiry
             );
-            // Store: cc_google_ad_123 (where 123 is product ID)
+            // Store: cirrusly_google_ad_123 (where 123 is product ID)
             WC()->session->set( self::SESSION_KEY_PREFIX . $product_id, $data );
         }
     }

@@ -62,10 +62,10 @@ class Cirrusly_Commerce_Compatibility {
      */
     public function register_rank_math_vars() {
         if ( function_exists( 'rank_math_register_var' ) ) {
-            rank_math_register_var( 'cc_msrp', array(
+            rank_math_register_var( 'cirrusly_msrp', array(
                 'name'        => 'MSRP',
                 'description' => 'Product MSRP from Cirrusly Commerce',
-                'variable'    => 'cc_msrp',
+                'variable'    => 'cirrusly_msrp',
                 'callback'    => array( $this, 'get_msrp_for_rm' ),
             ) );
         }
@@ -144,12 +144,12 @@ class Cirrusly_Commerce_Compatibility {
 
         $msrp = get_post_meta( $id, '_alg_msrp', true );
         if ( ! empty( $msrp ) ) {
-            $elements['cc_msrp'] = array( $msrp );
+            $elements['cirrusly_msrp'] = array( $msrp );
         }
         
         $min_price = get_post_meta( $id, '_auto_pricing_min_price', true );
         if ( ! empty( $min_price ) ) {
-            $elements['cc_min_price'] = array( $min_price );
+            $elements['cirrusly_min_price'] = array( $min_price );
         }
 
         return $elements;

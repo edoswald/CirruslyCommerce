@@ -24076,7 +24076,7 @@
             );
 
             // "No Credit-Card Required" or "No Commitment for N Days".
-            $cc_string = $require_payment ?
+            $cirrusly_string = $require_payment ?
                 sprintf( $this->get_text_inline( 'No commitment for %s days - cancel anytime!', 'no-commitment-for-x-days' ), $trial_period ) :
                 $this->get_text_inline( 'No credit card required', 'no-cirrusly-required' ) . '!';
 
@@ -24088,7 +24088,7 @@
                     $this->get_text_x_inline( 'Start free trial', 'call to action', 'start-free-trial' )
                 );
 
-            $message_text = $this->apply_filters( 'trial_promotion_message', "{$message} {$cc_string}" );
+            $message_text = $this->apply_filters( 'trial_promotion_message', "{$message} {$cirrusly_string}" );
 
             $this->_admin_notices->add_sticky(
                 "<div class=\"fs-trial-message-container\"><div>{$message_text}</div> {$button}</div>",
