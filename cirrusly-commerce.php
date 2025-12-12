@@ -65,6 +65,19 @@ if ( ! function_exists( 'cirrusly_fs' ) ) {
                     'support'        => false,
                 ),
             ) );
+
+            // Hooks to persist Install API Token from response
+            $cirrusly_fs->add_action( 'after_account_connection', function( $user, $account, $install ) {
+                if ( ! empty( $install->install_api_token ) ) {
+                    update_option( 'cirrusly_install_api_token', $install->install_api_token, false );
+                }
+            } );
+
+            $cirrusly_fs->add_action( 'after_license_activation', function( $license, $install ) {
+                if ( ! empty( $install->install_api_token ) ) {
+                    update_option( 'cirrusly_install_api_token', $install->install_api_token, false );
+                }
+            } );
         }
 
         return $cirrusly_fs;
