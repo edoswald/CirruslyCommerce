@@ -136,12 +136,14 @@ class Cirrusly_Commerce_Automated_Discounts {
 
             // 3. Validate Currency (Claim 'c')
             if ( isset( $payload['c'] ) && $payload['c'] !== get_woocommerce_currency() ) {
+                error_log( 'Cirrusly Commerce JWT Fail: Currency mismatch. Expected ' . get_woocommerce_currency() . ', got ' . $payload['c'] );
                 return false;
             }
 
             // 4. Validate Additional Claims
             if ( ! isset( $payload['dc'] ) || ! isset( $payload['dp'] ) ) {
-                 return false;
+                error_log( 'Cirrusly Commerce JWT Fail: Missing required claims (dc or dp).' );
+                return false;
             }
 
             return $payload;
