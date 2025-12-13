@@ -62,11 +62,9 @@ class Cirrusly_Commerce_Google_API_Client {
             )
         );
 
-        // Merge headers but keep required defaults.
-        $request_args['headers'] = array_merge(
-            $default_headers,
-            is_array( $request_args['headers'] ) ? $request_args['headers'] : array()
-        );
+        // Merge headers but keep required defaults (defaults override user values).
+        $user_headers = is_array( $request_args['headers'] ) ? $request_args['headers'] : array();
+        $request_args['headers'] = array_merge( $user_headers, $default_headers );
 
         $response = wp_remote_post( self::API_ENDPOINT, $request_args );
 

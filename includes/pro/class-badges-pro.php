@@ -112,11 +112,7 @@ class Cirrusly_Commerce_Badges_Pro {
                 $combined_text = wp_strip_all_tags( (string) $combined_text );
             }
 
-           // Defensive: filters can return non-strings; also re-strip tags post-filter.
-            if ( ! is_string( $combined_text ) ) {
-                $combined_text = '';
-            }
-            $combined_text = trim( wp_strip_all_tags( $combined_text ) );
+            $combined_text = trim( $combined_text );
             if ( $combined_text === '' ) {
                 set_transient( $cache_key, '', DAY_IN_SECONDS );
                 return '';
@@ -194,6 +190,12 @@ class Cirrusly_Commerce_Badges_Pro {
             $combined_text = wp_strip_all_tags( (string) $combined_text );
         }
         $combined_text = function_exists( 'mb_substr' ) ? mb_substr( $combined_text, 0, 8000 ) : substr( $combined_text, 0, 8000 );
+        
+        $combined_text = trim( $combined_text );
+        if ( $combined_text === '' ) {
+            delete_transient( 'cirrusly_sentiment_lock_' . $product_id );
+            return;
+        }
 
             try {
                 // Long timeout for background process (20s)
