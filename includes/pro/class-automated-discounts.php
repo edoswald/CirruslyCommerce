@@ -92,39 +92,31 @@ class Cirrusly_Commerce_Automated_Discounts {
         $audience = $merchant_id;
 
         try {
-            // Remedied Call: Use Google_Client to verify the ID token
-            // This replaces the incorrect standalone function call and manual key handling
-            $client = new Google_Client();
-            
-            // verifyIdToken returns the payload array if valid, or false/null if invalid
-            // It automatically validates the signature, expiration, and audience
-            $payload = $client->verifyIdToken( $token, $audience );
-            
-            if ( $payload ) {
-                // Ensure payload is an array (Google_Client v2 returns array)
-                $payload = (array) $payload;
+        // Remedied Call: verifySignedJwt with explicit audience and issuer
+        if ( function_exists( 'verifySignedJwt' ) ) {
+            $payload = verifySignedJwt( $token, array( $public_key ), $audience, $issuer );
+        
+            // Convert object to array if necessary
+            $payload = json_decode( json_encode( $payload ), true );
+        }
 
-                // 3. Validate Currency (Claim 'c')
-                if ( isset( $payload['c'] ) && $payload['c'] !== get_woocommerce_currency() ) {
-                    error_log( 'Cirrusly Commerce JWT Fail: Currency mismatch. Expected ' . get_woocommerce_currency() . ', got ' . $payload['c'] );
-                    return false;
-                }
-
-                // 4. Validate Additional Claims
-                if ( ! isset( $payload['dc'] ) || ! isset( $payload['dp'] ) ) {
-                    error_log( 'Cirrusly Commerce JWT Fail: Missing required claims (dc or dp).' );
-                    return false;
-                }
-
-                return $payload;
-            } 
-            
-            return false;
-
-        } catch ( Exception $e ) {
-            if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) error_log( 'Cirrusly Discount: Token verification failed - ' . $e->getMessage() );
+        // 3. Validate Currency (Claim 'c')
+        if ( isset( $payload['c'] ) && $payload['c'] !== get_woocommerce_currency() ) {
+            error_log( 'Cirrusly Commerce JWT Fail: Currency mismatch. Expected ' . get_woocommerce_currency() . ', got ' . $payload['c'] );
             return false;
         }
+
+        // 4. Validate Additional Claims
+        if ( ! isset( $payload['dc'] ) || ! isset( $payload['dp'] ) ) {
+            error_log( 'Cirrusly Commerce JWT Fail: Missing required claims (dc or dp).' );
+            return false;
+        }
+
+        return $payload;
+
+    } catch ( Exception $e ) {
+        if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) error_log( 'Cirrusly Discount: Token verification failed - ' . $e->getMessage() );
+        return false;
     }
     /**
      * Stores the validated discount in the WooCommerce Session.
