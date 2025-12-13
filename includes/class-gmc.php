@@ -175,7 +175,7 @@ class Cirrusly_Commerce_GMC {
 
     /**
      * Performs the Google Merchant Center health scan logic on local products.
-     * Uses strict regex boundaries and optionally calls Pro NLP analysis.
+     * Uses strict regex boundaries and properly handles both local and Google API issues.
      */
     public static function run_gmc_scan_logic( $batch_size = 100, $paged = 1 ) {
         if ( ! wp_doing_cron() && ! ( defined( 'WP_CLI' ) && WP_CLI ) && ! current_user_can( 'edit_products' ) ) {
@@ -187,6 +187,7 @@ class Cirrusly_Commerce_GMC {
 
         $results = array();
         
+        // Fetch Google API issues separately
         $google_issues = array();
         if ( class_exists( 'Cirrusly_Commerce_Core' ) && 
              Cirrusly_Commerce_Core::cirrusly_is_pro() && 
@@ -210,6 +211,7 @@ class Cirrusly_Commerce_GMC {
             $p = wc_get_product( $pid );
             if ( ! $p ) continue;
 
+            // ===== LOCAL SCAN =====
             $is_custom = get_post_meta( $pid, '_gla_identifier_exists', true );
             
             if ( 'no' !== $is_custom && ! $p->get_sku() ) {
@@ -242,18 +244,21 @@ class Cirrusly_Commerce_GMC {
             $title_clean = wp_strip_all_tags( $title_raw );
             $desc_clean  = wp_strip_all_tags( $desc_raw );
 
+            // Scan for restricted terms with proper case sensitivity
             foreach ( $monitored_terms as $category => $terms ) {
                 foreach ( $terms as $word => $rule ) {
-                    // Use proper case sensitivity: if case_sensitive is true, don't use 'i' flag
-                    $modifiers = ( isset( $rule['case_sensitive'] ) && $rule['case_sensitive'] ) ? 'u' : 'iu';
+                    // Build regex pattern with proper case sensitivity
+                    $is_case_sensitive = isset( $rule['case_sensitive'] ) && $rule['case_sensitive'];
+                    $modifiers = $is_case_sensitive ? 'u' : 'iu'; // 'u' = unicode, no 'i' = case-sensitive
                     $pattern   = '/\b' . preg_quote( $word, '/' ) . '\b/' . $modifiers;
-                    $found     = false;
-                    $found_word = $word; // Track the actual matched word for reporting
+                    
+                    $found = false;
+                    $found_word = $word;
 
-                    // Check title (always scanned for restricted terms)
+                    // Check title (always scanned)
                     if ( preg_match( $pattern, $title_clean, $match ) ) {
                         $found = true;
-                        $found_word = $match[0]; // Use actual matched text
+                        $found_word = $match[0];
                     }
 
                     // Check description only if scope includes 'all'
@@ -266,19 +271,19 @@ class Cirrusly_Commerce_GMC {
 
                     if ( $found ) {
                         $product_issues[] = array(
-                            'type'   => ( isset($rule['severity']) && 'Critical' === $rule['severity'] ) ? 'critical' : 'warning',
+                            'type'   => ( isset( $rule['severity'] ) && 'Critical' === $rule['severity'] ) ? 'critical' : 'warning',
                             'msg'    => sprintf( 
-                                /* translators: 1: The violation category (e.g. Medical), 2: The restricted word found */
                                 __( 'Restricted Term (%1$s): "%2$s"', 'cirrusly-commerce' ), 
-                                ucfirst($category), 
+                                ucfirst( $category ), 
                                 $found_word
                             ),
-                            'reason' => isset($rule['reason']) ? $rule['reason'] : 'Potential policy violation.'
+                            'reason' => isset( $rule['reason'] ) ? $rule['reason'] : 'Potential policy violation.'
                         );
                     }
                 }
             }
             
+            // Call NLP scan if available
             if ( Cirrusly_Commerce_Core::cirrusly_is_pro_plus() && 
                  class_exists( 'Cirrusly_Commerce_GMC_Pro' ) && 
                  method_exists( 'Cirrusly_Commerce_GMC_Pro', 'scan_product_with_nlp' ) ) {
@@ -289,20 +294,16 @@ class Cirrusly_Commerce_GMC {
                 }
             }
 
-            // Track Google API issues separately to prevent duplicates from same source
-            $google_issue_signatures = array();
+            // ===== GOOGLE API ISSUES (separate from local) =====
             if ( isset( $google_issues[ $pid ] ) && is_array( $google_issues[ $pid ] ) ) {
+                // Add ALL Google API issues without deduplication against local issues
+                // (Google API returns authoritative data from their system)
                 foreach ( $google_issues[ $pid ] as $g_issue ) {
-                    $g_sig = md5( json_encode( $g_issue ) );
-                    
-                    // Only add Google issue if we haven't already added this exact signature
-                    if ( ! in_array( $g_sig, $google_issue_signatures, true ) ) {
-                        $product_issues[] = $g_issue;
-                        $google_issue_signatures[] = $g_sig;
-                    }
+                    $product_issues[] = $g_issue;
                 }
             }
 
+            // Only add product to results if it has issues
             if ( ! empty( $product_issues ) ) {
                 $results[] = array(
                     'product_id' => $pid,
