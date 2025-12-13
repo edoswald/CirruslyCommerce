@@ -65,7 +65,7 @@ class Cirrusly_Commerce_Automated_Discounts {
 
     /**
      * Verifies a Google-signed JWT using local signature verification.
-     * Updated to use verifySignedJwt with strict audience/issuer checks as per review.
+     * Updated to use verifyIdToken with strict audience/issuer checks as per review.
      *
      * @param string $token The JWT to verify.
      * @return array|false The decoded JWT payload when verification succeeds, `false` on failure.
@@ -80,24 +80,29 @@ class Cirrusly_Commerce_Automated_Discounts {
 
         // 1. Get Configuration
         $merchant_id = isset( $cfg['merchant_id'] ) ? $cfg['merchant_id'] : get_option( 'cirrusly_gmc_merchant_id' );
-        $public_key  = isset( $cfg['google_public_key'] ) ? $cfg['google_public_key'] : '';
-
-        if ( empty( $merchant_id ) || empty( $public_key ) ) {
-             if ( defined('WP_DEBUG') && WP_DEBUG ) error_log('Cirrusly Discount: Missing Merchant ID or Public Key.');
+        // Note: verifyIdToken automatically fetches Google's rotating public keys, so manual key validation is optional/fallback.
+        
+        if ( empty( $merchant_id ) ) {
+             if ( defined('WP_DEBUG') && WP_DEBUG ) error_log('Cirrusly Discount: Missing Merchant ID.');
              return false;
         }
 
-        // 2. Define Expected Audience & Issuer
+        // 2. Define Expected Audience
+        // The audience for Automated Discounts is the Merchant ID
         $audience = $merchant_id;
-        $issuer   = 'https://accounts.google.com';
 
         try {
-            // Remedied Call: verifySignedJwt with explicit audience and issuer
-            if ( function_exists( 'verifySignedJwt' ) ) {
-                $payload = verifySignedJwt( $token, array( $public_key ), $audience, $issuer );
-                
-                // Convert object to array if necessary
-                $payload = json_decode( json_encode( $payload ), true );
+            // Remedied Call: Use Google_Client to verify the ID token
+            // This replaces the incorrect standalone function call and manual key handling
+            $client = new Google_Client();
+            
+            // verifyIdToken returns the payload array if valid, or false/null if invalid
+            // It automatically validates the signature, expiration, and audience
+            $payload = $client->verifyIdToken( $token, $audience );
+            
+            if ( $payload ) {
+                // Ensure payload is an array (Google_Client v2 returns array)
+                $payload = (array) $payload;
 
                 // 3. Validate Currency (Claim 'c')
                 if ( isset( $payload['c'] ) && $payload['c'] !== get_woocommerce_currency() ) {
@@ -121,7 +126,6 @@ class Cirrusly_Commerce_Automated_Discounts {
             return false;
         }
     }
-
     /**
      * Stores the validated discount in the WooCommerce Session.
      */
