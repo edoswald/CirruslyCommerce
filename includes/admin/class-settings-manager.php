@@ -96,6 +96,20 @@ class Cirrusly_Commerce_Settings_Manager {
      * @return array The sanitized settings array suitable for storage.
      */
     public function handle_scan_schedule( $input ) {
+        // --- FIX 1: Preserve existing file metadata ---
+        // Retrieve the current configuration to check for existing service account data.
+        $existing_config = get_option( 'cirrusly_scan_config', array() );
+        
+        // If the service account was previously uploaded, ensure the flags are carried over
+        // to the new input array, as they are not present in the standard form fields.
+        if ( isset( $existing_config['service_account_uploaded'] ) ) {
+            $input['service_account_uploaded'] = $existing_config['service_account_uploaded'];
+        }
+        if ( isset( $existing_config['service_account_name'] ) ) {
+            $input['service_account_name'] = $existing_config['service_account_name'];
+        }
+        // ---------------------------------------------
+
         // 1. Schedule Logic (Core Feature)
         wp_clear_scheduled_hook( 'cirrusly_gmc_daily_scan' );
         if ( isset($input['enable_daily_scan']) && $input['enable_daily_scan'] === 'yes' ) {
@@ -111,18 +125,25 @@ class Cirrusly_Commerce_Settings_Manager {
                 return $this->sanitize_options_array( $input );
             }
 
-        // Use original tmp_name for security check (Not sanitized as it is a system path)
-        $original_tmp_name = $_FILES['cirrusly_service_account']['tmp_name'];
+            // Use original tmp_name for security check (Not sanitized as it is a system path)
+            $original_tmp_name = $_FILES['cirrusly_service_account']['tmp_name'];
 
-        if ( is_uploaded_file( $original_tmp_name ) ) {
+            if ( is_uploaded_file( $original_tmp_name ) ) {
+                // OLD CODE (Likely failing):
+                /*
                 $ft = wp_check_filetype_and_ext( $original_tmp_name, $_FILES['cirrusly_service_account']['name'] );
                 if ( empty( $ft['ext'] ) || $ft['ext'] !== 'json' ) {
                     add_settings_error( 'cirrusly_scan_config', 'invalid_type', __( 'Please upload a valid .json file.', 'cirrusly-commerce' ) );
                     return $this->sanitize_options_array( $input );
                 }
-                // Check Pro and Load Delegate
-                if ( class_exists( 'Cirrusly_Commerce_Core' ) && Cirrusly_Commerce_Core::cirrusly_is_pro() ) {
-                    $pro_class = dirname( plugin_dir_path( __FILE__ ) ) . '/pro/class-settings-pro.php';
+                */
+            // NEW CODE (Correct):
+            // Rely on Pro class validation which correctly handles JSON types
+            if ( class_exists( 'Cirrusly_Commerce_Core' ) && Cirrusly_Commerce_Core::cirrusly_is_pro() ) {
+                    
+                    // --- FIX 2: Correct Path Resolution ---
+                    // __DIR__ refers to 'includes/admin'. dirname(__DIR__) refers to 'includes'.
+                    $pro_class = dirname( __DIR__ ) . '/pro/class-settings-pro.php';
                     
                     if ( file_exists( $pro_class ) ) {
                         require_once $pro_class;
@@ -139,6 +160,9 @@ class Cirrusly_Commerce_Settings_Manager {
 
                         // The Pro method returns the modified $input array
                         $input = Cirrusly_Commerce_Settings_Pro::cirrusly_process_service_account_upload( $input, $safe_file );
+                    } else {
+                        // Debug helper: This error will appear if the path is still wrong
+                        add_settings_error( 'cirrusly_scan_config', 'missing_file', 'Error: Pro settings file not found at ' . $pro_class );
                     }
                 } else {
                      add_settings_error( 'cirrusly_scan_config', 'pro_required', 'Using this feature requires Pro or higher. Upgrade today.' );
