@@ -465,15 +465,19 @@ class Cirrusly_Commerce_GMC_UI {
             } 
             // SUCCESS
             elseif ( $account_status ) {
-                $issues = $account_status->getAccountLevelIssues();
-                if ( empty( $issues ) ) {
-                    echo '<div class="notice notice-success inline" style="margin:0;"><p><strong>Account Healthy:</strong> No account-level policy issues detected.</p></div>';
-                } else {
-                    echo '<div class="notice notice-error inline" style="margin:0;"><p><strong>Attention Needed:</strong></p><ul style="list-style:disc; margin-left:20px;">';
-                    foreach ( $issues as $issue ) {
-                        echo '<li><strong>' . esc_html( $issue->getTitle() ) . ':</strong> ' . esc_html( $issue->getDetail() ) . '</li>';
+                try {
+                    $issues = $account_status->getAccountLevelIssues();
+                    if ( empty( $issues ) ) {
+                        echo '<div class="notice notice-success inline" style="margin:0;"><p><strong>Account Healthy:</strong> No account-level policy issues detected.</p></div>';
+                    } else {
+                        echo '<div class="notice notice-error inline" style="margin:0;"><p><strong>Attention Needed:</strong></p><ul style="list-style:disc; margin-left:20px;">';
+                        foreach ( $issues as $issue ) {
+                            echo '<li><strong>' . esc_html( $issue->getTitle() ) . ':</strong> ' . esc_html( $issue->getDetail() ) . '</li>';
+                        }
+                        echo '</ul></div>';
                     }
-                    echo '</ul></div>';
+                } catch ( Exception $e ) {
+                    echo '<div class="notice notice-error inline" style="margin:0;"><p><strong>Error Processing Account Data:</strong> ' . esc_html( $e->getMessage() ) . '</p></div>';
                 }
             }
         } else {
