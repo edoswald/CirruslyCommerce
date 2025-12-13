@@ -29,8 +29,8 @@ class Cirrusly_Commerce_GMC_Pro {
             return array();
         }
         
-        // Call service worker to fetch product statuses
-        $result = Cirrusly_Commerce_Google_API_Client::request( 'get_product_statuses', array() );
+        // Call service worker to scan GMC issues
+        $result = Cirrusly_Commerce_Google_API_Client::request( 'gmc_scan', array() );
         if ( is_wp_error( $result ) ) {
             if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
                 error_log( 'Cirrusly Commerce: Failed to fetch product statuses - ' . $result->get_error_message() );
@@ -39,22 +39,19 @@ class Cirrusly_Commerce_GMC_Pro {
         }
 
         $google_issues = array();
-        $statuses = isset( $result['statuses'] ) ? $result['statuses'] : array();
+        $products = isset( $result['products'] ) ? $result['products'] : array();
 
-        if ( ! empty( $statuses ) ) {
-            foreach ( $statuses as $status ) {
-                // Google ID format is usually "online:en:US:123" -> We need "123"
-                $product_id = isset( $status['productId'] ) ? $status['productId'] : '';
-                $parts = explode( ':', $product_id );
-                $wc_id = end( $parts );
+        if ( ! empty( $products ) ) {
+            foreach ( $products as $product ) {
+                // Get WooCommerce product ID
+                $wc_id = isset( $product['wcProductId'] ) ? $product['wcProductId'] : '';
                 
-                // Validate this is a numeric ID that could be a WC product
                 if ( ! is_numeric( $wc_id ) ) {
                     continue;
                 }
 
-                // Check for Item Level Issues (The "Why" it is disapproved)
-                $issues = isset( $status['itemLevelIssues'] ) ? $status['itemLevelIssues'] : array();
+                // Check for Item Level Issues
+                $issues = isset( $product['issues'] ) ? $product['issues'] : array();
                 if ( ! empty( $issues ) ) {
                     // Ensure the array for this product ID exists
                     if ( ! isset( $google_issues[ $wc_id ] ) ) {
@@ -77,7 +74,7 @@ class Cirrusly_Commerce_GMC_Pro {
                             $google_issues[ $wc_id ][] = array(
                                 'msg'    => $msg,
                                 'reason' => isset( $issue['detail'] ) ? $issue['detail'] : '',
-                                'type'   => (isset( $issue['servability'] ) && 'disapproved' === $issue['servability']) ? 'critical' : 'warning'
+                                'type'   => (isset( $issue['severity'] ) && 'critical' === strtolower( $issue['severity'] )) ? 'critical' : 'warning'
                             );
                         }
                     }
@@ -97,8 +94,8 @@ class Cirrusly_Commerce_GMC_Pro {
             return new WP_Error( 'missing_client_class', 'API Client class missing.' );
         }
         
-        // Call service worker to fetch account status
-        $result = Cirrusly_Commerce_Google_API_Client::request( 'get_account_status', array() );
+        // Call service worker to fetch account status (correct action name)
+        $result = Cirrusly_Commerce_Google_API_Client::request( 'fetch_account_status', array() );
         if ( is_wp_error( $result ) ) {
             return $result; 
         }
@@ -135,8 +132,8 @@ class Cirrusly_Commerce_GMC_Pro {
             wp_send_json_error( 'Google API Client missing.' );
         }
 
-        // Call service worker to list promotions
-        $result = Cirrusly_Commerce_Google_API_Client::request( 'list_promos', array( 'pageSize' => 50 ) );
+        // Call service worker to list promotions (correct action name)
+        $result = Cirrusly_Commerce_Google_API_Client::request( 'promo_list', array() );
         if ( is_wp_error( $result ) ) {
             wp_send_json_error( $result->get_error_message() );
         }
@@ -151,10 +148,10 @@ class Cirrusly_Commerce_GMC_Pro {
                     $range_str = '';
                     $end_timestamp = 0;
                     
-                    $period = isset( $p['promotionEffectiveTimePeriod'] ) ? $p['promotionEffectiveTimePeriod'] : null;
+                    $period = isset( $p['dates'] ) ? $p['dates'] : null;
                     if ( $period ) {
-                        $start_iso = isset( $period['startTime'] ) ? $period['startTime'] : null;
-                        $end_iso   = isset( $period['endTime'] ) ? $period['endTime'] : null;
+                        $start_iso = isset( $period['start'] ) ? $period['start'] : null;
+                        $end_iso   = isset( $period['end'] ) ? $period['end'] : null;
                         
                         if ( $start_iso && $end_iso ) {
                             $start = substr( $start_iso, 0, 10 );
@@ -165,60 +162,15 @@ class Cirrusly_Commerce_GMC_Pro {
                     }
                     
                     // Status Logic
-                    $status = 'unknown';
-                    $pStats = isset( $p['promotionStatus'] ) ? $p['promotionStatus'] : null;
-                                         
-                    if ( $pStats && isset( $pStats['destinationStatuses'] ) ) {
-                        $d_statuses = $pStats['destinationStatuses'];
-                        $is_rejected = false;
-                        $is_expired  = false;
-                        $is_live     = false;
-                        $is_pending  = false;
-                        
-                        $found_statuses = array();
-
-                        if ( ! empty( $d_statuses ) ) {
-                            foreach ( $d_statuses as $ds ) {
-                                $s = strtoupper( isset( $ds['status'] ) ? $ds['status'] : '' );
-                                $found_statuses[] = $s;
-
-                                if ( 'REJECTED' === $s || 'DISAPPROVED' === $s ) $is_rejected = true;
-                                if ( 'EXPIRED' === $s ) $is_expired = true;
-                                if ( 'LIVE' === $s || 'APPROVED' === $s || 'ACTIVE' === $s ) $is_live = true;
-                                if ( 'PENDING' === $s || 'IN_REVIEW' === $s || 'READY_FOR_REVIEW' === $s ) $is_pending = true;
-                            }
-
-                            if ( $is_rejected ) {
-                                $status = 'rejected';
-                            } elseif ( $is_pending ) {
-                                $status = 'pending';
-                            } elseif ( $is_live ) {
-                                $status = 'active';
-                            } elseif ( $is_expired ) {
-                                $status = 'expired';
-                            } else {
-                                if ( !empty($found_statuses) ) {
-                                    $status = strtolower($found_statuses[0]);
-                                }
-                            }
-                        }
-                    }
-
-                    if ( 'unknown' === $status ) {
-                        if ( $end_timestamp > 0 && $end_timestamp < time() ) {
-                            $status = 'expired';
-                        } else {
-                            $status = 'pending';
-                        }
-                    }
+                    $status = isset( $p['status'] ) ? $p['status'] : 'unknown';
 
                     $output[] = array(
-                        'id'    => isset( $p['promotionId'] ) ? $p['promotionId'] : '',
-                        'title' => isset( $p['longTitle'] ) ? $p['longTitle'] : '',
+                        'id'    => isset( $p['id'] ) ? $p['id'] : '',
+                        'title' => isset( $p['title'] ) ? $p['title'] : '',
                         'dates' => $range_str,
-                        'app'   => isset( $p['productApplicability'] ) ? $p['productApplicability'] : '',
-                        'type'  => isset( $p['offerType'] ) ? $p['offerType'] : '',
-                        'code'  => isset( $p['genericRedemptionCode'] ) ? $p['genericRedemptionCode'] : '',
+                        'app'   => isset( $p['applicability'] ) ? $p['applicability'] : '',
+                        'type'  => isset( $p['type'] ) ? $p['type'] : '',
+                        'code'  => isset( $p['code'] ) ? $p['code'] : '',
                         'status'=> $status
                     );
                 }
@@ -251,15 +203,6 @@ class Cirrusly_Commerce_GMC_Pro {
         }
 
         $scan_config = get_option( 'cirrusly_scan_config' );
-        $merchant_id = isset( $scan_config['merchant_id_pro'] ) ? $scan_config['merchant_id_pro'] : '';
-        
-        if ( empty( $merchant_id ) ) {
-            $merchant_id = get_option( 'cirrusly_gmc_merchant_id', '' );
-        }
-
-        if ( empty( $merchant_id ) ) {
-            wp_send_json_error( 'Merchant ID not configured.' );
-        }
 
         // Extract and Sanitize POST data using custom prefix
         $raw_data = isset( $_POST['cirrusly_promo_data'] ) ? wp_unslash( $_POST['cirrusly_promo_data'] ) : array();
@@ -275,15 +218,14 @@ class Cirrusly_Commerce_GMC_Pro {
         }
 
         try {
-            // Build promotion data for service worker
-            $promo_data = array(
-                'promotionId'     => $id,
-                'longTitle'       => $title,
-                'contentLanguage' => isset( $scan_config['content_language'] ) ? $scan_config['content_language'] : substr( get_locale(), 0, 2 ),
-                'targetCountry'   => isset( $scan_config['target_country'] ) ? $scan_config['target_country'] : WC()->countries->get_base_country(),
-                'redemptionChannel' => array( 'ONLINE' ),
-                'productApplicability' => isset( $data['app'] ) ? $data['app'] : 'ALL_PRODUCTS',
-                'offerType'       => isset( $data['type'] ) ? $data['type'] : 'NO_CODE',
+            // Build promotion data for service worker using correct field names
+            $promo_payload = array(
+                'id'            => $id,
+                'title'         => $title,
+                'content_lang'  => isset( $scan_config['content_language'] ) ? $scan_config['content_language'] : substr( get_locale(), 0, 2 ),
+                'target_country' => isset( $scan_config['target_country'] ) ? $scan_config['target_country'] : WC()->countries->get_base_country(),
+                'applicability' => isset( $data['app'] ) ? $data['app'] : 'ALL_PRODUCTS',
+                'offer_type'    => isset( $data['type'] ) ? $data['type'] : 'NO_CODE',
             );
 
             // 1. Parse Dates (Format: YYYY-MM-DD/YYYY-MM-DD)
@@ -317,22 +259,22 @@ class Cirrusly_Commerce_GMC_Pro {
                 $dt_start->setTimezone( $utc_tz );
                 $dt_end->setTimezone( $utc_tz );
 
-                $promo_data['promotionEffectiveTimePeriod'] = array(
-                    'startTime' => $dt_start->format( 'Y-m-d\TH:i:s\Z' ),
-                    'endTime'   => $dt_end->format( 'Y-m-d\TH:i:s\Z' ),
+                $promo_payload['dates'] = array(
+                    'start' => $dt_start->format( 'Y-m-d\TH:i:s\Z' ),
+                    'end'   => $dt_end->format( 'Y-m-d\TH:i:s\Z' ),
                 );
             }
 
             // 2. Generic Code
-            if ( 'GENERIC_CODE' === $promo_data['offerType'] ) {
+            if ( 'GENERIC_CODE' === $promo_payload['offer_type'] ) {
                 if ( empty( $data['code'] ) ) {
                     wp_send_json_error( 'Redemption code is required for GENERIC_CODE promotions.' );
                 }
-                $promo_data['genericRedemptionCode'] = $data['code'];
+                $promo_payload['generic_code'] = $data['code'];
             }
 
-            // Send to service worker
-            $result = Cirrusly_Commerce_Google_API_Client::request( 'submit_promo', $promo_data );
+            // Send to service worker (correct action name)
+            $result = Cirrusly_Commerce_Google_API_Client::request( 'submit_promotion', $promo_payload );
             if ( is_wp_error( $result ) ) {
                 wp_send_json_error( 'Service Error: ' . $result->get_error_message() );
             }
