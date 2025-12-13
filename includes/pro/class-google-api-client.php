@@ -6,47 +6,12 @@ class Cirrusly_Commerce_Google_API_Client {
     const API_ENDPOINT = 'https://api.cirruslyweather.com/index.php';
 
     /**
-     * Initialize and return a Google API Client instance.
-     * Loads Service Account credentials from options and configures the client.
-     *
-     * @return Google_Client|WP_Error  Configured Google_Client or error object.
-     */
-    public static function get_client() {
-        // 1. Get Encrypted Service Account JSON
-        $json_key = get_option( 'cirrusly_service_account_json' );
-        if ( empty( $json_key ) ) {
-            return new WP_Error( 'missing_creds', 'Service Account JSON not configured.' );
-        }
-
-        // 2. Decrypt the JSON (or use as-is if unencrypted)
-        $json_raw = Cirrusly_Commerce_Security::decrypt_data( $json_key );
-        if ( ! $json_raw ) {
-            // Fallback: check if it's valid unencrypted JSON
-            $test = json_decode( $json_key, true );
-            if ( isset( $test['private_key'] ) ) {
-                $json_raw = $json_key; // Already valid JSON
-            } else {
-                return new WP_Error( 'decrypt_fail', 'Could not decrypt or parse Service Account credentials.' );
-            }
-        }
-
-        // 3. Initialize Google_Client
-        try {
-            $client = new Google_Client();
-            $client->setAuthConfig( json_decode( $json_raw, true ) );
-            $client->addScope( Google_Service_ShoppingContent::CONTENT );
-            return $client;
-        } catch ( Exception $e ) {
-            return new WP_Error( 'client_init_error', 'Failed to initialize Google API Client: ' . $e->getMessage() );
-        }
-    }
-
-    /**
-     * GENERIC REQUEST METHOD
+     * GENERIC REQUEST METHOD - Routes all Google API calls through the service worker
      * call this like: self::request('nlp_analyze', ['text' => '...'], ['timeout' => 5])
      * @param string $action  The API action code.
      * @param array  $payload Data to send.
      * @param array  $args    Optional. Overrides for wp_remote_post args (e.g. timeout).
+     * @return array|WP_Error Response from service worker or error object
      */
     public static function request( $action, $payload = array(), $args = array() ) {
         // 1. Get Google Credentials
