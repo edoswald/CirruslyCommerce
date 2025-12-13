@@ -480,7 +480,6 @@ class Cirrusly_Commerce_GMC_UI {
                     echo '<div class="notice notice-error inline" style="margin:0;"><p><strong>Error Processing Account Data:</strong> ' . esc_html( $e->getMessage() ) . '</p></div>';
                 }
             }
-            }
         } else {
             echo '<p>View real-time suspension status and policy violations directly from Google.</p>';
         }
