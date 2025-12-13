@@ -31,7 +31,7 @@ class Cirrusly_Commerce_Automated_Discounts {
         $scan_cfg = get_option('cirrusly_scan_config', array());
         $checked = isset( $scan_cfg['enable_automated_discounts'] ) && $scan_cfg['enable_automated_discounts'] === 'yes';
         $merchant_id = isset($scan_cfg['merchant_id']) ? $scan_cfg['merchant_id'] : '';
-        // Note: Google Public Key field retained for UI consistency, but verification now uses Google's public endpoint.
+        // Note: Google Public Key field retained for UI consistency.
         $public_key = isset($scan_cfg['google_public_key']) ? $scan_cfg['google_public_key'] : '';
         ?>
         <div class="cirrusly-ad-settings" style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #c3c4c7;">
@@ -40,7 +40,7 @@ class Cirrusly_Commerce_Automated_Discounts {
             <p class="description">Allows Google to dynamically lower prices via Shopping Ads. Requires Cost of Goods and Google Min Price.</p>
             <div class="cirrusly-ad-fields" style="margin-left: 25px; background: #fff; padding: 15px; border: 1px solid #c3c4c7; border-radius:4px;">
                 <p><label><strong>Merchant ID</strong></label><br><input type="text" name="cirrusly_scan_config[merchant_id]" value="<?php echo esc_attr( $merchant_id ); ?>" class="regular-text"></p>
-                <p><label><strong>Google Public Key (PEM)</strong></label><br><textarea name="cirrusly_scan_config[google_public_key]" rows="5" class="large-text code" disabled placeholder="Not required with new API proxy." style="background:#eee; color:#999;"><?php echo esc_textarea( $public_key ); ?></textarea></p>
+                <p><label><strong>Google Public Key (PEM)</strong></label><br><textarea name="cirrusly_scan_config[google_public_key]" rows="5" class="large-text code" placeholder="Paste Google Public Key here" style="background:#f0f0f1; color:#50575e;"><?php echo esc_textarea( $public_key ); ?></textarea></p>
             </div>
         </div>
         <?php
@@ -54,15 +54,20 @@ class Cirrusly_Commerce_Automated_Discounts {
         $cfg = get_option('cirrusly_scan_config', array());
         if ( empty($cfg['enable_automated_discounts']) || $cfg['enable_automated_discounts'] !== 'yes' ) return;
 
-        $token = sanitize_text_field( wp_unslash( $_GET[ self::TOKEN_PARAM ] ) );
+        // Unwrap raw request with wp_unslash before sanitizing
+        // JWTs contain base64url chars and dots - sanitize while preserving structure
+        $token = preg_replace( '/[^A-Za-z0-9_.\-]/', '', wp_unslash( $_GET[ self::TOKEN_PARAM ] ) );
+        
         if ( $payload = $this->verify_jwt( $token ) ) {
             $this->store_discount_session( $payload );
         }
     }
 
     /**
-     * Verifies a Google-signed JWT using the public tokeninfo endpoint.
-     * This avoids the dependency on the full Google PHP Client Library.
+     * Verifies a Google-signed JWT using the configured Public Key (ES256).
+     * * Note: Google Automated Discounts uses ES256 signatures with a static public key provided
+     * in the Merchant Center. Standard Google_Client::verifyIdToken defaults to OIDC RS256 keys,
+     * so we use Firebase\JWT\JWT directly for this specific integration.
      *
      * @param string $token The JWT to verify.
      * @return array|false The decoded JWT payload when verification succeeds, `false` on failure.
@@ -70,46 +75,67 @@ class Cirrusly_Commerce_Automated_Discounts {
     private function verify_jwt( $token ) {
         $cfg = get_option('cirrusly_scan_config', array());
         
-        // Basic shape/size guard before calling external validation
-        if ( ! is_string( $token ) || strlen( $token ) > 4096 || ! preg_match( '/^[A-Za-z0-9\-_]+\.[A-Za-z0-9\-_]+\.[A-Za-z0-9\-_]+$/', $token ) ) {
+        // Basic shape/size guard
+        if ( ! is_string( $token ) || strlen( $token ) > 4096 ) {
             return false;
         }
 
-        // Use Google's public validation endpoint (Lightweight Alternative)
-        $url = 'https://oauth2.googleapis.com/tokeninfo?id_token=' . urlencode( $token );
-
-
-        $response = wp_remote_get( $url, array(
-            'timeout'     => 5,
-            'redirection' => 0,
-        ) );
-
-        if ( is_wp_error( $response ) || 200 !== wp_remote_retrieve_response_code( $response ) ) {
-            if ( defined('WP_DEBUG') && WP_DEBUG ) error_log('Cirrusly Discount: Token validation request failed.');
-            return false;
-        }
-
-        $payload = json_decode( wp_remote_retrieve_body( $response ), true );
+        // 1. Get Configuration
+        $merchant_id = isset( $cfg['merchant_id'] ) ? $cfg['merchant_id'] : get_option( 'cirrusly_gmc_merchant_id' );
+        $public_key  = isset( $cfg['google_public_key'] ) ? $cfg['google_public_key'] : '';
         
-        if ( empty( $payload ) || isset( $payload['error'] ) ) {
+        if ( empty( $merchant_id ) ) {
+             if ( defined('WP_DEBUG') && WP_DEBUG ) error_log('Cirrusly Discount: Missing Merchant ID.');
+             return false;
+        }
+
+        if ( empty( $public_key ) ) {
+             if ( defined('WP_DEBUG') && WP_DEBUG ) error_log('Cirrusly Discount: Missing Google Public Key.');
+             return false;
+        }
+
+        try {
+            // Ensure Firebase JWT classes are available (provided by google/apiclient)
+            if ( ! class_exists( '\Firebase\JWT\JWT' ) || ! class_exists( '\Firebase\JWT\Key' ) ) {
+                if ( defined('WP_DEBUG') && WP_DEBUG ) error_log('Cirrusly Discount: Firebase JWT class not found.');
+                return false;
+            }
+
+            // 2. Decode & Verify Signature (ES256)
+            // Note: Automated Discounts use ES256. 'exp' (Expiration) is automatically verified by JWT::decode.
+            $payload = \Firebase\JWT\JWT::decode( $token, new \Firebase\JWT\Key( $public_key, 'ES256' ) );
+            
+            // Convert object to array for consistency
+            $payload = (array) $payload;
+
+            // 3. Validate Merchant ID (Claim 'm')
+            // The token's 'm' claim must match the configured Merchant ID.
+            if ( ! isset( $payload['m'] ) || (string) $payload['m'] !== (string) $merchant_id ) {
+                if ( defined('WP_DEBUG') && WP_DEBUG ) error_log( 'Cirrusly Commerce JWT Fail: Merchant ID mismatch.' );
+                return false;
+            }
+
+            // 4. Validate Currency (Claim 'c')
+            if ( isset( $payload['c'] ) && $payload['c'] !== get_woocommerce_currency() ) {
+                if ( defined('WP_DEBUG') && WP_DEBUG ) error_log( 'Cirrusly Commerce JWT Fail: Currency mismatch. Expected ' . get_woocommerce_currency() . ', got ' . $payload['c'] );
+                return false;
+            }
+
+            // 5. Validate Required Claims
+            // 'o' = Offer ID, 'p' = Price
+            if ( ! isset( $payload['o'] ) || ! isset( $payload['p'] ) ) {
+                if ( defined('WP_DEBUG') && WP_DEBUG ) error_log( 'Cirrusly Commerce JWT Fail: Missing required claims (o or p).' );
+                return false;
+            }
+
+            return $payload;
+
+        } catch ( \Exception $e ) {
+            if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) error_log( 'Cirrusly Discount: Token verification failed - ' . $e->getMessage() );
             return false;
         }
-
-        // 1. Check Expiration
-        if ( ! isset( $payload['exp'] ) || (int) $payload['exp'] <= time() ) return false;
-
-        // 2. Check Merchant ID Match ('m' claim)
-        $stored_merchant_id = isset( $cfg['merchant_id'] ) ? $cfg['merchant_id'] : get_option( 'cirrusly_gmc_merchant_id' );
-        if ( ! isset( $payload['m'] ) || (string) $payload['m'] !== (string) $stored_merchant_id ) {
-            return false; 
-        }
-
-        // 3. Check Currency ('c' claim)
-        if ( isset( $payload['c'] ) && $payload['c'] !== get_woocommerce_currency() ) return false;
-
-        return $payload;
     }
-
+    
     /**
      * Stores the validated discount in the WooCommerce Session.
      */
