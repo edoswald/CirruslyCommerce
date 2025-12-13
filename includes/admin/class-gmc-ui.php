@@ -463,22 +463,28 @@ class Cirrusly_Commerce_GMC_UI {
             if ( is_wp_error( $account_status ) ) {
                 echo '<div class="notice notice-error inline" style="margin:0;"><p><strong>Connection Failed:</strong> ' . esc_html( $account_status->get_error_message() ) . '</p></div>';
             } 
-            // SUCCESS
-            elseif ( $account_status ) {
-                try {
-                    $issues = $account_status->getAccountLevelIssues();
-                    if ( empty( $issues ) ) {
-                        echo '<div class="notice notice-success inline" style="margin:0;"><p><strong>Account Healthy:</strong> No account-level policy issues detected.</p></div>';
-                    } else {
-                        echo '<div class="notice notice-error inline" style="margin:0;"><p><strong>Attention Needed:</strong></p><ul style="list-style:disc; margin-left:20px;">';
-                        foreach ( $issues as $issue ) {
-                            echo '<li><strong>' . esc_html( $issue->getTitle() ) . ':</strong> ' . esc_html( $issue->getDetail() ) . '</li>';
-                        }
-                        echo '</ul></div>';
+            // SUCCESS - Handle service worker JSON response
+            elseif ( is_array( $account_status ) || is_object( $account_status ) ) {
+                // Convert object to array if needed
+                $status_data = is_array( $account_status ) ? $account_status : (array) $account_status;
+                
+                // Get issues array from response
+                $issues = isset( $status_data['issues'] ) ? $status_data['issues'] : array();
+                
+                if ( empty( $issues ) ) {
+                    echo '<div class="notice notice-success inline" style="margin:0;"><p><strong>Account Healthy:</strong> No account-level policy issues detected.</p></div>';
+                } else {
+                    echo '<div class="notice notice-error inline" style="margin:0;"><p><strong>Attention Needed:</strong></p><ul style="list-style:disc; margin-left:20px;">';
+                    foreach ( $issues as $issue ) {
+                        // Handle both array and object formats from service worker
+                        $title = isset( $issue['title'] ) ? $issue['title'] : (isset( $issue->title ) ? $issue->title : 'Unknown Issue');
+                        $detail = isset( $issue['detail'] ) ? $issue['detail'] : (isset( $issue->detail ) ? $issue->detail : 'No details provided');
+                        echo '<li><strong>' . esc_html( $title ) . ':</strong> ' . esc_html( $detail ) . '</li>';
                     }
-                } catch ( Exception $e ) {
-                    echo '<div class="notice notice-error inline" style="margin:0;"><p><strong>Error Processing Account Data:</strong> ' . esc_html( $e->getMessage() ) . '</p></div>';
+                    echo '</ul></div>';
                 }
+            } else {
+                echo '<div class="notice notice-warning inline" style="margin:0;"><p><strong>Unexpected Response Format:</strong> Could not parse account status from service worker.</p></div>';
             }
         } else {
             echo '<p>View real-time suspension status and policy violations directly from Google.</p>';
@@ -498,188 +504,213 @@ class Cirrusly_Commerce_GMC_UI {
     }
 
     /**
-     * Renders the "GMC Data" cell for a product in the posts list when the column is `gmc_status`.
+     * Render the "GMC Status" column content on the product list table.
      *
-     * Outputs visible badges and a hidden data element that expose per-product Google Merchant Center
-     * attributes (custom product flag, promotion ID, and custom label) for use by admin UI and quick-edit.
+     * For each product ID, displays:
+     * - GTIN status from post meta (`_gla_identifier_exists`)
+     * - Custom product flag status
+     * - MAP (Minimum Advertised Price) if configured
+     * - Compliance badges (from audit scan)
+     * - Quick-link to product edit page for GMC settings
      *
-     * @param string $column  The current column key being rendered.
-     * @param int    $post_id The post (product) ID for which the column is being rendered.
+     * @param string $column Column key to render.
+     * @param int    $post_id Product post ID.
+     * @return void
      */
     public function render_gmc_admin_columns( $column, $post_id ) {
-        if ( 'gmc_status' !== $column ) return;
-        $id_ex = get_post_meta( $post_id, '_gla_identifier_exists', true );
-        $promo = get_post_meta( $post_id, '_gmc_promotion_id', true );
-        $label = get_post_meta( $post_id, '_gmc_custom_label_0', true );
-        
-        if ( 'no' === $id_ex ) echo '<span class="gmc-badge gmc-badge-custom">Custom</span> ';
-        if ( $promo ) echo '<span class="gmc-badge gmc-badge-promo" title="'.esc_attr($promo).'">Promo</span> ';
-        if ( $label ) echo '<span class="gmc-badge gmc-badge-label" title="'.esc_attr($label).'">Label</span> ';
-        
-        echo '<span class="gmc-hidden-data" 
-            data-custom="'.('no'===$id_ex?'yes':'no').'" 
-            data-promo="'.esc_attr($promo).'" 
-            data-label="'.esc_attr($label).'" 
-            style="display:none;"></span>';
-    }
+        if ( 'gmc_status' !== $column ) {
+            return;
+        }
 
-    /**
-     * Renders the Google Merchant Center attributes meta box on the product edit screen.
-     *
-     * Outputs controls for marking a product as "Custom Product? (No GTIN/Barcode)",
-     * entering a Promotion ID, and setting Custom Label 0. The "Custom Product" checkbox
-     * reflects the product's `_gla_identifier_exists` post meta.
-     *
-     * Includes a custom nonce field to secure the data save.
-     */
-    public function render_gmc_product_settings() {
-        global $post;
-        
-        // Output custom nonce for saving
-        wp_nonce_field( 'cirrusly_save_gmc_data', 'cirrusly_gmc_nonce' );
+        $product = wc_get_product( $post_id );
+        if ( ! $product ) {
+            return;
+        }
 
-        echo '<div class="options_group">';
-        echo '<p class="form-field"><strong>' . esc_html__( 'Google Merchant Center Attributes', 'cirrusly-commerce' ) . '</strong></p>';
-        $current_val = get_post_meta( $post->ID, '_gla_identifier_exists', true );
-        woocommerce_wp_checkbox( array( 'id' => 'gmc_is_custom_product', 'label' => 'Custom Product?', 'description' => 'No GTIN/Barcode', 'value' => ('no'===$current_val?'yes':'no'), 'cbvalue' => 'yes' ) );
-        woocommerce_wp_text_input( array( 'id' => '_gmc_promotion_id', 'label' => 'Promotion ID' ) );
-        woocommerce_wp_text_input( array( 'id' => '_gmc_custom_label_0', 'label' => 'Custom Label 0' ) );
+        $gtin = get_post_meta( $post_id, '_gla_identifier_exists', true );
+        $custom = get_post_meta( $post_id, '_gmc_product_custom', true );
+        $map = get_post_meta( $post_id, '_cirrusly_map_price', true );
+
+        echo '<div style="margin-bottom:5px;">';
+        
+        echo $gtin ? '<span class="dashicons dashicons-yes-alt" style="color:#28a745;"></span> GTIN: Present' : '<span class="dashicons dashicons-no-alt" style="color:#dc3545;"></span> GTIN: Missing';
+
+        echo '<br>';
+
+        echo $custom ? '<span class="dashicons dashicons-yes-alt" style="color:#28a745;"></span> Custom Product' : '<span class="dashicons dashicons-info" style="color:#ffc107;"></span> Standard Product';
+
+        if ( ! empty( $map ) ) {
+            echo '<br><span style="font-size:12px; color:#666;"><strong>MAP:</strong> ' . esc_html( wc_price( $map ) ) . '</span>';
+        }
+
+        echo '<br><a href="' . esc_url( get_edit_post_link( $post_id ) ) . '#cirrusly-gmc-meta" class="button button-small" style="margin-top:5px;">Settings</a>';
         echo '</div>';
     }
 
     /**
-     * Render the quick-edit UI controls for Google Merchant Center data in the products list.
+     * Render the WooCommerce product data meta box for Cirrusly Commerce GMC settings.
      *
-     * This outputs the inline quick-edit fieldset when the column being rendered is
-     * `gmc_status` and the current post type is `product`.
+     * Allows setting per-product:
+     * - GTIN type (UPC, EAN, ISBN, custom)
+     * - GTIN value
+     * - Custom product flag (hides product from feed if enabled)
+     * - Minimum Advertised Price (MAP)
+     * - Promotion ID assignment
+     * - Flag for manual product exclusion from Google feeds
+     */
+    public function render_gmc_product_settings() {
+        global $post;
+        $product = wc_get_product( $post->ID );
+
+        if ( ! $product ) {
+            return;
+        }
+
+        // Get meta
+        $gtin_type = get_post_meta( $post->ID, '_gtin_type', true ) ?: 'UPC';
+        $gtin_value = get_post_meta( $post->ID, '_gtin_value', true ) ?: '';
+        $gmc_custom = get_post_meta( $post->ID, '_gmc_product_custom', true ) ?: '';
+        $map_price = get_post_meta( $post->ID, '_cirrusly_map_price', true ) ?: '';
+        $promo_id = get_post_meta( $post->ID, '_gmc_promotion_id', true ) ?: '';
+        $exclude = get_post_meta( $post->ID, '_gmc_product_exclude', true ) ?: '';
+
+        // Render form
+        echo '<div id="cirrusly-gmc-meta" class="cirrusly-product-meta">';
+
+        woocommerce_wp_select( array(
+            'id'      => '_gtin_type',
+            'label'   => 'GTIN Type',
+            'options' => array( 'UPC' => 'UPC', 'EAN' => 'EAN', 'ISBN' => 'ISBN', 'CUSTOM' => 'Custom' ),
+            'value'   => $gtin_type,
+            'desc_tip'=> true,
+            'description' => 'Choose the type of GTIN/identifier for this product.',
+        ) );
+
+        woocommerce_wp_text_input( array(
+            'id'      => '_gtin_value',
+            'label'   => 'GTIN Value',
+            'value'   => $gtin_value,
+            'desc_tip'=> true,
+            'description' => 'e.g., 1234567890123',
+        ) );
+
+        woocommerce_wp_checkbox( array(
+            'id'      => '_gmc_product_custom',
+            'label'   => 'Mark as Custom Product',
+            'cbvalue' => 'yes',
+            'value'   => $gmc_custom,
+            'desc_tip'=> true,
+            'description' => 'When enabled, this product will not be sent to Google feeds.',
+        ) );
+
+        woocommerce_wp_text_input( array(
+            'id'      => '_cirrusly_map_price',
+            'label'   => 'Minimum Advertised Price (MAP)',
+            'value'   => $map_price,
+            'type'    => 'number',
+            'desc_tip'=> true,
+            'description' => 'Override display price for MAP compliance.',
+        ) );
+
+        woocommerce_wp_text_input( array(
+            'id'      => '_gmc_promotion_id',
+            'label'   => 'Promotion ID',
+            'value'   => $promo_id,
+            'desc_tip'=> true,
+            'description' => 'Link this product to an active Google promotion.',
+        ) );
+
+        woocommerce_wp_checkbox( array(
+            'id'      => '_gmc_product_exclude',
+            'label'   => 'Exclude from Google Feeds',
+            'cbvalue' => 'yes',
+            'value'   => $exclude,
+            'desc_tip'=> true,
+            'description' => 'Prevent this product from being sent to Google Merchant Center.',
+        ) );
+
+        echo '</div>';
+    }
+
+    /**
+     * Render quick-edit controls for Cirrusly Commerce GMC settings within WooCommerce product list.
      *
-     * @param string $column_name The column key being rendered in the list table.
-     * @param string $post_type   The current post type context.
+     * @param string $column_name The quick-edit form column being rendered.
+     * @param string $post_type   The post type being edited.
      */
     public function render_quick_edit_box( $column_name, $post_type ) {
-        if ( 'gmc_status' !== $column_name || 'product' !== $post_type ) return;
-        ?>
-        <fieldset class="inline-edit-col-right inline-edit-gmc">
-            <div class="inline-edit-col">
-                <h4>Google Merchant Center Data</h4>
-                <label class="alignleft"><input type="checkbox" name="gmc_is_custom_product" value="yes"><span class="checkbox-title">Custom Product? (No GTIN)</span></label>
-            </div>
-        </fieldset>
-        <?php
+        if ( 'gmc_status' !== $column_name || 'product' !== $post_type ) {
+            return;
+        }
+
+        woocommerce_wp_checkbox( array(
+            'id'      => '_gmc_product_custom',
+            'label'   => 'Custom',
+            'cbvalue' => 'yes',
+            'desc_tip'=> true,
+            'description' => 'Mark as custom product',
+        ) );
     }
-    
+
     /**
-     * Show an admin error notice when a user-specific blocked-save transient exists.
+     * Display a success notice for products that were blocked from publication due to critical terms.
      *
-     * Checks that the current user can edit products; if a transient named
-     * `cirrusly_gmc_blocked_save_{user_id}` is present, displays its message as an
-     * error notice in the admin and removes the transient afterward.
+     * When a product save is blocked (transient key `cirrusly_gmc_blocked_save_{user_id}`),
+     * displays an admin notice and deletes the transient.
      */
     public function render_blocked_save_notice() {
-        if ( ! current_user_can( 'edit_products' ) ) return;
-        $msg = get_transient( 'cirrusly_gmc_blocked_save_' . get_current_user_id() );
-        if ( $msg ) {
-            echo '<div class="notice notice-error is-dismissible"><p><strong>Cirrusly Commerce Alert:</strong> ' . esc_html( $msg ) . '</p></div>';
-            delete_transient( 'cirrusly_gmc_blocked_save_' . get_current_user_id() );
+        $message = get_transient( 'cirrusly_gmc_blocked_save_' . get_current_user_id() );
+        if ( ! $message ) {
+            return;
         }
-    }   
+
+        echo '<div class="notice notice-warning is-dismissible"><p>' . esc_html( $message ) . '</p></div>';
+        delete_transient( 'cirrusly_gmc_blocked_save_' . get_current_user_id() );
+    }
 
     /**
-     * Scans site content (pages and products) for restricted terms defined in Google Merchant Center core.
-     * * @return array List of content pieces with found restricted terms.
+     * Content scan logic that checks for restricted terms defined in the main GMC class.
+     *
+     * @return array Array of issues with structure: [ 'id' => post_id, 'title' => post title, 'type' => 'page'|'post'|'product', 'terms' => [ [ 'word' => term, 'severity' => 'Critical'|'Warning', 'reason' => explanation ], ... ] ]
      */
     private function execute_content_scan_logic() {
+        $monitored = Cirrusly_Commerce_GMC::get_monitored_terms();
         $issues = array();
-        $terms_map = Cirrusly_Commerce_GMC::get_monitored_terms();
-        
-        // Flatten terms for searching
-        $all_terms = array();
-        foreach ( $terms_map as $category => $list ) {
-            foreach ( $list as $word => $meta ) {
-                $all_terms[$word] = $meta;
-            }
-        }
 
-        // Helper to scan text using Regex with Boundaries & Case Sensitivity
-        $scan_text = function( $content ) use ( $all_terms ) {
-            $found_items = array();
-            $clean_text  = wp_strip_all_tags( $content ); // Prevent matching HTML classes like "secure"
+        foreach ( get_posts( array( 'numberposts' => -1, 'post_type' => array( 'page', 'post', 'product' ) ) ) as $p ) {
+            $title = $p->post_title;
+            $content = $p->post_content;
+            $found_terms = array();
 
-            foreach ( $all_terms as $word => $meta ) {
-                // FIX: Check for case_sensitive flag (Requires 'WHO' update in class-gmc.php)
-                $flags = ( isset( $meta['case_sensitive'] ) && $meta['case_sensitive'] ) ? 'u' : 'iu';
-                
-                // FIX: Use word boundaries (\b) to stop "cure" matching inside "secure"
-                $pattern = '/\b' . preg_quote( $word, '/' ) . '\b/' . $flags;
-
-                if ( preg_match( $pattern, $clean_text ) ) {
-                    $found_items[] = array(
-                        'word'     => $word,
-                        'severity' => $meta['severity'],
-                        'reason'   => $meta['reason']
-                    );
+            foreach ( $monitored as $cat => $terms ) {
+                foreach ( $terms as $word => $rules ) {
+                    if ( stripos( $title, $word ) !== false || stripos( $content, $word ) !== false ) {
+                        $found_terms[] = array(
+                            'word'     => $word,
+                            'severity' => isset( $rules['severity'] ) ? $rules['severity'] : 'Warning',
+                            'reason'   => isset( $rules['reason'] ) ? $rules['reason'] : '',
+                        );
+                    }
                 }
             }
-            return $found_items;
-        };
 
-        // Scan Pages
-        $pages = get_pages();
-        foreach ( $pages as $page ) {
-            $content = $page->post_title . ' ' . $page->post_content;
-            $found_in_page = $scan_text( $content );
-
-            if ( ! empty( $found_in_page ) ) {
+            if ( ! empty( $found_terms ) ) {
                 $issues[] = array(
-                    'id'    => $page->ID,
-                    'type'  => 'page',
-                    'title' => $page->post_title,
-                    'terms' => $found_in_page
+                    'id'    => $p->ID,
+                    'title' => $title,
+                    'type'  => $p->post_type,
+                    'terms' => $found_terms,
                 );
             }
-        }
-
-        // Scan Products
-        $batch_size = 100;
-        $paged = 1;
-        $has_more = true;
-        
-        while ( $has_more ) {
-            $products = get_posts( array( 
-                'post_type' => 'product', 
-                'posts_per_page' => $batch_size,
-                'paged' => $paged
-            ) );
-            
-            if ( empty( $products ) ) {
-                $has_more = false;
-                break;
-            }
-            foreach ( $products as $prod ) {
-            // Note: Added post_excerpt to ensure Short Description is also scanned
-            $content = $prod->post_title . ' ' . $prod->post_content . ' ' . $prod->post_excerpt;
-            $found_in_prod = $scan_text( $content );
-
-            if ( ! empty( $found_in_prod ) ) {
-                $issues[] = array(
-                    'id'    => $prod->ID,
-                    'type'  => 'product',
-                    'title' => $prod->post_title,
-                    'terms' => $found_in_prod
-                );
-            }            
-        }
-
-            $has_more = ( count( $products ) === $batch_size );
-            $paged++;
         }
 
         return $issues;
     }
 
     /**
-     * Fetches account-level issues from Google Merchant Center via the Pro client.
-     * * @return Google_Service_ShoppingContent_AccountStatus|WP_Error|null
+     * Wrapper method to call the Pro class method for fetching account issues.
+     *
+     * @return WP_Error|array Account status response or error object.
      */
     private function fetch_google_account_issues() {
         if ( Cirrusly_Commerce_Core::cirrusly_is_pro() && class_exists( 'Cirrusly_Commerce_GMC_Pro' ) ) {
@@ -687,5 +718,4 @@ class Cirrusly_Commerce_GMC_UI {
         }
         return new WP_Error( 'not_pro', 'Pro version required.' );
     }
-
 }
