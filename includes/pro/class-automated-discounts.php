@@ -77,7 +77,6 @@ class Cirrusly_Commerce_Automated_Discounts {
         if ( ! is_string( $token ) || strlen( $token ) > 4096 ) {
             return false;
         }
-
         // 1. Get Configuration
         $merchant_id = isset( $cfg['merchant_id'] ) ? $cfg['merchant_id'] : get_option( 'cirrusly_gmc_merchant_id' );
         // Note: verifyIdToken automatically fetches Google's rotating public keys, so manual key validation is optional/fallback.
@@ -86,11 +85,9 @@ class Cirrusly_Commerce_Automated_Discounts {
              if ( defined('WP_DEBUG') && WP_DEBUG ) error_log('Cirrusly Discount: Missing Merchant ID.');
              return false;
         }
-
         // 2. Define Expected Audience
         // The audience for Automated Discounts is the Merchant ID
         $audience = $merchant_id;
-
         try {
         // Remedied Call: verifySignedJwt with explicit audience and issuer
         if ( function_exists( 'verifySignedJwt' ) ) {
@@ -99,25 +96,23 @@ class Cirrusly_Commerce_Automated_Discounts {
             // Convert object to array if necessary
             $payload = json_decode( json_encode( $payload ), true );
         }
-
         // 3. Validate Currency (Claim 'c')
         if ( isset( $payload['c'] ) && $payload['c'] !== get_woocommerce_currency() ) {
             error_log( 'Cirrusly Commerce JWT Fail: Currency mismatch. Expected ' . get_woocommerce_currency() . ', got ' . $payload['c'] );
             return false;
         }
-
         // 4. Validate Additional Claims
         if ( ! isset( $payload['dc'] ) || ! isset( $payload['dp'] ) ) {
             error_log( 'Cirrusly Commerce JWT Fail: Missing required claims (dc or dp).' );
             return false;
         }
-
         return $payload;
-
     } catch ( Exception $e ) {
         if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) error_log( 'Cirrusly Discount: Token verification failed - ' . $e->getMessage() );
         return false;
     }
+    }
+    
     /**
      * Stores the validated discount in the WooCommerce Session.
      */
