@@ -41,12 +41,26 @@ class Cirrusly_Commerce_GMC_Pro {
         // Service worker returns: { "results": [ { "product_id": "...", "issues": [ { "msg": "...", "detail": "...", "type": "..." } ] } ] }
         $results = isset( $result['results'] ) ? $result['results'] : array();
         
-        // Transform to indexed by product_id for backward compatibility
+        // Transform to indexed by product_id for deduplication logic in scan
         $google_issues = array();
         foreach ( $results as $item ) {
-            if ( isset( $item['product_id'] ) && isset( $item['issues'] ) ) {
-                $product_id = $item['product_id'];
-                $google_issues[ $product_id ] = $item['issues'];
+            if ( isset( $item['product_id'] ) && isset( $item['issues'] ) && is_array( $item['issues'] ) ) {
+                $product_id = intval( $item['product_id'] );
+                // Ensure each issue has required keys for deduplication
+                $cleaned_issues = array();
+                foreach ( $item['issues'] as $issue ) {
+                    if ( is_array( $issue ) && isset( $issue['msg'] ) ) {
+                        // Normalize issue format: ensure 'type' and 'reason' keys exist
+                        $cleaned_issues[] = array(
+                            'type'   => isset( $issue['type'] ) ? $issue['type'] : 'warning',
+                            'msg'    => $issue['msg'],
+                            'reason' => isset( $issue['reason'] ) ? $issue['reason'] : ( isset( $issue['detail'] ) ? $issue['detail'] : 'Google API finding.' )
+                        );
+                    }
+                }
+                if ( ! empty( $cleaned_issues ) ) {
+                    $google_issues[ $product_id ] = $cleaned_issues;
+                }
             }
         }
 

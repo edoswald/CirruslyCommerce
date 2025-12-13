@@ -187,9 +187,14 @@ class Cirrusly_Commerce_GMC {
         $norm = str_replace( '[google api]', '', $norm );
         
         $norm = preg_replace( '/\s+/', ' ', $norm );
-        $norm = trim( preg_replace( '/[.!?,;:]+/', '', $norm ) );     
+        $norm = trim( preg_replace( '/[.!?,;:()]+/', '', $norm ) );     
        
-        if ( strpos( $norm, 'missing sku' ) !== false || strpos( $norm, 'missing identifier' ) !== false || strpos( $norm, 'identifier exists' ) !== false ) {
+        // Identifier/SKU/GTIN issues - all variations normalize to same signature
+        if ( strpos( $norm, 'missing sku' ) !== false || 
+             strpos( $norm, 'missing gtin' ) !== false || 
+             strpos( $norm, 'missing identifier' ) !== false || 
+             strpos( $norm, 'missing code' ) !== false ||
+             strpos( $norm, 'identifier exists' ) !== false ) {
             return 'missing_identifier';
         }
         

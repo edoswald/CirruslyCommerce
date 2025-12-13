@@ -6,15 +6,15 @@
 
 ### Core Structure
 
-- **Entry Point:** [`cirrusly-commerce.php`](cirrusly-commerce.php) - Initializes Freemius SDK and loads Core class
-- **Core Bootstrap:** [`includes/class-core.php`](includes/class-core.php) - Lazy-loads subsystems, registers hooks, manages Pro checks
+- **Entry Point:** [`cirrusly-commerce.php`](../cirrusly-commerce.php) - Initializes Freemius SDK and loads Core class
+- **Core Bootstrap:** [`includes/class-core.php`](../includes/class-core.php) - Lazy-loads subsystems, registers hooks, manages Pro checks
 - **Main Subsystems:**
-  - **GMC (Google Merchant Center):** [`includes/class-gmc.php`](includes/class-gmc.php) - Compliance scanning, product meta handling
-  - **Audit (Financial):** [`includes/class-audit.php`](includes/class-audit.php) - Per-product P&L calculations, transient caching
-  - **Pricing:** [`includes/class-pricing.php`](includes/class-pricing.php) - MSRP display, margin calculations
-  - **Badges:** [`includes/class-badges.php`](includes/class-badges.php) - Smart badge rendering (frontend JS DOM manipulation)
-  - **Blocks:** [`includes/class-blocks.php`](includes/class-blocks.php) - Gutenberg MSRP, Countdown, Discount Notice blocks
-  - **Automated Discounts:** [`includes/pro/class-automated-discounts.php`](includes/pro/class-automated-discounts.php) - Google JWT token verification & price overrides
+  - **GMC (Google Merchant Center):** [`includes/class-gmc.php`](../includes/class-gmc.php) - Compliance scanning, product meta handling
+  - **Audit (Financial):** [`includes/class-audit.php`](../includes/class-audit.php) - Per-product P&L calculations, transient caching
+  - **Pricing:** [`includes/class-pricing.php`](../includes/class-pricing.php) - MSRP display, margin calculations
+  - **Badges:** [`includes/class-badges.php`](../includes/class-badges.php) - Smart badge rendering (frontend JS DOM manipulation)
+  - **Blocks:** [`includes/class-blocks.php`](../includes/class-blocks.php) - Gutenberg MSRP, Countdown, Discount Notice blocks
+  - **Automated Discounts:** [`includes/pro/class-automated-discounts.php`](../includes/pro/class-automated-discounts.php) - Google JWT token verification & price overrides
 
 ### Loading Patterns
 
@@ -34,7 +34,7 @@ The plugin heavily caches computed data:
 - **`cirrusly_active_promos_stats`** - Promotion statistics
 - **`cirrusly_analytics_cache_version`** - Version key for analytics (update to invalidate all related transients)
 
-**Cache clearing:** Always delete related transients after product/option updates (see [`class-core.php:clear_metrics_cache()`](includes/class-core.php)).
+**Cache clearing:** Always delete related transients after product/option updates (see [`class-core.php:clear_metrics_cache()`](../includes/class-core.php)).
 
 ### 2. **Post Meta for Financial Data**
 Products store costs and pricing as post meta:
@@ -51,7 +51,7 @@ Use `get_post_meta()` / `update_post_meta()` directly; avoid WooCommerce Product
 ### 3. **Nonce & Security Patterns**
 Always use custom nonces (not WooCommerce defaults):
 - AJAX saves: Create nonce with `wp_create_nonce('cirrusly_audit_save')`, validate with `check_ajax_referer()`
-- Product meta saves: Use `cirrusly_gmc_nonce` for custom nonce (see [`class-gmc.php:save_product_meta()`](includes/class-gmc.php))
+- Product meta saves: Use `cirrusly_gmc_nonce` for custom nonce (see [`class-gmc.php:save_product_meta()`](../includes/class-gmc.php))
 - Verify nonce **before** capability check in AJAX handlers
 
 Example (from Core):
@@ -68,12 +68,12 @@ The audit module computes **per-product net profit** using:
 - **Price** × **Payment Fee %** + **Payment Fee Flat** = Payment fees (supports split profiles)
 - **Margin %** = (Price - Total Cost - Fees) / Price
 
-Revenue tiers and shipping classes are JSON-encoded in `cirrusly_scan_config` option. See [`class-audit.php:get_compiled_data()`](includes/class-audit.php) for full calculation logic.
+Revenue tiers and shipping classes are JSON-encoded in `cirrusly_scan_config` option. See [`class-audit.php:get_compiled_data()`](../includes/class-audit.php) for full calculation logic.
 
 ### 5. **Pro Feature Organization**
 Pro-only code lives in `/pro/` subdirectories:
-- API client credentials encrypted with AES-256-CBC (see [`class-security.php`](includes/class-security.php))
-- Google API calls routed through [`class-google-api-client.php`](includes/pro/class-google-api-client.php) - single gateway
+- API client credentials encrypted with AES-256-CBC (see [`class-security.php`](../includes/class-security.php))
+- Google API calls routed through [`class-google-api-client.php`](../includes/pro/class-google-api-client.php) - single gateway
 - Each subsystem checks Pro status before loading Pro files
 
 **Always check Pro status before using Pro classes:**
@@ -103,7 +103,7 @@ Configuration is stored in WordPress options (not post meta). Key prefixes:
 Use `sanitize_*` callbacks in `register_setting()` to validate on save.
 
 ### 8. **SEO Plugin Integration**
-Compatibility layer ([`class-compatibility.php`](includes/class-compatibility.php)) adds product schema data to:
+Compatibility layer ([`class-compatibility.php`](../includes/class-compatibility.php)) adds product schema data to:
 - Yoast SEO (wpseo_schema_product filter)
 - All in One SEO (aioseo_schema_output filter)
 - SEOPress (seopress_json_ld_product filter)
@@ -146,14 +146,14 @@ Requires WP_DEBUG=true and admin capability.
 
 | File | Purpose |
 |------|---------|
-| [cirrusly-commerce.php](cirrusly-commerce.php) | Plugin header, Freemius init, Core loader |
-| [includes/class-core.php](includes/class-core.php) | Subsystem loader, Pro gate, cron router |
-| [includes/class-audit.php](includes/class-audit.php) | Per-product financials (cost, fees, margin) |
-| [includes/class-gmc.php](includes/class-gmc.php) | GMC scanning, product meta save |
-| [includes/class-pricing.php](includes/class-pricing.php) | MSRP display, frontend price logic |
-| [includes/class-badges.php](includes/class-badges.php) | Smart badge rendering, frontend JS |
-| [includes/class-blocks.php](includes/class-blocks.php) | Gutenberg block registration |
-| [includes/class-security.php](includes/class-security.php) | AES-256-CBC encryption for API keys |
-| [includes/admin/class-settings-manager.php](includes/admin/class-settings-manager.php) | Settings registration, cron scheduling |
-| [includes/pro/class-google-api-client.php](includes/pro/class-google-api-client.php) | Google API gateway (all Pro API calls route here) |
-| [includes/pro/class-automated-discounts.php](includes/pro/class-automated-discounts.php) | Google JWT verification, dynamic pricing |
+| [cirrusly-commerce.php](../cirrusly-commerce.php) | Plugin header, Freemius init, Core loader |
+| [includes/class-core.php](../includes/class-core.php) | Subsystem loader, Pro gate, cron router |
+| [includes/class-audit.php](../includes/class-audit.php) | Per-product financials (cost, fees, margin) |
+| [includes/class-gmc.php](../includes/class-gmc.php) | GMC scanning, product meta save |
+| [includes/class-pricing.php](../includes/class-pricing.php) | MSRP display, frontend price logic |
+| [includes/class-badges.php](../includes/class-badges.php) | Smart badge rendering, frontend JS |
+| [includes/class-blocks.php](../includes/class-blocks.php) | Gutenberg block registration |
+| [includes/class-security.php](../includes/class-security.php) | AES-256-CBC encryption for API keys |
+| [includes/admin/class-settings-manager.php](../includes/admin/class-settings-manager.php) | Settings registration, cron scheduling |
+| [includes/pro/class-google-api-client.php](../includes/pro/class-google-api-client.php) | Google API gateway (all Pro API calls route here) |
+| [includes/pro/class-automated-discounts.php](../includes/pro/class-automated-discounts.php) | Google JWT verification, dynamic pricing |
