@@ -17,7 +17,7 @@ jQuery(document).ready(function($){
         
         $.post(cirrusly_promo_data.ajaxurl, {
             action: 'cirrusly_list_promos_gmc',
-            security: cirrusly_promo_data.nonce_list,
+            _nonce: cirrusly_promo_data.nonce_list,
             force_refresh: forceRefresh ? 1 : 0
         }, function(res) {
             $btn.prop('disabled', false).html('<span class="dashicons dashicons-update"></span> Sync from Google');
@@ -90,7 +90,7 @@ jQuery(document).ready(function($){
         $btn.prop('disabled', true).text('Sending...');
         $.post(cirrusly_promo_data.ajaxurl, {
             action: 'cirrusly_submit_promo_to_gmc',
-            security: cirrusly_promo_data.nonce_submit,
+            _nonce: cirrusly_promo_data.nonce_submit,
             // Prefix custom data key
             cirrusly_promo_data: {
                 id: $('#pg_id').val(),
