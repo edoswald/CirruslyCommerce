@@ -8,7 +8,7 @@ class Cirrusly_Commerce_Google_API_Client {
     /**
      * GENERIC REQUEST METHOD
      * call this like: self::request('nlp_analyze', ['text' => '...'], ['timeout' => 5])
-     * * @param string $action  The API action code.
+     * @param string $action  The API action code.
      * @param array  $payload Data to send.
      * @param array  $args    Optional. Overrides for wp_remote_post args (e.g. timeout).
      */
@@ -56,7 +56,6 @@ class Cirrusly_Commerce_Google_API_Client {
         $request_args = wp_parse_args(
             $args,
             array(
-                'body'    => wp_json_encode( $body ),
                 'headers' => array(),
                 'timeout' => 45,
             )
