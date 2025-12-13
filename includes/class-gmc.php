@@ -174,53 +174,6 @@ class Cirrusly_Commerce_GMC {
     }
 
     /**
-     * Generates a unique identifier from issue type and problem description.
-     * Used for deduplication between local and API results.
-     * Normalizes issue signatures to catch duplicate issues from different sources.
-     *
-     * @param array $issue Issue array with 'msg', 'type', 'reason'.
-     * @return string Unique signature.
-     */
-    private static function get_issue_signature( $issue ) {
-        $msg = isset( $issue['msg'] ) ? $issue['msg'] : '';
-        
-        // Normalize message for comparison
-        $norm = strtolower( trim( $msg ) );
-        $norm = str_replace( array('[google api]', '[google]', 'google:'), '', $norm );
-        
-        $norm = preg_replace( '/\s+/', ' ', $norm );
-        $norm = trim( preg_replace( '/[.!?,;:()[\]]+/', '', $norm ) );     
-       
-        // Check for standard issue types
-        if ( strpos( $norm, 'missing sku' ) !== false || strpos( $norm, 'missing identifier' ) !== false || strpos( $norm, 'identifier exists' ) !== false ) {
-            return 'missing_identifier';
-        }
-        
-        if ( strpos( $norm, 'missing image' ) !== false ) {
-            return 'missing_image';
-        }
-        
-        if ( strpos( $norm, 'missing price' ) !== false ) {
-            return 'missing_price';
-        }
-        
-        // Extract restricted term signatures for better matching
-        if ( strpos( $norm, 'restricted term' ) !== false ) {
-            // Try to extract the term in quotes
-            if ( preg_match( '/"([^"]+)"/', $norm, $m ) ) {
-                return 'restricted_term_' . sanitize_key( $m[1] );
-            }
-            // If no quotes, try to extract from parentheses like "Restricted Term (Medical): \"cure\""
-            if ( preg_match( '/restricted term \([^)]+\)\s*[:\-]?\s*"([^"]+)"/', $norm, $m ) ) {
-                return 'restricted_term_' . sanitize_key( $m[1] );
-            }
-            return 'restricted_term_general';
-        }
-
-        return md5( $norm );
-    }
-
-    /**
      * Performs the Google Merchant Center health scan logic on local products.
      * Uses strict regex boundaries and optionally calls Pro NLP analysis.
      */
@@ -291,7 +244,7 @@ class Cirrusly_Commerce_GMC {
 
             foreach ( $monitored_terms as $category => $terms ) {
                 foreach ( $terms as $word => $rule ) {
-                    // Use proper case sensitivity flag - 'u' for case-sensitive, 'iu' for case-insensitive
+                    // Use proper case sensitivity: if case_sensitive is true, don't use 'i' flag
                     $modifiers = ( isset( $rule['case_sensitive'] ) && $rule['case_sensitive'] ) ? 'u' : 'iu';
                     $pattern   = '/\b' . preg_quote( $word, '/' ) . '\b/' . $modifiers;
                     $found     = false;
@@ -336,25 +289,16 @@ class Cirrusly_Commerce_GMC {
                 }
             }
 
-            $local_signatures = array();
-            foreach ( $product_issues as $local_issue ) {
-                $local_signatures[] = self::get_issue_signature( $local_issue );
-            }
-
-            // Merge Google API issues with local issues, deduplicating by signature
+            // Track Google API issues separately to prevent duplicates from same source
+            $google_issue_signatures = array();
             if ( isset( $google_issues[ $pid ] ) && is_array( $google_issues[ $pid ] ) ) {
                 foreach ( $google_issues[ $pid ] as $g_issue ) {
-                    $g_sig = self::get_issue_signature( $g_issue );
+                    $g_sig = md5( json_encode( $g_issue ) );
                     
-                    // Only add Google issue if signature doesn't already exist in local issues
-                    if ( ! in_array( $g_sig, $local_signatures, true ) ) {
+                    // Only add Google issue if we haven't already added this exact signature
+                    if ( ! in_array( $g_sig, $google_issue_signatures, true ) ) {
                         $product_issues[] = $g_issue;
-                        // Track this new signature to prevent further duplicates
-                        $local_signatures[] = $g_sig;
-                    } else {
-                        if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
-                            error_log( sprintf( 'Cirrusly GMC: Duplicate issue skipped. PID: %d, Sig: %s, Source: Google API', $pid, $g_sig ) );
-                        }
+                        $google_issue_signatures[] = $g_sig;
                     }
                 }
             }
