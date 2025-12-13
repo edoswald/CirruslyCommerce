@@ -21,6 +21,7 @@ class Cirrusly_Commerce_GMC_Pro {
 
     /**
      * Retrieve product-level issues reported by the Google Content API for the configured merchant.
+     * Uses service worker API instead of direct Google SDK calls.
      */
     public static function fetch_google_real_statuses() {
         // Relies on the centralized API Client
@@ -28,86 +29,59 @@ class Cirrusly_Commerce_GMC_Pro {
             return array();
         }
         
-        $client = Cirrusly_Commerce_Google_API_Client::get_client();
-        if ( is_wp_error( $client ) ) {
+        // Call service worker to fetch product statuses
+        $result = Cirrusly_Commerce_Google_API_Client::request( 'get_product_statuses', array() );
+        if ( is_wp_error( $result ) ) {
             if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
-                error_log( 'Cirrusly Commerce: Failed to get Google client - ' . $client->get_error_message() );
+                error_log( 'Cirrusly Commerce: Failed to fetch product statuses - ' . $result->get_error_message() );
             }
             return array();
         }
 
-        // 2. Get Merchant ID
-        $scan_config = get_option( 'cirrusly_scan_config', array() );
-        $merchant_id = isset( $scan_config['merchant_id_pro'] ) ? $scan_config['merchant_id_pro'] : get_option( 'cirrusly_gmc_merchant_id', '' );
-        
-        if ( empty( $merchant_id ) ) {
-            return array();
-        }
-
-        $service = new Google\Service\ShoppingContent( $client );
         $google_issues = array();
+        $statuses = isset( $result['statuses'] ) ? $result['statuses'] : array();
 
-        try {
-            // Fetch statuses in batch (page size 100 is standard max)
-            $params = array( 'maxResults' => 100 );
-            $pageToken = null;
-
-            do {
-                if ( $pageToken ) {
-                    $params['pageToken'] = $pageToken;
+        if ( ! empty( $statuses ) ) {
+            foreach ( $statuses as $status ) {
+                // Google ID format is usually "online:en:US:123" -> We need "123"
+                $product_id = isset( $status['productId'] ) ? $status['productId'] : '';
+                $parts = explode( ':', $product_id );
+                $wc_id = end( $parts );
+                
+                // Validate this is a numeric ID that could be a WC product
+                if ( ! is_numeric( $wc_id ) ) {
+                    continue;
                 }
 
-                $statuses = $service->productstatuses->listProductstatuses( $merchant_id, $params );
+                // Check for Item Level Issues (The "Why" it is disapproved)
+                $issues = isset( $status['itemLevelIssues'] ) ? $status['itemLevelIssues'] : array();
+                if ( ! empty( $issues ) ) {
+                    // Ensure the array for this product ID exists
+                    if ( ! isset( $google_issues[ $wc_id ] ) ) {
+                        $google_issues[ $wc_id ] = array();
+                    }
 
-                foreach ( $statuses->getResources() as $status ) {
-                    // Google ID format is usually "online:en:US:123" -> We need "123"
-                    $parts = explode( ':', $status->getProductId() );
-                    $wc_id = end( $parts );
-                    
-                    // Validate this is a numeric ID that could be a WC product
-                    if ( ! is_numeric( $wc_id ) ) {
-                        continue;
-                    } 
-
-                    // Check for Item Level Issues (The "Why" it is disapproved)
-                    $issues = $status->getItemLevelIssues();
-                    if ( ! empty( $issues ) ) {
-                        // Ensure the array for this product ID exists
-                        if ( ! isset( $google_issues[ $wc_id ] ) ) {
-                            $google_issues[ $wc_id ] = array();
+                    foreach ( $issues as $issue ) {
+                        $msg = '[Google API] ' . (isset( $issue['description'] ) ? $issue['description'] : '');
+                        
+                        // Prevent duplicates
+                        $already_exists = false;
+                        foreach ( $google_issues[ $wc_id ] as $existing_issue ) {
+                            if ( $existing_issue['msg'] === $msg ) {
+                                $already_exists = true;
+                                break;
+                            }
                         }
 
-                        foreach ( $issues as $issue ) {
-                            $msg = '[Google API] ' . $issue->getDescription();
-                            
-                            // Prevent duplicates
-                            $already_exists = false;
-                            foreach ( $google_issues[ $wc_id ] as $existing_issue ) {
-                                if ( $existing_issue['msg'] === $msg ) {
-                                    $already_exists = true;
-                                    break;
-                                }
-                            }
-
-                            if ( ! $already_exists ) {
-                                $google_issues[ $wc_id ][] = array(
-                                    'msg'    => $msg,
-                                    'reason' => $issue->getDetail(),
-                                    'type'   => ($issue->getServability() === 'disapproved') ? 'critical' : 'warning'
-                                );
-                            }
+                        if ( ! $already_exists ) {
+                            $google_issues[ $wc_id ][] = array(
+                                'msg'    => $msg,
+                                'reason' => isset( $issue['detail'] ) ? $issue['detail'] : '',
+                                'type'   => (isset( $issue['servability'] ) && 'disapproved' === $issue['servability']) ? 'critical' : 'warning'
+                            );
                         }
                     }
                 }
-
-                // Check for next page
-                $pageToken = $statuses->getNextPageToken();
-
-            } while ( null !== $pageToken );
-
-        } catch ( Exception $e ) {
-            if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
-                error_log( 'Cirrusly Commerce: Google API error in fetch_google_real_statuses - ' . $e->getMessage() );
             }
         }
 
@@ -116,44 +90,21 @@ class Cirrusly_Commerce_GMC_Pro {
 
     /**
      * Retrieve account-level status information (policy issues and suspensions) from the Google Content API.
+     * Uses service worker API instead of direct Google SDK calls.
      */
     public static function fetch_google_account_issues() {
         if ( ! class_exists( 'Cirrusly_Commerce_Google_API_Client' ) ) {
             return new WP_Error( 'missing_client_class', 'API Client class missing.' );
         }
         
-        $client = Cirrusly_Commerce_Google_API_Client::get_client();
-        if ( is_wp_error( $client ) ) {
-            return $client; 
+        // Call service worker to fetch account status
+        $result = Cirrusly_Commerce_Google_API_Client::request( 'get_account_status', array() );
+        if ( is_wp_error( $result ) ) {
+            return $result; 
         }
 
-        $scan_config = get_option( 'cirrusly_scan_config' );
-        
-        // 1. Get Merchant ID (Aggregator/Auth Scope)
-        $merchant_id = isset( $scan_config['merchant_id_pro'] ) ? $scan_config['merchant_id_pro'] : get_option( 'cirrusly_gmc_merchant_id', '' );
-        if ( empty( $merchant_id ) ) {
-            return new WP_Error( 'missing_merchant_id', 'Merchant ID not configured in settings.' );
-        }
-
-        // 2. Get Account ID (The specific account to query)
-        $account_id = isset( $scan_config['account_id'] ) ? $scan_config['account_id'] : '';
-        
-        // Fallback for single accounts: use merchant_id if account_id is not explicitly set
-        if ( empty( $account_id ) ) {
-            $account_id = $merchant_id; 
-        }
-
-        if ( empty( $account_id ) ) {
-            return new WP_Error( 'missing_account_id', 'Target Account ID not configured.' );
-        }
-
-        $service = new Google\Service\ShoppingContent( $client );
-        
-        try {
-            return $service->accountstatuses->get( $merchant_id, $account_id );
-        } catch ( Exception $e ) {
-            return new WP_Error( 'api_error', 'Google API Error: ' . $e->getMessage() );
-        }
+        // Return the account status object from service worker
+        return $result;
     }
 
     /**
@@ -184,42 +135,26 @@ class Cirrusly_Commerce_GMC_Pro {
             wp_send_json_error( 'Google API Client missing.' );
         }
 
-        $client = Cirrusly_Commerce_Google_API_Client::get_client();
-        if ( is_wp_error( $client ) ) {
-            wp_send_json_error( $client->get_error_message() );
+        // Call service worker to list promotions
+        $result = Cirrusly_Commerce_Google_API_Client::request( 'list_promos', array( 'pageSize' => 50 ) );
+        if ( is_wp_error( $result ) ) {
+            wp_send_json_error( $result->get_error_message() );
         }
 
-        // Get Merchant ID from Settings
-        $scan_config = get_option( 'cirrusly_scan_config' );
-        $merchant_id = isset( $scan_config['merchant_id_pro'] ) ? $scan_config['merchant_id_pro'] : '';
-
-        // Fallback for legacy installs
-        if ( empty( $merchant_id ) ) {
-            $merchant_id = get_option( 'cirrusly_gmc_merchant_id', '' );
-        }
-
-        if ( empty( $merchant_id ) ) {
-            wp_send_json_error( 'Merchant ID missing.' );
-        }
-
-        $service = new Google\Service\ShoppingContent( $client );
+        $list = isset( $result['promotions'] ) ? $result['promotions'] : array();
 
         try {
-            $resp = $service->promotions->listPromotions( $merchant_id, array('pageSize' => 50) );
-            $list = $resp->getPromotions();
-            
-
             $output = array();
             if ( ! empty( $list ) ) {
                 foreach ( $list as $p ) {
-                    // Parse Date Range
+                    // Parse Date Range from service worker response
                     $range_str = '';
                     $end_timestamp = 0;
                     
-                    $period = $p->getPromotionEffectiveTimePeriod();
+                    $period = isset( $p['promotionEffectiveTimePeriod'] ) ? $p['promotionEffectiveTimePeriod'] : null;
                     if ( $period ) {
-                        $start_iso = $period->getStartTime(); 
-                        $end_iso   = $period->getEndTime();
+                        $start_iso = isset( $period['startTime'] ) ? $period['startTime'] : null;
+                        $end_iso   = isset( $period['endTime'] ) ? $period['endTime'] : null;
                         
                         if ( $start_iso && $end_iso ) {
                             $start = substr( $start_iso, 0, 10 );
@@ -231,10 +166,10 @@ class Cirrusly_Commerce_GMC_Pro {
                     
                     // Status Logic
                     $status = 'unknown';
-                    $pStats = $p->getPromotionStatus(); 
+                    $pStats = isset( $p['promotionStatus'] ) ? $p['promotionStatus'] : null;
                                          
-                    if ( $pStats && method_exists( $pStats, 'getDestinationStatuses' ) ) {
-                        $d_statuses = $pStats->getDestinationStatuses();
+                    if ( $pStats && isset( $pStats['destinationStatuses'] ) ) {
+                        $d_statuses = $pStats['destinationStatuses'];
                         $is_rejected = false;
                         $is_expired  = false;
                         $is_live     = false;
@@ -244,7 +179,7 @@ class Cirrusly_Commerce_GMC_Pro {
 
                         if ( ! empty( $d_statuses ) ) {
                             foreach ( $d_statuses as $ds ) {
-                                $s = strtoupper( $ds->getStatus() );
+                                $s = strtoupper( isset( $ds['status'] ) ? $ds['status'] : '' );
                                 $found_statuses[] = $s;
 
                                 if ( 'REJECTED' === $s || 'DISAPPROVED' === $s ) $is_rejected = true;
@@ -278,12 +213,12 @@ class Cirrusly_Commerce_GMC_Pro {
                     }
 
                     $output[] = array(
-                        'id'    => $p->getPromotionId(),
-                        'title' => $p->getLongTitle(),
+                        'id'    => isset( $p['promotionId'] ) ? $p['promotionId'] : '',
+                        'title' => isset( $p['longTitle'] ) ? $p['longTitle'] : '',
                         'dates' => $range_str,
-                        'app'   => $p->getProductApplicability(),
-                        'type'  => $p->getOfferType(),
-                        'code'  => $p->getGenericRedemptionCode(),
+                        'app'   => isset( $p['productApplicability'] ) ? $p['productApplicability'] : '',
+                        'type'  => isset( $p['offerType'] ) ? $p['offerType'] : '',
+                        'code'  => isset( $p['genericRedemptionCode'] ) ? $p['genericRedemptionCode'] : '',
                         'status'=> $status
                     );
                 }
@@ -293,7 +228,7 @@ class Cirrusly_Commerce_GMC_Pro {
             wp_send_json_success( $output );
 
         } catch ( Exception $e ) {
-            wp_send_json_error( 'Google API Error: ' . $e->getMessage() );
+            wp_send_json_error( 'Error processing promotions: ' . $e->getMessage() );
         }
     }
 
@@ -313,11 +248,6 @@ class Cirrusly_Commerce_GMC_Pro {
 
         if ( ! class_exists( 'Cirrusly_Commerce_Google_API_Client' ) ) {
             wp_send_json_error( 'Google API Client missing.' );
-        }
-
-        $client = Cirrusly_Commerce_Google_API_Client::get_client();
-        if ( is_wp_error( $client ) ) {
-            wp_send_json_error( $client->get_error_message() );
         }
 
         $scan_config = get_option( 'cirrusly_scan_config' );
@@ -343,18 +273,18 @@ class Cirrusly_Commerce_GMC_Pro {
         if ( '' === $id || '' === $title ) {
             wp_send_json_error( 'Promotion ID and Title are required.' );
         }
-        
-        $service = new Google\Service\ShoppingContent( $client );
 
         try {
-            $promo = new Google\Service\ShoppingContent\Promotion();
-            $promo->setPromotionId( $id );
-            $promo->setLongTitle( $title );
-            $content_lang = isset( $scan_config['content_language'] ) ? $scan_config['content_language'] : substr( get_locale(), 0, 2 );
-            $target_country = isset( $scan_config['target_country'] ) ? $scan_config['target_country'] : WC()->countries->get_base_country();
-            $promo->setContentLanguage( $content_lang );
-            $promo->setTargetCountry( $target_country );
-            $promo->setRedemptionChannel( array( 'ONLINE' ) );
+            // Build promotion data for service worker
+            $promo_data = array(
+                'promotionId'     => $id,
+                'longTitle'       => $title,
+                'contentLanguage' => isset( $scan_config['content_language'] ) ? $scan_config['content_language'] : substr( get_locale(), 0, 2 ),
+                'targetCountry'   => isset( $scan_config['target_country'] ) ? $scan_config['target_country'] : WC()->countries->get_base_country(),
+                'redemptionChannel' => array( 'ONLINE' ),
+                'productApplicability' => isset( $data['app'] ) ? $data['app'] : 'ALL_PRODUCTS',
+                'offerType'       => isset( $data['type'] ) ? $data['type'] : 'NO_CODE',
+            );
 
             // 1. Parse Dates (Format: YYYY-MM-DD/YYYY-MM-DD)
             $dates_raw = isset( $data['dates'] ) ? $data['dates'] : '';
@@ -387,36 +317,32 @@ class Cirrusly_Commerce_GMC_Pro {
                 $dt_start->setTimezone( $utc_tz );
                 $dt_end->setTimezone( $utc_tz );
 
-                $period = new Google\Service\ShoppingContent\TimePeriod();
-                $period->setStartTime( $dt_start->format( 'Y-m-d\TH:i:s\Z' ) );
-                $period->setEndTime( $dt_end->format( 'Y-m-d\TH:i:s\Z' ) );
-                $promo->setPromotionEffectiveTimePeriod( $period );
+                $promo_data['promotionEffectiveTimePeriod'] = array(
+                    'startTime' => $dt_start->format( 'Y-m-d\TH:i:s\Z' ),
+                    'endTime'   => $dt_end->format( 'Y-m-d\TH:i:s\Z' ),
+                );
             }
 
-            // 2. Product Applicability
-            $app_val = isset( $data['app'] ) ? $data['app'] : 'ALL_PRODUCTS';
-            $promo->setProductApplicability( $app_val );
-
-            // 3. Offer Type & Generic Code
-            $type_val = isset( $data['type'] ) ? $data['type'] : 'NO_CODE';
-            $promo->setOfferType( $type_val );
-            
-            if ( 'GENERIC_CODE' === $type_val ) {
+            // 2. Generic Code
+            if ( 'GENERIC_CODE' === $promo_data['offerType'] ) {
                 if ( empty( $data['code'] ) ) {
                     wp_send_json_error( 'Redemption code is required for GENERIC_CODE promotions.' );
                 }
-                $promo->setGenericRedemptionCode( $data['code'] );
+                $promo_data['genericRedemptionCode'] = $data['code'];
             }
 
-            // Send to Google
-            $service->promotions->create( $merchant_id, $promo );
+            // Send to service worker
+            $result = Cirrusly_Commerce_Google_API_Client::request( 'submit_promo', $promo_data );
+            if ( is_wp_error( $result ) ) {
+                wp_send_json_error( 'Service Error: ' . $result->get_error_message() );
+            }
 
             // Clear Cache
             delete_transient( 'cirrusly_gmc_promos_cache' );
 
             wp_send_json_success( 'Promotion submitted successfully!' );
         } catch ( Exception $e ) {
-            wp_send_json_error( 'Google Error: ' . $e->getMessage() );
+            wp_send_json_error( 'Error: ' . $e->getMessage() );
         }
     }
 
@@ -467,10 +393,12 @@ class Cirrusly_Commerce_GMC_Pro {
         if ( ! $violation_found && isset( $scan_cfg['enable_nlp_guard'] ) && 'yes' === $scan_cfg['enable_nlp_guard'] ) {
              $nlp_res = $this->analyze_text_with_nlp( $title_clean . ' ' . substr($desc_clean, 0, 500), $post_id );
              if ( ! is_wp_error( $nlp_res ) ) {
-                 foreach ( $nlp_res->getEntities() as $entity ) {
+                 $entities = isset( $nlp_res['entities'] ) ? $nlp_res['entities'] : array();
+                 foreach ( $entities as $entity ) {
                      // Check for restricted entity types 
-                     if ( 'EVENT' === $entity->getType() || 'OTHER' === $entity->getType() ) {
-                         $e_name = strtolower( $entity->getName() );
+                     $entity_type = isset( $entity['type'] ) ? $entity['type'] : '';
+                     if ( 'EVENT' === $entity_type || 'OTHER' === $entity_type ) {
+                         $e_name = strtolower( isset( $entity['name'] ) ? $entity['name'] : '' );
                          if ( strpos( $e_name, 'virus' ) !== false || strpos( $e_name, 'covid' ) !== false ) {
                              $violation_found = true;
                              break;
@@ -500,202 +428,37 @@ class Cirrusly_Commerce_GMC_Pro {
         if ( $data['post_type'] !== 'product' ) return $data;
 
         $monitored = Cirrusly_Commerce_GMC::get_monitored_terms();
+        $banned_words = array();
 
-        // Strip terms from all configured categories
-        foreach ( $monitored as $cat => $terms ) {
-            foreach ( $terms as $word => $rules ) {
-                $pattern = '/\b' . preg_quote($word, '/') . '\b/iu';
-                $data['post_title'] = preg_replace( $pattern, '', $data['post_title'] );
-                $data['post_title'] = trim( preg_replace('/\s+/', ' ', $data['post_title']) );
-                if ( isset( $rules['scope'] ) && $rules['scope'] === 'all' ) {
-                     $data['post_content'] = preg_replace( $pattern, '', $data['post_content'] );
+        foreach( $monitored as $cat => $terms ) {
+            foreach( $terms as $word => $rules ) {
+                if ( isset( $rules['severity'] ) && 'Critical' === $rules['severity'] ) {
+                    $banned_words[] = $word;
                 }
             }
         }
+
+        if ( empty( $banned_words ) ) return $data;
+
+        foreach ( $banned_words as $word ) {
+            $pattern = '/\b' . preg_quote( $word, '/' ) . '\b/ui';
+            $data['post_title'] = preg_replace( $pattern, '', $data['post_title'] );
+            $data['post_content'] = preg_replace( $pattern, '', $data['post_content'] );
+        }
+
         return $data;
     }
 
     /**
-     * Helper to scan a product using NLP + Advanced Heuristics during the main Health Scan.
-     * * @param WC_Product $product
-     * @param array $existing_issues
-     * @return array New issues found
+     * Analyze text with Google Cloud Natural Language API via service worker.
      */
-    public static function scan_product_with_nlp( $product, $existing_issues ) {
-        $issues = array();
-
-        // 1. Editorial Standards Check (No API Cost)
-        $editorial_issues = self::detect_editorial_violations( $product );
-        if ( ! empty( $editorial_issues ) ) {
-            $issues = array_merge( $issues, $editorial_issues );
-        }
-
-        // 2. NLP-Based Misrepresentation Check
-        $scan_cfg = get_option('cirrusly_scan_config', array());
-        if ( empty($scan_cfg['enable_nlp_scan']) || $scan_cfg['enable_nlp_scan'] !== 'yes' ) {
-            return $issues;
-        }
-
-        $instance = new self();
-        $text = $product->get_name() . ' ' . $product->get_short_description();
-        $result = $instance->analyze_text_with_nlp( $text, $product->get_id() );
-
-        if ( ! is_wp_error( $result ) ) {
-            // Check for Misrepresentation Entities
-            $misrep_issues = self::detect_misrepresentation_nlp( $result );
-            $issues = array_merge( $issues, $misrep_issues );
-        }
-
-        return $issues;
-    }
-
-    /**
-     * Internal: Checks for Editorial & Professional Standards (Caps, Punctuation, Placeholders).
-     */
-    private static function detect_editorial_violations( $product ) {
-        $issues = array();
-        $text   = wp_strip_all_tags( $product->get_name() ); // Focus on Title mainly for Editorial
-
-        // CHECK 1: Caps Lock Abuse
-        if ( strlen( $text ) > 10 ) {
-            // Count uppercase vs total letters (ignoring spaces/numbers)
-            $letters = preg_replace( '/[^a-zA-Z]/', '', $text );
-            if ( strlen( $letters ) > 0 ) {
-                $upper = preg_match_all( '/[A-Z]/', $letters );
-                $ratio = $upper / strlen( $letters );
-                if ( $ratio > 0.85 ) {
-                    $issues[] = array(
-                        'type' => 'warning',
-                        'msg'  => 'Editorial: Excessive Capitalization',
-                        'reason' => 'GMC requires professional formatting. Avoid ALL CAPS.'
-                    );
-                }
-            }
-        }
-
-        // CHECK 2: Gimmicky Punctuation
-        if ( preg_match( '/([!?.])\1{2,}/', $text ) ) { // Matches !!! or ...
-             // Allow elipses, block !!! or ???
-             if ( strpos( $text, '!!!' ) !== false || strpos( $text, '???' ) !== false ) {
-                 $issues[] = array(
-                     'type' => 'warning',
-                     'msg'  => 'Editorial: Excessive Punctuation',
-                     'reason' => 'Avoid gimmicky punctuation like "!!!" in titles.'
-                 );
-             }
-        }
-
-        // CHECK 3: Placeholder Text
-        $desc = strtolower( wp_strip_all_tags( $product->get_description() ) );
-        $placeholders = array( 'lorem ipsum', 'coming soon', 'test product', 'enter description' );
-        foreach( $placeholders as $ph ) {
-            if ( strpos( $desc, $ph ) !== false ) {
-                $issues[] = array(
-                    'type' => 'critical',
-                    'msg'  => 'Editorial: Placeholder Text Detected',
-                    'reason' => 'Product appears unfinished ("' . $ph . '").'
-                );
-                break; 
-            }
-        }
-
-        return $issues;
-    }
-
-    /**
-     * Internal: Analyzes NLP Entities for Misrepresentation/Trust signals.
-     */
-    private static function detect_misrepresentation_nlp( $nlp_result ) {
-        $issues = array();
-        $banned_orgs = array( 'fda', 'cdc', 'who', 'medicare', 'government' );
-
-        foreach ( $nlp_result->getEntities() as $entity ) {
-            $type = $entity->getType();
-            $name = strtolower( $entity->getName() );
-
-            // 1. False Affiliation (Organization)
-            // If the entity is a prominent organization and it's salient in the text, it implies endorsement.
-            if ( 'ORGANIZATION' === $type && in_array( $name, $banned_orgs ) ) {
-                $issues[] = array(
-                    'type' => 'critical',
-                    'msg'  => 'Misrepresentation: Implied Affiliation (' . strtoupper($name) . ')',
-                    'reason' => 'Mentioning government/health orgs often triggers "False Affiliation" policies unless verified.'
-                );
-            }
-
-            // 2. Sensitive Events (Virus/Pandemic) - Expanded from Regex
-            if ( 'EVENT' === $type ) {
-                if ( strpos( $name, 'virus' ) !== false || strpos( $name, 'covid' ) !== false || strpos( $name, 'pandemic' ) !== false ) {
-                     $issues[] = array(
-                        'type'   => 'critical',
-                        'msg'    => 'Sensitive Event Detected (NLP)',
-                        'reason' => 'Reference to sensitive health event: ' . $entity->getName()
-                    );
-                }
-            }
-        }
-        return $issues;
-    }
-
-    /**
-     * Analyze plain text with Google Cloud Natural Language and extract entities.
-     * Caches results to Post Meta to prevent redundant API calls.
-     */
-    public function analyze_text_with_nlp( $text, $post_id ) {
-        if ( ! is_numeric( $post_id ) || $post_id <= 0 ) {
-            return new WP_Error( 'invalid_post_id', 'Valid Post ID required for NLP analysis.' );
-        }
-
-        $max_length = 5000;
-        $text = wp_strip_all_tags( $text );
-        if ( strlen( $text ) > $max_length ) {
-            $truncated = substr( $text, 0, $max_length );
-            $last_space = strrpos( $truncated, ' ' );
-            $text = $last_space !== false ? substr( $truncated, 0, $last_space ) : $truncated;
-        }
-
-        // Check Cache
-        $text_hash = md5( $text );
-        $cached_data = get_post_meta( $post_id, '_cirrusly_nlp_cache', true );
-        $cache_ttl = 7 * DAY_IN_SECONDS;
-        if ( is_array( $cached_data ) && isset( $cached_data['hash'], $cached_data['time'] ) && $cached_data['hash'] === $text_hash && ( time() - $cached_data['time'] ) < $cache_ttl ) {
-            if ( class_exists( 'Google\Service\CloudNaturalLanguage\AnnotateTextResponse' ) ) {
-                return new Google\Service\CloudNaturalLanguage\AnnotateTextResponse( $cached_data['response'] );
-            }
-            return $cached_data['response'];
-        }
-
+    private function analyze_text_with_nlp( $text, $post_id ) {
         if ( ! class_exists( 'Cirrusly_Commerce_Google_API_Client' ) ) {
-            return new WP_Error( 'missing_client', 'Google API Client not loaded.' );
+            return new WP_Error( 'client_missing', 'Google API Client not available.' );
         }
 
-        $client = Cirrusly_Commerce_Google_API_Client::get_client();
-        if ( is_wp_error( $client ) ) {
-            return $client;
-        }
-
-        $service = new Google\Service\CloudNaturalLanguage( $client );
-        $document = new Google\Service\CloudNaturalLanguage\Document();
-        $document->setType( 'PLAIN_TEXT' );
-        $document->setContent( $text );
-
-        $features = new Google\Service\CloudNaturalLanguage\AnnotateTextRequestFeatures();
-        $features->setExtractEntities( true );
-
-        $request = new Google\Service\CloudNaturalLanguage\AnnotateTextRequest();
-        $request->setDocument( $document );
-        $request->setFeatures( $features );
-
-        try {
-            $results = $service->documents->annotateText( $request );
-            update_post_meta( $post_id, '_cirrusly_nlp_cache', array(
-                'hash'     => $text_hash,
-                'response' => json_decode( json_encode( $results->toSimpleObject() ), true ),
-                'time'     => time()
-            ));
-            return $results;
-        } catch ( Exception $e ) {
-            return new WP_Error( 'nlp_error', $e->getMessage() );
-        }
+        // Call service worker for NLP analysis
+        $result = Cirrusly_Commerce_Google_API_Client::request( 'nlp_analyze', array( 'text' => $text ) );
+        return $result;
     }
 }
