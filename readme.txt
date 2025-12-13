@@ -4,7 +4,7 @@ Contributors: edoswald
 Tags: Google Merchant Center, WooCommerce, pricing, MSRP, profit margin
 Requires at least: 5.8 
 Tested up to: 6.9 
-Stable tag: 1.4.3 
+Stable tag: 1.4.4 
 Requires PHP: 8.1 
 License: GPLv2 or later 
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
@@ -105,6 +105,9 @@ Yes. The Pro version allows you to set a "Split Profile" (e.g., 70% Stripe / 30%
 5. **Setup Wizard:** Easy 5-step onboarding to configure fees and API connections.
 
 == Changelog ==
+
+= 1.4.4 =
+* **Fix:** Fixed bugs that prevented Pro functionality from working as intended since 1.4. All functionality is now correctly querying our service worker.
 
 = 1.4.3 =
 * **Refactor:** Changes help areas to reflect support forum location of plugin following WP Plugin Directory approval. A thank you to the Plugin Review team for their work!
