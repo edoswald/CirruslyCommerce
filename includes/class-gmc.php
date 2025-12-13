@@ -176,6 +176,7 @@ class Cirrusly_Commerce_GMC {
     /**
      * Generates a unique identifier from issue type and problem description.
      * Used for deduplication between local and API results.
+     * Normalizes issue signatures to catch duplicate issues from different sources.
      *
      * @param array $issue Issue array with 'msg', 'type', 'reason'.
      * @return string Unique signature.
@@ -183,12 +184,14 @@ class Cirrusly_Commerce_GMC {
     private static function get_issue_signature( $issue ) {
         $msg = isset( $issue['msg'] ) ? $issue['msg'] : '';
         
+        // Normalize message for comparison
         $norm = strtolower( trim( $msg ) );
-        $norm = str_replace( '[google api]', '', $norm );
+        $norm = str_replace( array('[google api]', '[google]', 'google:'), '', $norm );
         
         $norm = preg_replace( '/\s+/', ' ', $norm );
-        $norm = trim( preg_replace( '/[.!?,;:]+/', '', $norm ) );     
+        $norm = trim( preg_replace( '/[.!?,;:()[\]]+/', '', $norm ) );     
        
+        // Check for standard issue types
         if ( strpos( $norm, 'missing sku' ) !== false || strpos( $norm, 'missing identifier' ) !== false || strpos( $norm, 'identifier exists' ) !== false ) {
             return 'missing_identifier';
         }
@@ -201,9 +204,15 @@ class Cirrusly_Commerce_GMC {
             return 'missing_price';
         }
         
+        // Extract restricted term signatures for better matching
         if ( strpos( $norm, 'restricted term' ) !== false ) {
+            // Try to extract the term in quotes
             if ( preg_match( '/"([^"]+)"/', $norm, $m ) ) {
-                return 'restricted_term_' . $m[1];
+                return 'restricted_term_' . sanitize_key( $m[1] );
+            }
+            // If no quotes, try to extract from parentheses like "Restricted Term (Medical): \"cure\""
+            if ( preg_match( '/restricted term \([^)]+\)\s*[:\-]?\s*"([^"]+)"/', $norm, $m ) ) {
+                return 'restricted_term_' . sanitize_key( $m[1] );
             }
             return 'restricted_term_general';
         }
@@ -282,17 +291,23 @@ class Cirrusly_Commerce_GMC {
 
             foreach ( $monitored_terms as $category => $terms ) {
                 foreach ( $terms as $word => $rule ) {
+                    // Use proper case sensitivity flag - 'u' for case-sensitive, 'iu' for case-insensitive
                     $modifiers = ( isset( $rule['case_sensitive'] ) && $rule['case_sensitive'] ) ? 'u' : 'iu';
                     $pattern   = '/\b' . preg_quote( $word, '/' ) . '\b/' . $modifiers;
                     $found     = false;
+                    $found_word = $word; // Track the actual matched word for reporting
 
-                    if ( preg_match( $pattern, $title_clean ) ) {
+                    // Check title (always scanned for restricted terms)
+                    if ( preg_match( $pattern, $title_clean, $match ) ) {
                         $found = true;
+                        $found_word = $match[0]; // Use actual matched text
                     }
 
+                    // Check description only if scope includes 'all'
                     if ( ! $found && isset( $rule['scope'] ) && 'all' === $rule['scope'] ) {
-                        if ( preg_match( $pattern, $desc_clean ) ) {
+                        if ( preg_match( $pattern, $desc_clean, $match ) ) {
                             $found = true;
+                            $found_word = $match[0];
                         }
                     }
 
@@ -303,7 +318,7 @@ class Cirrusly_Commerce_GMC {
                                 /* translators: 1: The violation category (e.g. Medical), 2: The restricted word found */
                                 __( 'Restricted Term (%1$s): "%2$s"', 'cirrusly-commerce' ), 
                                 ucfirst($category), 
-                                $word 
+                                $found_word
                             ),
                             'reason' => isset($rule['reason']) ? $rule['reason'] : 'Potential policy violation.'
                         );
@@ -326,12 +341,16 @@ class Cirrusly_Commerce_GMC {
                 $local_signatures[] = self::get_issue_signature( $local_issue );
             }
 
-            if ( isset( $google_issues[ $pid ] ) ) {
+            // Merge Google API issues with local issues, deduplicating by signature
+            if ( isset( $google_issues[ $pid ] ) && is_array( $google_issues[ $pid ] ) ) {
                 foreach ( $google_issues[ $pid ] as $g_issue ) {
                     $g_sig = self::get_issue_signature( $g_issue );
                     
+                    // Only add Google issue if signature doesn't already exist in local issues
                     if ( ! in_array( $g_sig, $local_signatures, true ) ) {
                         $product_issues[] = $g_issue;
+                        // Track this new signature to prevent further duplicates
+                        $local_signatures[] = $g_sig;
                     } else {
                         if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
                             error_log( sprintf( 'Cirrusly GMC: Duplicate issue skipped. PID: %d, Sig: %s, Source: Google API', $pid, $g_sig ) );
