@@ -7,9 +7,12 @@ class Cirrusly_Commerce_Google_API_Client {
 
     /**
      * GENERIC REQUEST METHOD
-     * call this like: self::request('nlp_analyze', ['text' => '...'])
+     * call this like: self::request('nlp_analyze', ['text' => '...'], ['timeout' => 5])
+     * * @param string $action  The API action code.
+     * @param array  $payload Data to send.
+     * @param array  $args    Optional. Overrides for wp_remote_post args (e.g. timeout).
      */
-    public static function request( $action, $payload = array() ) {
+    public static function request( $action, $payload = array(), $args = array() ) {
         // 1. Get Google Credentials
         $json_key    = get_option( 'cirrusly_service_account_json' );
         $scan_config = get_option( 'cirrusly_scan_config', array() );
@@ -17,12 +20,11 @@ class Cirrusly_Commerce_Google_API_Client {
 
         if ( empty( $json_key ) ) return new WP_Error( 'missing_creds', 'Service Account JSON missing' );
 
-        // 2. Get Freemius Install Token
-        // Rely on locally persisted token captured during activation/connection hooks
-        $install_token = get_option( 'cirrusly_install_api_token' );
+        // 2. Get API Key (Replaces Freemius Token)
+        $api_key = isset( $scan_config['api_key'] ) ? sanitize_text_field( $scan_config['api_key'] ) : '';
 
-        if ( empty( $install_token ) ) {
-            return new WP_Error( 'no_token', 'Active Pro License required (Token missing). Please re-activate your license.' );
+        if ( empty( $api_key ) ) {
+            return new WP_Error( 'no_token', 'API License Key missing. Please enter it in Settings > General.' );
         }
 
         // 3. Decrypt Google JSON
@@ -45,15 +47,30 @@ class Cirrusly_Commerce_Google_API_Client {
         );
 
         // 5. Send Request
-        $response = wp_remote_post( self::API_ENDPOINT, array(
-            'body'    => json_encode( $body ),
-            'headers' => array( 
-                'Content-Type'  => 'application/json',
-                // Send Install API Token as Bearer Token
-                'Authorization' => 'Bearer ' . $install_token
-            ),
-            'timeout' => 45
-        ) );
+        // Merge defaults with passed args (e.g. allow override of timeout)
+        $default_headers = array(
+            'Content-Type'  => 'application/json',
+            'Authorization' => 'Bearer ' . $api_key, // required
+        );
+
+        $request_args = wp_parse_args(
+            $args,
+            array(
+                'body'    => wp_json_encode( $body ),
+                'headers' => array(),
+                'timeout' => 45,
+            )
+        );
+        
+        // Body must not be overridable; always use the constructed payload.
+        $request_args['body'] = wp_json_encode( $body );
+
+
+        // Merge headers but keep required defaults (defaults override user values).
+        $user_headers = is_array( $request_args['headers'] ) ? $request_args['headers'] : array();
+        $request_args['headers'] = array_merge( $user_headers, $default_headers );
+
+        $response = wp_remote_post( self::API_ENDPOINT, $request_args );
 
         if ( is_wp_error( $response ) ) return $response;
         

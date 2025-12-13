@@ -36,8 +36,15 @@ class Cirrusly_Commerce_Pricing_Sync {
         // Check existence (handling both old scalar IDs and new array format)
         $exists = false;
         foreach ( $queue as $item ) {
-            $id = is_array( $item ) ? $item['id'] : $item;
-            if ( $id == $product_id ) {
+        if ( is_array( $item ) ) {
+            if ( ! isset( $item['id'] ) ) {
+                continue;
+            }
+            $id = (int) $item['id'];
+        } else {
+            $id = (int) $item;
+        }
+            if ( $id === (int) $product_id ) {
                 $exists = true;
                 break;
             }
@@ -60,7 +67,7 @@ class Cirrusly_Commerce_Pricing_Sync {
     }
 
     /**
-     * Background Worker: Fetch queue and send Batch Request to Google.
+     * Background Worker: Fetch queue and send Batch Request to Google via Worker API.
      * Handles retries and queue normalization.
      */
     public function process_batch_queue() {
@@ -72,30 +79,11 @@ class Cirrusly_Commerce_Pricing_Sync {
             return;
         }
 
-        // 1. Setup Client
+        // 1. Check for API Client
         if ( ! class_exists( 'Cirrusly_Commerce_Google_API_Client' ) ) {
             $this->log_global_sync_failure( 'GMC API Client class not loaded.' );
             return;
         }
-        
-        $client = Cirrusly_Commerce_Google_API_Client::get_client();
-        if ( is_wp_error( $client ) ) {
-            $this->log_global_sync_failure( 'GMC Client Error: ' . $client->get_error_message() );
-            return;
-        }
-
-        $scan_config = get_option( 'cirrusly_scan_config', array() );
-        $merchant_id = ! empty( $scan_config['merchant_id_pro'] )
-            ? $scan_config['merchant_id_pro']
-            : get_option( 'cirrusly_gmc_merchant_id', '' );
-        
-        if ( empty( $merchant_id ) ) {
-            $this->log_global_sync_failure( 'Missing Merchant ID configuration.' );
-            return;
-        }
-
-        $service = new Google\Service\ShoppingContent( $client );
-        $batch_entries = array();
         
         // 2. Build Batch Entries & Normalize Queue
         // Process max 500 items at a time
@@ -103,6 +91,7 @@ class Cirrusly_Commerce_Pricing_Sync {
         
         // Map to track attempt counts for items in this batch
         $processing_items = array();
+        $batch_entries    = array();
 
         // Base country is store-level; compute once per run.
         $base_country = apply_filters(
@@ -116,92 +105,96 @@ class Cirrusly_Commerce_Pricing_Sync {
                 $q_item = array( 'id' => (int) $q_item, 'attempts' => 0 );
             }
             
-            // Store for retry logic
-            $processing_items[ $q_item['id'] ] = $q_item;
-
             $product = wc_get_product( $q_item['id'] );
             if ( ! $product ) continue; 
 
-            $entry = new Google\Service\ShoppingContent\ProductsCustomBatchRequestEntry();
-            $entry->setBatchId( $q_item['id'] ); // Use Product ID as Batch ID for tracking
-            $entry->setMerchantId( $merchant_id );
-            $entry->setMethod( 'insert' );
-
-            // Build Product Object
+            // Build Raw Data Array for Worker
             $offer_id = $product->get_sku() ?: $product->get_id();
             $language = apply_filters( 'cirrusly_gmc_content_language', get_bloginfo( 'language' ) );
             $country  = $base_country;
-            
-            $gmc_product = new Google\Service\ShoppingContent\Product();
-            $gmc_product->setOfferId( (string) $offer_id );
-            $gmc_product->setContentLanguage( substr( $language, 0, 2 ) );
-            $gmc_product->setTargetCountry( $country );
-            $gmc_product->setChannel( 'online' );
-            $gmc_product->setAvailability( $product->is_in_stock() ? 'in stock' : 'out of stock' );
+            $price    = wc_format_decimal( $product->get_price() );
 
-            $price = $product->get_price();
             if ( ! is_numeric( $price ) || $price < 0 ) {
-                if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
-                    error_log( 'Cirrusly GMC Sync: Skipping product ' . $q_item['id'] . ' - invalid price.' );
-                }
                 continue;
             }
-            
-            $price_obj = new Google\Service\ShoppingContent\Price();
-            $price_obj->setValue( $price );
-            $price_obj->setCurrency( get_woocommerce_currency() );
-            $gmc_product->setPrice( $price_obj );
 
-            $entry->setProduct( $gmc_product );
-            $batch_entries[] = $entry;
+            // Store for retry logic
+            $processing_items[ $q_item['id'] ] = $q_item;
+
+            
+            $batch_entries[] = array(
+                'batchId'      => $q_item['id'], // Use Product ID as Batch ID for tracking
+                'offerId'      => (string) $offer_id,
+                'language'     => strtolower( substr( (string) $language, 0, 2 ) ),
+                'country'      => strtoupper( (string) $country ),
+                'availability' => $product->is_in_stock() ? 'in stock' : 'out of stock',
+                'price'        => $price,
+                'currency'     => get_woocommerce_currency()
+            );
         }
 
         $requeue_items = array();
 
-        // 3. Send Batch Request
+        // 3. Send Batch Request via Proxy
         if ( ! empty( $batch_entries ) ) {
-            try {
-                $batch_req = new Google\Service\ShoppingContent\ProductsCustomBatchRequest();
-                $batch_req->setEntries( $batch_entries );
-                
-                $response = $service->products->custombatch( $batch_req );
-                
-                foreach ( $response->getEntries() as $entry ) {
-                    $errors = $entry->getErrors();
-                    if ( $errors && ! empty( $errors->getErrors() ) ) {
-                        $bid = $entry->getBatchId();
-                        
-                        // Handle Retry
-                        if ( isset( $processing_items[ $bid ] ) ) {
-                            $item = $processing_items[ $bid ];
-                            $item['attempts']++;
-                            
-                            if ( $item['attempts'] < self::MAX_RETRIES ) {
-                                $requeue_items[] = $item;
-                            } else {
-                                if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
-                                    error_log( 'Cirrusly GMC Sync: Dropping product ' . $bid . ' after ' . self::MAX_RETRIES . ' failures.' );
-                                }
-                            }
-                        }
-                    }
-                }
-                
-                if ( empty( $requeue_items ) ) {
-                    $this->log_global_sync_success();
-                } else {
-                    $this->log_global_sync_failure( count( $requeue_items ) . ' products failed and will be retried.' );
-                }
+            
+            $response = Cirrusly_Commerce_Google_API_Client::request( 'batch_sync', array( 'entries' => $batch_entries ) );
 
-            } catch ( Exception $e ) {
-                $this->log_global_sync_failure( 'Batch API Exception: ' . $e->getMessage() );
-                
-                // Requeue the entire chunk on API failure
+            if ( is_wp_error( $response ) ) {
+                $this->log_global_sync_failure( 'API Error: ' . $response->get_error_message() );
+                // On total API failure, retry entire chunk
                 foreach ( $processing_items as $item ) {
                     $item['attempts']++;
                     if ( $item['attempts'] < self::MAX_RETRIES ) {
                         $requeue_items[] = $item;
                     }
+                }
+            } else {
+                // Process Worker Results
+                $results = isset( $response['results'] ) && is_array( $response['results'] ) ? $response['results'] : array();
+                $has_errors = false;
+
+                
+                // Normalize results into a map keyed by batchId (accept either map or list of objects with batchId).
+                $results_by_id = array();
+                foreach ( $results as $k => $v ) {
+                    if ( is_array( $v ) && isset( $v['batchId'] ) ) {
+                        $results_by_id[ (int) $v['batchId'] ] = $v;
+                    } else {
+                        $results_by_id[ (int) $k ] = $v;
+                    }
+                }
+            
+                // Any sent batchId missing from results should be retried.
+                foreach ( array_keys( $processing_items ) as $sent_id ) {
+                    if ( ! isset( $results_by_id[ (int) $sent_id ] ) ) {
+                        $has_errors = true;
+                        $item = $processing_items[ (int) $sent_id ];
+                        $item['attempts']++;   
+                        if ( $item['attempts'] < self::MAX_RETRIES ) {
+                            $requeue_items[] = $item;
+                        }
+                    }
+                }  
+
+                foreach ( $results as $batch_id => $res ) {
+                    if ( isset( $res['status'] ) && $res['status'] === 'error' ) {
+                        $has_errors = true;
+                        // Retry specific item
+                        if ( isset( $processing_items[ $batch_id ] ) ) {
+                            $item = $processing_items[ $batch_id ];
+                            $item['attempts']++;
+                            if ( $item['attempts'] < self::MAX_RETRIES ) {
+                                $requeue_items[] = $item;
+                            }
+                        }
+                    }
+                }
+
+                if ( ! $has_errors && empty( $requeue_items ) ) {
+                    $this->log_global_sync_success();
+                } elseif ( ! empty( $requeue_items ) ) {
+                    $this->log_global_sync_failure( count( $requeue_items ) . ' items failed and will be retried.' );
                 }
             }
         }
@@ -214,7 +207,9 @@ class Cirrusly_Commerce_Pricing_Sync {
         if ( ! empty( $queue ) ) {
             update_option( self::QUEUE_OPTION, $queue, false );
             // Schedule next run immediately if items remain
-            wp_schedule_single_event( time() + 5, self::CRON_HOOK );
+            if ( ! wp_next_scheduled( self::CRON_HOOK ) ) {
+                wp_schedule_single_event( time() + 5, self::CRON_HOOK );
+            }
         } else {
             delete_option( self::QUEUE_OPTION );
         }

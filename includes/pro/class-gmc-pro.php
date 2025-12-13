@@ -2,7 +2,7 @@
 
 if ( ! defined( 'ABSPATH' ) ) {
     exit;
-}
+
 
 class Cirrusly_Commerce_GMC_Pro {
 
@@ -192,7 +192,7 @@ class Cirrusly_Commerce_GMC_Pro {
         // Get Merchant ID from Settings
         $scan_config = get_option( 'cirrusly_scan_config' );
         $merchant_id = isset( $scan_config['merchant_id_pro'] ) ? $scan_config['merchant_id_pro'] : '';
-        
+
         // Fallback for legacy installs
         if ( empty( $merchant_id ) ) {
             $merchant_id = get_option( 'cirrusly_gmc_merchant_id', '' );
@@ -208,6 +208,7 @@ class Cirrusly_Commerce_GMC_Pro {
             $resp = $service->promotions->listPromotions( $merchant_id, array('pageSize' => 50) );
             $list = $resp->getPromotions();
             
+
             $output = array();
             if ( ! empty( $list ) ) {
                 foreach ( $list as $p ) {
@@ -432,14 +433,14 @@ class Cirrusly_Commerce_GMC_Pro {
 
         $scan_cfg = get_option('cirrusly_scan_config', array());
         if ( empty($scan_cfg['block_on_critical']) || $scan_cfg['block_on_critical'] !== 'yes' ) return;
-        
+
         if ( defined('DOING_AUTOSAVE') && DOING_AUTOSAVE ) return;
         if ( $post->post_type !== 'product' ) return;
 
         // Uses static method from the main GMC class for term definitions
         $monitored = Cirrusly_Commerce_GMC::get_monitored_terms();
         $violation_found = false;
-        
+
         $title_clean = wp_strip_all_tags( $post->post_title );
         $desc_clean  = wp_strip_all_tags( $post->post_content );
 
@@ -461,7 +462,7 @@ class Cirrusly_Commerce_GMC_Pro {
                  }
             }
         }
-        
+
         // --- NLP INTEGRATION (Blocker) ---
         if ( ! $violation_found && isset( $scan_cfg['enable_nlp_guard'] ) && 'yes' === $scan_cfg['enable_nlp_guard'] ) {
              $nlp_res = $this->analyze_text_with_nlp( $title_clean . ' ' . substr($desc_clean, 0, 500), $post_id );
@@ -499,7 +500,7 @@ class Cirrusly_Commerce_GMC_Pro {
         if ( $data['post_type'] !== 'product' ) return $data;
 
         $monitored = Cirrusly_Commerce_GMC::get_monitored_terms();
-        
+
         // Strip terms from all configured categories
         foreach ( $monitored as $cat => $terms ) {
             foreach ( $terms as $word => $rules ) {
@@ -522,7 +523,7 @@ class Cirrusly_Commerce_GMC_Pro {
      */
     public static function scan_product_with_nlp( $product, $existing_issues ) {
         $issues = array();
-        
+
         // 1. Editorial Standards Check (No API Cost)
         $editorial_issues = self::detect_editorial_violations( $product );
         if ( ! empty( $editorial_issues ) ) {
@@ -544,7 +545,7 @@ class Cirrusly_Commerce_GMC_Pro {
             $misrep_issues = self::detect_misrepresentation_nlp( $result );
             $issues = array_merge( $issues, $misrep_issues );
         }
-        
+
         return $issues;
     }
 
