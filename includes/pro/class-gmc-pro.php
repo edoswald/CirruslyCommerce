@@ -108,7 +108,12 @@ class Cirrusly_Commerce_GMC_Pro {
      * List promotions from Google Merchant Center and emit a JSON AJAX response.
      */
     public function handle_promo_api_list() {
-        check_ajax_referer( 'cirrusly_promo_api_list', '_nonce' );
+        // Get and verify nonce
+        $nonce = isset( $_POST['security'] ) ? sanitize_text_field( wp_unslash( $_POST['security'] ) ) : '';
+        
+        if ( ! $nonce || wp_verify_nonce( $nonce, 'cirrusly_promo_api_list' ) === 0 ) {
+            wp_send_json_error( 'Nonce verification failed.' );
+        }
 
         if ( ! current_user_can( 'manage_woocommerce' ) ) {
             wp_send_json_error( 'Insufficient permissions.' );
@@ -188,7 +193,12 @@ class Cirrusly_Commerce_GMC_Pro {
      * Handle an AJAX request to create and submit a Promotion to the Google Shopping Content API.
      */
     public function handle_promo_api_submit() {
-        check_ajax_referer( 'cirrusly_promo_api_submit', '_nonce' );
+        // Get and verify nonce
+        $nonce = isset( $_POST['security'] ) ? sanitize_text_field( wp_unslash( $_POST['security'] ) ) : '';
+        
+        if ( ! $nonce || wp_verify_nonce( $nonce, 'cirrusly_promo_api_submit' ) === 0 ) {
+            wp_send_json_error( 'Nonce verification failed.' );
+        }
 
         if ( ! current_user_can( 'manage_woocommerce' ) ) {
             wp_send_json_error( 'Insufficient permissions.' );
