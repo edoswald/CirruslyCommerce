@@ -2,7 +2,7 @@
 
 if ( ! defined( 'ABSPATH' ) ) {
     exit;
-
+}
 
 class Cirrusly_Commerce_GMC_Pro {
 
