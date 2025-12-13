@@ -61,6 +61,10 @@ class Cirrusly_Commerce_Google_API_Client {
                 'timeout' => 45,
             )
         );
+        
+        // Body must not be overridable; always use the constructed payload.
+        $request_args['body'] = wp_json_encode( $body );
+
 
         // Merge headers but keep required defaults (defaults override user values).
         $user_headers = is_array( $request_args['headers'] ) ? $request_args['headers'] : array();
