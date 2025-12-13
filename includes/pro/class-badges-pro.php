@@ -195,19 +195,20 @@ class Cirrusly_Commerce_Badges_Pro {
         }
         $combined_text = function_exists( 'mb_substr' ) ? mb_substr( $combined_text, 0, 8000 ) : substr( $combined_text, 0, 8000 );
 
-        // Long timeout for background process (20s)
-        $response = Cirrusly_Commerce_Google_API_Client::request( 
-            'nlp_analyze', 
-            array( 'text' => $combined_text ),
-            array( 'timeout' => 20 )
-        );
+            // Long timeout for background process (20s)
+            $response = Cirrusly_Commerce_Google_API_Client::request(
+                'nlp_analyze',
+                array( 'text' => $combined_text ),
+                array( 'timeout' => 20 )
+            );
 
-        if ( ! is_wp_error( $response ) ) {
-            self::process_sentiment_response( $response, 'cirrusly_sentiment_' . $product_id );
+            if ( ! is_wp_error( $response ) ) {
+                self::process_sentiment_response( $response, 'cirrusly_sentiment_' . $product_id );
+            }
+        } finally {
+            // Release Lock
+            delete_transient( 'cirrusly_sentiment_lock_' . $product_id );
         }
-
-        // Release Lock
-        delete_transient( 'cirrusly_sentiment_lock_' . $product_id );
     }
 
     /**

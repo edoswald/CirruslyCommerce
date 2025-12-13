@@ -48,15 +48,25 @@ class Cirrusly_Commerce_Google_API_Client {
 
         // 5. Send Request
         // Merge defaults with passed args (e.g. allow override of timeout)
-        $request_args = array_merge( array(
-            'body'    => json_encode( $body ),
-            'headers' => array( 
-                'Content-Type'  => 'application/json',
-                // Send API Key as Bearer Token
-                'Authorization' => 'Bearer ' . $api_key
-            ),
-            'timeout' => 45 // Default timeout
-        ), $args );
+        $default_headers = array(
+            'Content-Type'  => 'application/json',
+            'Authorization' => 'Bearer ' . $api_key, // required
+        );
+
+        $request_args = wp_parse_args(
+            $args,
+            array(
+                'body'    => wp_json_encode( $body ),
+                'headers' => array(),
+                'timeout' => 45,
+            )
+        );
+
+        // Merge headers but keep required defaults.
+        $request_args['headers'] = array_merge(
+            $default_headers,
+            is_array( $request_args['headers'] ) ? $request_args['headers'] : array()
+        );
 
         $response = wp_remote_post( self::API_ENDPOINT, $request_args );
 
