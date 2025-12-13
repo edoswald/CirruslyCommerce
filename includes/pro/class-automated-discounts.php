@@ -64,8 +64,10 @@ class Cirrusly_Commerce_Automated_Discounts {
     }
 
     /**
-     * Verifies a Google-signed JWT using local signature verification.
-     * Updated to use verifyIdToken with strict audience/issuer checks as per review.
+     * Verifies a Google-signed JWT using the configured Public Key (ES256).
+     * * Note: Google Automated Discounts uses ES256 signatures with a static public key provided
+     * in the Merchant Center. Standard Google_Client::verifyIdToken defaults to OIDC RS256 keys,
+     * so we use Firebase\JWT\JWT directly for this specific integration.
      *
      * @param string $token The JWT to verify.
      * @return array|false The decoded JWT payload when verification succeeds, `false` on failure.
@@ -77,40 +79,61 @@ class Cirrusly_Commerce_Automated_Discounts {
         if ( ! is_string( $token ) || strlen( $token ) > 4096 ) {
             return false;
         }
+
         // 1. Get Configuration
         $merchant_id = isset( $cfg['merchant_id'] ) ? $cfg['merchant_id'] : get_option( 'cirrusly_gmc_merchant_id' );
-        // Note: verifyIdToken automatically fetches Google's rotating public keys, so manual key validation is optional/fallback.
+        $public_key  = isset( $cfg['google_public_key'] ) ? $cfg['google_public_key'] : '';
         
         if ( empty( $merchant_id ) ) {
              if ( defined('WP_DEBUG') && WP_DEBUG ) error_log('Cirrusly Discount: Missing Merchant ID.');
              return false;
         }
-        // 2. Define Expected Audience
-        // The audience for Automated Discounts is the Merchant ID
-        $audience = $merchant_id;
+
+        if ( empty( $public_key ) ) {
+             if ( defined('WP_DEBUG') && WP_DEBUG ) error_log('Cirrusly Discount: Missing Google Public Key.');
+             return false;
+        }
+
         try {
-        // Remedied Call: verifySignedJwt with explicit audience and issuer
-        if ( function_exists( 'verifySignedJwt' ) ) {
-            $payload = verifySignedJwt( $token, array( $public_key ), $audience, $issuer );
-        
-            // Convert object to array if necessary
-            $payload = json_decode( json_encode( $payload ), true );
-        }
-        // 3. Validate Currency (Claim 'c')
-        if ( isset( $payload['c'] ) && $payload['c'] !== get_woocommerce_currency() ) {
-            error_log( 'Cirrusly Commerce JWT Fail: Currency mismatch. Expected ' . get_woocommerce_currency() . ', got ' . $payload['c'] );
+            // Ensure Firebase JWT classes are available (provided by google/apiclient)
+            if ( ! class_exists( '\Firebase\JWT\JWT' ) || ! class_exists( '\Firebase\JWT\Key' ) ) {
+                if ( defined('WP_DEBUG') && WP_DEBUG ) error_log('Cirrusly Discount: Firebase JWT class not found.');
+                return false;
+            }
+
+            // 2. Decode & Verify Signature (ES256)
+            // Note: Automated Discounts use ES256. 'exp' (Expiration) is automatically verified by JWT::decode.
+            $payload = \Firebase\JWT\JWT::decode( $token, new \Firebase\JWT\Key( $public_key, 'ES256' ) );
+            
+            // Convert object to array for consistency
+            $payload = (array) $payload;
+
+            // 3. Validate Merchant ID (Claim 'm')
+            // The token's 'm' claim must match the configured Merchant ID.
+            if ( ! isset( $payload['m'] ) || (string) $payload['m'] !== (string) $merchant_id ) {
+                if ( defined('WP_DEBUG') && WP_DEBUG ) error_log( 'Cirrusly Commerce JWT Fail: Merchant ID mismatch.' );
+                return false;
+            }
+
+            // 4. Validate Currency (Claim 'c')
+            if ( isset( $payload['c'] ) && $payload['c'] !== get_woocommerce_currency() ) {
+                if ( defined('WP_DEBUG') && WP_DEBUG ) error_log( 'Cirrusly Commerce JWT Fail: Currency mismatch. Expected ' . get_woocommerce_currency() . ', got ' . $payload['c'] );
+                return false;
+            }
+
+            // 5. Validate Required Claims
+            // 'o' = Offer ID, 'p' = Price
+            if ( ! isset( $payload['o'] ) || ! isset( $payload['p'] ) ) {
+                if ( defined('WP_DEBUG') && WP_DEBUG ) error_log( 'Cirrusly Commerce JWT Fail: Missing required claims (o or p).' );
+                return false;
+            }
+
+            return $payload;
+
+        } catch ( \Exception $e ) {
+            if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) error_log( 'Cirrusly Discount: Token verification failed - ' . $e->getMessage() );
             return false;
         }
-        // 4. Validate Additional Claims
-        if ( ! isset( $payload['dc'] ) || ! isset( $payload['dp'] ) ) {
-            error_log( 'Cirrusly Commerce JWT Fail: Missing required claims (dc or dp).' );
-            return false;
-        }
-        return $payload;
-    } catch ( Exception $e ) {
-        if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) error_log( 'Cirrusly Discount: Token verification failed - ' . $e->getMessage() );
-        return false;
-    }
     }
     
     /**
