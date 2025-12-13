@@ -21,93 +21,32 @@ class Cirrusly_Commerce_GMC_Pro {
 
     /**
      * Retrieve product-level issues reported by the Google Content API for the configured merchant.
+     * Uses the service worker for API communication.
      */
     public static function fetch_google_real_statuses() {
-        // Relies on the centralized API Client
         if ( ! class_exists( 'Cirrusly_Commerce_Google_API_Client' ) ) {
             return array();
         }
+
+        // Call the service worker with gmc_scan action
+        $result = Cirrusly_Commerce_Google_API_Client::request( 'gmc_scan', array() );
         
-        $client = Cirrusly_Commerce_Google_API_Client::get_client();
-        if ( is_wp_error( $client ) ) {
+        if ( is_wp_error( $result ) ) {
             if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
-                error_log( 'Cirrusly Commerce: Failed to get Google client - ' . $client->get_error_message() );
+                error_log( 'Cirrusly Commerce: Service worker error in fetch_google_real_statuses - ' . $result->get_error_message() );
             }
             return array();
         }
 
-        // 2. Get Merchant ID
-        $scan_config = get_option( 'cirrusly_scan_config', array() );
-        $merchant_id = isset( $scan_config['merchant_id_pro'] ) ? $scan_config['merchant_id_pro'] : get_option( 'cirrusly_gmc_merchant_id', '' );
+        // Service worker returns: { "results": [ { "product_id": "...", "issues": [ { "msg": "...", "detail": "...", "type": "..." } ] } ] }
+        $results = isset( $result['results'] ) ? $result['results'] : array();
         
-        if ( empty( $merchant_id ) ) {
-            return array();
-        }
-
-        $service = new Google\Service\ShoppingContent( $client );
+        // Transform to indexed by product_id for backward compatibility
         $google_issues = array();
-
-        try {
-            // Fetch statuses in batch (page size 100 is standard max)
-            $params = array( 'maxResults' => 100 );
-            $pageToken = null;
-
-            do {
-                if ( $pageToken ) {
-                    $params['pageToken'] = $pageToken;
-                }
-
-                $statuses = $service->productstatuses->listProductstatuses( $merchant_id, $params );
-
-                foreach ( $statuses->getResources() as $status ) {
-                    // Google ID format is usually "online:en:US:123" -> We need "123"
-                    $parts = explode( ':', $status->getProductId() );
-                    $wc_id = end( $parts );
-                    
-                    // Validate this is a numeric ID that could be a WC product
-                    if ( ! is_numeric( $wc_id ) ) {
-                        continue;
-                    } 
-
-                    // Check for Item Level Issues (The "Why" it is disapproved)
-                    $issues = $status->getItemLevelIssues();
-                    if ( ! empty( $issues ) ) {
-                        // Ensure the array for this product ID exists
-                        if ( ! isset( $google_issues[ $wc_id ] ) ) {
-                            $google_issues[ $wc_id ] = array();
-                        }
-
-                        foreach ( $issues as $issue ) {
-                            $msg = '[Google API] ' . $issue->getDescription();
-                            
-                            // Prevent duplicates
-                            $already_exists = false;
-                            foreach ( $google_issues[ $wc_id ] as $existing_issue ) {
-                                if ( $existing_issue['msg'] === $msg ) {
-                                    $already_exists = true;
-                                    break;
-                                }
-                            }
-
-                            if ( ! $already_exists ) {
-                                $google_issues[ $wc_id ][] = array(
-                                    'msg'    => $msg,
-                                    'reason' => $issue->getDetail(),
-                                    'type'   => ($issue->getServability() === 'disapproved') ? 'critical' : 'warning'
-                                );
-                            }
-                        }
-                    }
-                }
-
-                // Check for next page
-                $pageToken = $statuses->getNextPageToken();
-
-            } while ( null !== $pageToken );
-
-        } catch ( Exception $e ) {
-            if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
-                error_log( 'Cirrusly Commerce: Google API error in fetch_google_real_statuses - ' . $e->getMessage() );
+        foreach ( $results as $item ) {
+            if ( isset( $item['product_id'] ) && isset( $item['issues'] ) ) {
+                $product_id = $item['product_id'];
+                $google_issues[ $product_id ] = $item['issues'];
             }
         }
 
@@ -116,184 +55,80 @@ class Cirrusly_Commerce_GMC_Pro {
 
     /**
      * Retrieve account-level status information (policy issues and suspensions) from the Google Content API.
+     * Uses the service worker for API communication.
      */
     public static function fetch_google_account_issues() {
-        if ( ! class_exists( 'Cirrusly_Commerce_Google_API_Client' ) ) {
-            return new WP_Error( 'missing_client_class', 'API Client class missing.' );
+        // Call the service worker with fetch_account_status action
+        $result = Cirrusly_Commerce_Google_API_Client::request( 'fetch_account_status', array() );
+        
+        if ( is_wp_error( $result ) ) {
+            return $result;
         }
         
-        $client = Cirrusly_Commerce_Google_API_Client::get_client();
-        if ( is_wp_error( $client ) ) {
-            return $client; 
-        }
-
-        $scan_config = get_option( 'cirrusly_scan_config' );
-        
-        // 1. Get Merchant ID (Aggregator/Auth Scope)
-        $merchant_id = isset( $scan_config['merchant_id_pro'] ) ? $scan_config['merchant_id_pro'] : get_option( 'cirrusly_gmc_merchant_id', '' );
-        if ( empty( $merchant_id ) ) {
-            return new WP_Error( 'missing_merchant_id', 'Merchant ID not configured in settings.' );
-        }
-
-        // 2. Get Account ID (The specific account to query)
-        $account_id = isset( $scan_config['account_id'] ) ? $scan_config['account_id'] : '';
-        
-        // Fallback for single accounts: use merchant_id if account_id is not explicitly set
-        if ( empty( $account_id ) ) {
-            $account_id = $merchant_id; 
-        }
-
-        if ( empty( $account_id ) ) {
-            return new WP_Error( 'missing_account_id', 'Target Account ID not configured.' );
-        }
-
-        $service = new Google\Service\ShoppingContent( $client );
-        
-        try {
-            return $service->accountstatuses->get( $merchant_id, $account_id );
-        } catch ( Exception $e ) {
-            return new WP_Error( 'api_error', 'Google API Error: ' . $e->getMessage() );
-        }
+        // Service worker returns array format: { "issues": [ { "title": "...", "detail": "..." }, ... ] }
+        return $result;
     }
 
     /**
      * List promotions from Google Merchant Center and emit a JSON AJAX response.
      */
     public function handle_promo_api_list() {
-        check_ajax_referer( 'cirrusly_promo_api_list', '_nonce' );
+        // Get and verify nonce
+        $nonce = isset( $_POST['security'] ) ? sanitize_text_field( wp_unslash( $_POST['security'] ) ) : '';
+        
+        if ( ! $nonce || wp_verify_nonce( $nonce, 'cirrusly_promo_api_list' ) === 0 ) {
+            wp_send_json_error( 'Nonce verification failed.' );
+        }
 
         if ( ! current_user_can( 'manage_woocommerce' ) ) {
             wp_send_json_error( 'Insufficient permissions.' );
         }
         
-        // Double check Pro status (though this class shouldn't load otherwise)
         if ( ! Cirrusly_Commerce_Core::cirrusly_is_pro() ) {
             wp_send_json_error( 'Pro version required.' );
         }
-        
-        // CACHE CHECK
-        $force = isset($_POST['force_refresh']) && $_POST['force_refresh'] == '1';
-        $cache = get_transient( 'cirrusly_gmc_promos_cache' );
-        
-        if ( ! $force && false !== $cache ) {
-            wp_send_json_success( $cache );
-            return;
-        }
-
-        if ( ! class_exists( 'Cirrusly_Commerce_Google_API_Client' ) ) {
-            wp_send_json_error( 'Google API Client missing.' );
-        }
-
-        $client = Cirrusly_Commerce_Google_API_Client::get_client();
-        if ( is_wp_error( $client ) ) {
-            wp_send_json_error( $client->get_error_message() );
-        }
-
-        // Get Merchant ID from Settings
-        $scan_config = get_option( 'cirrusly_scan_config' );
-        $merchant_id = isset( $scan_config['merchant_id_pro'] ) ? $scan_config['merchant_id_pro'] : '';
-
-        // Fallback for legacy installs
-        if ( empty( $merchant_id ) ) {
-            $merchant_id = get_option( 'cirrusly_gmc_merchant_id', '' );
-        }
-
-        if ( empty( $merchant_id ) ) {
-            wp_send_json_error( 'Merchant ID missing.' );
-        }
-
-        $service = new Google\Service\ShoppingContent( $client );
 
         try {
-            $resp = $service->promotions->listPromotions( $merchant_id, array('pageSize' => 50) );
-            $list = $resp->getPromotions();
+            // CACHE CHECK
+            $force = isset($_POST['force_refresh']) && $_POST['force_refresh'] == '1';
+            $cache = get_transient( 'cirrusly_gmc_promos_cache' );
             
+            if ( ! $force && false !== $cache ) {
+                wp_send_json_success( $cache );
+                return;
+            }
 
-            $output = array();
-            if ( ! empty( $list ) ) {
-                foreach ( $list as $p ) {
-                    // Parse Date Range
-                    $range_str = '';
-                    $end_timestamp = 0;
-                    
-                    $period = $p->getPromotionEffectiveTimePeriod();
-                    if ( $period ) {
-                        $start_iso = $period->getStartTime(); 
-                        $end_iso   = $period->getEndTime();
-                        
-                        if ( $start_iso && $end_iso ) {
-                            $start = substr( $start_iso, 0, 10 );
-                            $end   = substr( $end_iso, 0, 10 );
-                            $range_str = $start . '/' . $end;
-                            $end_timestamp = strtotime( $end_iso );
-                        }
-                    }
-                    
-                    // Status Logic
-                    $status = 'unknown';
-                    $pStats = $p->getPromotionStatus(); 
-                                         
-                    if ( $pStats && method_exists( $pStats, 'getDestinationStatuses' ) ) {
-                        $d_statuses = $pStats->getDestinationStatuses();
-                        $is_rejected = false;
-                        $is_expired  = false;
-                        $is_live     = false;
-                        $is_pending  = false;
-                        
-                        $found_statuses = array();
+            if ( ! class_exists( 'Cirrusly_Commerce_Google_API_Client' ) ) {
+                wp_send_json_error( 'Google API Client missing.' );
+            }
 
-                        if ( ! empty( $d_statuses ) ) {
-                            foreach ( $d_statuses as $ds ) {
-                                $s = strtoupper( $ds->getStatus() );
-                                $found_statuses[] = $s;
-
-                                if ( 'REJECTED' === $s || 'DISAPPROVED' === $s ) $is_rejected = true;
-                                if ( 'EXPIRED' === $s ) $is_expired = true;
-                                if ( 'LIVE' === $s || 'APPROVED' === $s || 'ACTIVE' === $s ) $is_live = true;
-                                if ( 'PENDING' === $s || 'IN_REVIEW' === $s || 'READY_FOR_REVIEW' === $s ) $is_pending = true;
-                            }
-
-                            if ( $is_rejected ) {
-                                $status = 'rejected';
-                            } elseif ( $is_pending ) {
-                                $status = 'pending';
-                            } elseif ( $is_live ) {
-                                $status = 'active';
-                            } elseif ( $is_expired ) {
-                                $status = 'expired';
-                            } else {
-                                if ( !empty($found_statuses) ) {
-                                    $status = strtolower($found_statuses[0]);
-                                }
-                            }
-                        }
-                    }
-
-                    if ( 'unknown' === $status ) {
-                        if ( $end_timestamp > 0 && $end_timestamp < time() ) {
-                            $status = 'expired';
-                        } else {
-                            $status = 'pending';
-                        }
-                    }
-
-                    $output[] = array(
-                        'id'    => $p->getPromotionId(),
-                        'title' => $p->getLongTitle(),
-                        'dates' => $range_str,
-                        'app'   => $p->getProductApplicability(),
-                        'type'  => $p->getOfferType(),
-                        'code'  => $p->getGenericRedemptionCode(),
-                        'status'=> $status
-                    );
+            // Call the service worker with promo_list action
+            $result = Cirrusly_Commerce_Google_API_Client::request( 'promo_list', array() );
+            
+            if ( is_wp_error( $result ) ) {
+                if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+                    error_log( 'Cirrusly Promotions List Error: ' . $result->get_error_message() );
                 }
+                wp_send_json_error( 'Failed to retrieve promotions: ' . $result->get_error_message() );
             }
             
-            set_transient( 'cirrusly_gmc_promos_cache', $output, 1 * HOUR_IN_SECONDS );
-            wp_send_json_success( $output );
-
+            // Service worker returns: { "promotions": [ ... ], "success": true }
+            $promotions = isset( $result['promotions'] ) ? $result['promotions'] : array();
+            
+            if ( ! is_array( $promotions ) ) {
+                if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+                    error_log( 'Cirrusly Promotions: Invalid response format. Expected array, got: ' . gettype( $promotions ) );
+                }
+                wp_send_json_error( 'Invalid promotions data format from service worker.' );
+            }
+            
+            set_transient( 'cirrusly_gmc_promos_cache', $promotions, 1 * HOUR_IN_SECONDS );
+            wp_send_json_success( $promotions );
         } catch ( Exception $e ) {
-            wp_send_json_error( 'Google API Error: ' . $e->getMessage() );
+            if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+                error_log( 'Cirrusly Promotions List Exception: ' . $e->getMessage() . ' at ' . $e->getFile() . ':' . $e->getLine() );
+            }
+            wp_send_json_error( 'An error occurred: ' . $e->getMessage() );
         }
     }
 
@@ -301,7 +136,12 @@ class Cirrusly_Commerce_GMC_Pro {
      * Handle an AJAX request to create and submit a Promotion to the Google Shopping Content API.
      */
     public function handle_promo_api_submit() {
-        check_ajax_referer( 'cirrusly_promo_api_submit', '_nonce' );
+        // Get and verify nonce with debug logging
+        $nonce = isset( $_POST['security'] ) ? sanitize_text_field( wp_unslash( $_POST['security'] ) ) : '';
+        
+        if ( ! $nonce || wp_verify_nonce( $nonce, 'cirrusly_promo_api_submit' ) === 0 ) {
+            wp_send_json_error( 'Nonce verification failed.' );
+        }
 
         if ( ! current_user_can( 'manage_woocommerce' ) ) {
             wp_send_json_error( 'Insufficient permissions.' );
@@ -311,112 +151,66 @@ class Cirrusly_Commerce_GMC_Pro {
             wp_send_json_error( 'Pro version required for API access.' );
         }
 
-        if ( ! class_exists( 'Cirrusly_Commerce_Google_API_Client' ) ) {
-            wp_send_json_error( 'Google API Client missing.' );
-        }
-
-        $client = Cirrusly_Commerce_Google_API_Client::get_client();
-        if ( is_wp_error( $client ) ) {
-            wp_send_json_error( $client->get_error_message() );
-        }
-
-        $scan_config = get_option( 'cirrusly_scan_config' );
-        $merchant_id = isset( $scan_config['merchant_id_pro'] ) ? $scan_config['merchant_id_pro'] : '';
-        
-        if ( empty( $merchant_id ) ) {
-            $merchant_id = get_option( 'cirrusly_gmc_merchant_id', '' );
-        }
-
-        if ( empty( $merchant_id ) ) {
-            wp_send_json_error( 'Merchant ID not configured.' );
-        }
-
-        // Extract and Sanitize POST data using custom prefix
-        $raw_data = isset( $_POST['cirrusly_promo_data'] ) ? wp_unslash( $_POST['cirrusly_promo_data'] ) : array();
-        
-        // Sanitize the whole array at once since we expect text fields
-        $data  = is_array( $raw_data ) ? array_map( 'sanitize_text_field', $raw_data ) : array();
-
-        $id    = isset( $data['id'] ) ? $data['id'] : '';
-        $title = isset( $data['title'] ) ? $data['title'] : '';
-
-        if ( '' === $id || '' === $title ) {
-            wp_send_json_error( 'Promotion ID and Title are required.' );
-        }
-        
-        $service = new Google\Service\ShoppingContent( $client );
-
         try {
-            $promo = new Google\Service\ShoppingContent\Promotion();
-            $promo->setPromotionId( $id );
-            $promo->setLongTitle( $title );
+
+            if ( ! class_exists( 'Cirrusly_Commerce_Google_API_Client' ) ) {
+                wp_send_json_error( 'Google API Client missing.' );
+            }
+
+            // Extract and Sanitize POST data
+            $raw_data = isset( $_POST['cirrusly_promo_data'] ) ? wp_unslash( $_POST['cirrusly_promo_data'] ) : array();
+            $data  = is_array( $raw_data ) ? array_map( 'sanitize_text_field', $raw_data ) : array();
+
+            $id    = isset( $data['id'] ) ? $data['id'] : '';
+            $title = isset( $data['title'] ) ? $data['title'] : '';
+
+            if ( '' === $id || '' === $title ) {
+                wp_send_json_error( 'Promotion ID and Title are required.' );
+            }
+            
+            $scan_config = get_option( 'cirrusly_scan_config', array() );
             $content_lang = isset( $scan_config['content_language'] ) ? $scan_config['content_language'] : substr( get_locale(), 0, 2 );
             $target_country = isset( $scan_config['target_country'] ) ? $scan_config['target_country'] : WC()->countries->get_base_country();
-            $promo->setContentLanguage( $content_lang );
-            $promo->setTargetCountry( $target_country );
-            $promo->setRedemptionChannel( array( 'ONLINE' ) );
-
-            // 1. Parse Dates (Format: YYYY-MM-DD/YYYY-MM-DD)
-            $dates_raw = isset( $data['dates'] ) ? $data['dates'] : '';
-            if ( ! empty( $dates_raw ) && strpos( $dates_raw, '/' ) !== false ) {
-                list( $start_str, $end_str ) = explode( '/', $dates_raw );
-                
-                if ( ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $start_str ) || ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $end_str ) ) {
-                  wp_send_json_error( 'Invalid date format. Expected YYYY-MM-DD/YYYY-MM-DD.' );
-                }
-                
-                // Calculate UTC times
-                $tz_string = get_option( 'timezone_string' );
-                if ( ! $tz_string ) {
-                    $offset  = get_option( 'gmt_offset' );
-                    $hours   = (int) $offset;
-                    $minutes = abs( ( $offset - $hours ) * 60 );
-                    $tz_string = sprintf( '%+03d:%02d', $hours, $minutes );
-                }
-
-                try {
-                    $site_tz = new DateTimeZone( $tz_string );
-                } catch ( Exception $e ) {
-                    $site_tz = new DateTimeZone( 'UTC' );
-                }
-                $utc_tz = new DateTimeZone( 'UTC' );
-
-                $dt_start = new DateTime( $start_str . ' 00:00:00', $site_tz );
-                $dt_end   = new DateTime( $end_str . ' 23:59:59', $site_tz );
-
-                $dt_start->setTimezone( $utc_tz );
-                $dt_end->setTimezone( $utc_tz );
-
-                $period = new Google\Service\ShoppingContent\TimePeriod();
-                $period->setStartTime( $dt_start->format( 'Y-m-d\TH:i:s\Z' ) );
-                $period->setEndTime( $dt_end->format( 'Y-m-d\TH:i:s\Z' ) );
-                $promo->setPromotionEffectiveTimePeriod( $period );
-            }
-
-            // 2. Product Applicability
-            $app_val = isset( $data['app'] ) ? $data['app'] : 'ALL_PRODUCTS';
-            $promo->setProductApplicability( $app_val );
-
-            // 3. Offer Type & Generic Code
-            $type_val = isset( $data['type'] ) ? $data['type'] : 'NO_CODE';
-            $promo->setOfferType( $type_val );
             
-            if ( 'GENERIC_CODE' === $type_val ) {
-                if ( empty( $data['code'] ) ) {
-                    wp_send_json_error( 'Redemption code is required for GENERIC_CODE promotions.' );
-                }
-                $promo->setGenericRedemptionCode( $data['code'] );
+            // Build payload for service worker
+            $payload = array(
+                'id'              => $id,
+                'title'           => $title,
+                'content_lang'    => $content_lang,
+                'target_country'  => $target_country,
+                'applicability'   => isset( $data['app'] ) ? $data['app'] : 'ALL_PRODUCTS',
+                'offer_type'      => isset( $data['type'] ) ? $data['type'] : 'NO_CODE',
+                'generic_code'    => isset( $data['code'] ) ? $data['code'] : '',
+            );
+            
+            // Parse dates if provided
+            if ( ! empty( $data['dates'] ) && strpos( $data['dates'], '/' ) !== false ) {
+                list( $start_date, $end_date ) = explode( '/', $data['dates'] );
+                $payload['dates'] = array(
+                    'start' => $start_date . 'T00:00:00Z',
+                    'end'   => $end_date . 'T23:59:59Z'
+                );
             }
 
-            // Send to Google
-            $service->promotions->create( $merchant_id, $promo );
-
-            // Clear Cache
+            // Call the service worker with submit_promotion action
+            $result = Cirrusly_Commerce_Google_API_Client::request( 'submit_promotion', $payload );
+            
+            if ( is_wp_error( $result ) ) {
+                if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+                    error_log( 'Cirrusly Promotion Submit Error: ' . $result->get_error_message() );
+                }
+                wp_send_json_error( 'Failed to submit promotion: ' . $result->get_error_message() );
+            }
+            
+            // Clear promotion cache after submission
             delete_transient( 'cirrusly_gmc_promos_cache' );
-
-            wp_send_json_success( 'Promotion submitted successfully!' );
+            
+            wp_send_json_success( array( 'msg' => 'Promotion submitted successfully.' ) );
         } catch ( Exception $e ) {
-            wp_send_json_error( 'Google Error: ' . $e->getMessage() );
+            if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+                error_log( 'Cirrusly Promotion Submit Exception: ' . $e->getMessage() . ' at ' . $e->getFile() . ':' . $e->getLine() );
+            }
+            wp_send_json_error( 'An error occurred: ' . $e->getMessage() );
         }
     }
 
@@ -467,10 +261,26 @@ class Cirrusly_Commerce_GMC_Pro {
         if ( ! $violation_found && isset( $scan_cfg['enable_nlp_guard'] ) && 'yes' === $scan_cfg['enable_nlp_guard'] ) {
              $nlp_res = $this->analyze_text_with_nlp( $title_clean . ' ' . substr($desc_clean, 0, 500), $post_id );
              if ( ! is_wp_error( $nlp_res ) ) {
-                 foreach ( $nlp_res->getEntities() as $entity ) {
+                 // Handle both service worker response format (array) and Google SDK format (object with methods)
+                 $entities = array();
+                 if ( is_array( $nlp_res ) ) {
+                     $entities = $nlp_res;
+                 } elseif ( is_object( $nlp_res ) ) {
+                     if ( isset( $nlp_res->entities ) ) {
+                         $entities = $nlp_res->entities;
+                     } elseif ( method_exists( $nlp_res, 'getEntities' ) ) {
+                         $entities = $nlp_res->getEntities();
+                     }
+                 }
+                 
+                 foreach ( $entities as $entity ) {
+                     // Handle both array and object entity formats
+                     $entity_type = is_array( $entity ) ? ( $entity['type'] ?? '' ) : ( is_object( $entity ) && method_exists( $entity, 'getType' ) ? $entity->getType() : '' );
+                     $e_name = is_array( $entity ) ? ( $entity['name'] ?? '' ) : ( is_object( $entity ) && method_exists( $entity, 'getName' ) ? $entity->getName() : '' );
+                     $e_name = strtolower( $e_name );
+                     
                      // Check for restricted entity types 
-                     if ( 'EVENT' === $entity->getType() || 'OTHER' === $entity->getType() ) {
-                         $e_name = strtolower( $entity->getName() );
+                     if ( 'EVENT' === $entity_type || 'OTHER' === $entity_type ) {
                          if ( strpos( $e_name, 'virus' ) !== false || strpos( $e_name, 'covid' ) !== false ) {
                              $violation_found = true;
                              break;
@@ -609,12 +419,26 @@ class Cirrusly_Commerce_GMC_Pro {
         $issues = array();
         $banned_orgs = array( 'fda', 'cdc', 'who', 'medicare', 'government' );
 
-        foreach ( $nlp_result->getEntities() as $entity ) {
-            $type = $entity->getType();
-            $name = strtolower( $entity->getName() );
+        // Handle both service worker response format (simple array) and Google SDK format (object with methods)
+        $entities = array();
+        if ( is_array( $nlp_result ) ) {
+            $entities = $nlp_result;
+        } elseif ( is_object( $nlp_result ) ) {
+            if ( isset( $nlp_result->entities ) ) {
+                $entities = $nlp_result->entities;
+            } elseif ( method_exists( $nlp_result, 'getEntities' ) ) {
+                $entities = $nlp_result->getEntities();
+            }
+        }
+
+        foreach ( $entities as $entity ) {
+            // Handle both array and object entity formats
+            $type = is_array( $entity ) ? ( $entity['type'] ?? '' ) : ( is_object( $entity ) && method_exists( $entity, 'getType' ) ? $entity->getType() : '' );
+            $name = is_array( $entity ) ? ( $entity['name'] ?? '' ) : ( is_object( $entity ) && method_exists( $entity, 'getName' ) ? $entity->getName() : '' );
+            
+            $name = strtolower( $name );
 
             // 1. False Affiliation (Organization)
-            // If the entity is a prominent organization and it's salient in the text, it implies endorsement.
             if ( 'ORGANIZATION' === $type && in_array( $name, $banned_orgs ) ) {
                 $issues[] = array(
                     'type' => 'critical',
@@ -623,13 +447,14 @@ class Cirrusly_Commerce_GMC_Pro {
                 );
             }
 
-            // 2. Sensitive Events (Virus/Pandemic) - Expanded from Regex
+            // 2. Sensitive Events (Virus/Pandemic)
             if ( 'EVENT' === $type ) {
                 if ( strpos( $name, 'virus' ) !== false || strpos( $name, 'covid' ) !== false || strpos( $name, 'pandemic' ) !== false ) {
-                     $issues[] = array(
+                    $entity_name = is_array( $entity ) ? ( $entity['name'] ?? 'Unknown' ) : ( is_object( $entity ) && method_exists( $entity, 'getName' ) ? $entity->getName() : 'Unknown' );
+                    $issues[] = array(
                         'type'   => 'critical',
                         'msg'    => 'Sensitive Event Detected (NLP)',
-                        'reason' => 'Reference to sensitive health event: ' . $entity->getName()
+                        'reason' => 'Reference to sensitive health event: ' . $entity_name
                     );
                 }
             }
@@ -639,6 +464,7 @@ class Cirrusly_Commerce_GMC_Pro {
 
     /**
      * Analyze plain text with Google Cloud Natural Language and extract entities.
+     * Uses the service worker for API communication.
      * Caches results to Post Meta to prevent redundant API calls.
      */
     public function analyze_text_with_nlp( $text, $post_id ) {
@@ -659,43 +485,35 @@ class Cirrusly_Commerce_GMC_Pro {
         $cached_data = get_post_meta( $post_id, '_cirrusly_nlp_cache', true );
         $cache_ttl = 7 * DAY_IN_SECONDS;
         if ( is_array( $cached_data ) && isset( $cached_data['hash'], $cached_data['time'] ) && $cached_data['hash'] === $text_hash && ( time() - $cached_data['time'] ) < $cache_ttl ) {
-            if ( class_exists( 'Google\Service\CloudNaturalLanguage\AnnotateTextResponse' ) ) {
-                return new Google\Service\CloudNaturalLanguage\AnnotateTextResponse( $cached_data['response'] );
-            }
-            return $cached_data['response'];
+            // Return cached response as array (converted from service worker format)
+            return isset( $cached_data['response'] ) ? $cached_data['response'] : new WP_Error( 'cache_invalid', 'Cached NLP response invalid.' );
         }
 
         if ( ! class_exists( 'Cirrusly_Commerce_Google_API_Client' ) ) {
             return new WP_Error( 'missing_client', 'Google API Client not loaded.' );
         }
 
-        $client = Cirrusly_Commerce_Google_API_Client::get_client();
-        if ( is_wp_error( $client ) ) {
-            return $client;
+        // Call the service worker with nlp_analyze action
+        $payload = array( 'text' => $text );
+        $result = Cirrusly_Commerce_Google_API_Client::request( 'nlp_analyze', $payload );
+        
+        if ( is_wp_error( $result ) ) {
+            return $result;
         }
 
-        $service = new Google\Service\CloudNaturalLanguage( $client );
-        $document = new Google\Service\CloudNaturalLanguage\Document();
-        $document->setType( 'PLAIN_TEXT' );
-        $document->setContent( $text );
-
-        $features = new Google\Service\CloudNaturalLanguage\AnnotateTextRequestFeatures();
-        $features->setExtractEntities( true );
-
-        $request = new Google\Service\CloudNaturalLanguage\AnnotateTextRequest();
-        $request->setDocument( $document );
-        $request->setFeatures( $features );
-
-        try {
-            $results = $service->documents->annotateText( $request );
-            update_post_meta( $post_id, '_cirrusly_nlp_cache', array(
-                'hash'     => $text_hash,
-                'response' => json_decode( json_encode( $results->toSimpleObject() ), true ),
-                'time'     => time()
-            ));
-            return $results;
-        } catch ( Exception $e ) {
-            return new WP_Error( 'nlp_error', $e->getMessage() );
-        }
+        // Service worker returns: { "entities": [ { "name": "...", "type": "...", "salience": ... } ] }
+        $entities = isset( $result['entities'] ) ? $result['entities'] : array();
+        
+        // Cache the result
+        update_post_meta( $post_id, '_cirrusly_nlp_cache', array(
+            'hash'     => $text_hash,
+            'response' => $entities,
+            'time'     => time()
+        ));
+        
+        // Return a simple object that has getEntities() method for backward compatibility
+        $response_obj = new stdClass();
+        $response_obj->entities = $entities;
+        return $response_obj;
     }
 }
